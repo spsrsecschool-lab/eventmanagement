@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1b1322">
+<title>Gate Scanner</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700;800&family=Noto+Sans+Devanagari:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#15101b;--card:#221a2c;--text:#f4eef8;--muted:#a79bb3;--line:#3a2f47;--ok:#1f9d55;--warn:#d69e2e;--bad:#d64545;--info:#7b5cd6}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--text);font:16px/1.45 'Noto Sans','Noto Sans Devanagari',system-ui,sans-serif;padding-bottom:calc(30px + env(safe-area-inset-bottom))}
+  .hide{display:none!important}
+  header{position:sticky;top:0;z-index:10;background:#1b1322;border-bottom:1px solid var(--line);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  header .who{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  header button{background:#2f2540;color:var(--text);border:0;border-radius:8px;padding:7px 12px;font:inherit;font-size:13px}
+  main{max-width:560px;margin:0 auto;padding:12px}
+  .count{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 16px;text-align:center;margin-bottom:12px}
+  .count b{font-size:30px}
+  .bar{height:8px;border-radius:8px;background:var(--line);margin-top:8px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s}
+  #result{border-radius:18px;padding:22px 16px;text-align:center;margin-bottom:12px;background:var(--card);border:2px solid var(--line);min-height:170px;display:flex;flex-direction:column;justify-content:center}
+  #result .big{font-size:34px;font-weight:800;line-height:1.1}
+  #result .ico{font-size:46px;line-height:1}
+  #result .name{font-size:26px;font-weight:700;margin-top:10px;word-break:break-word}
+  #result .sub{font-size:16px;opacity:.92;margin-top:4px}
+  #result.ok{background:var(--ok);border-color:#57d68d;color:#fff}
+  #result.used{background:var(--warn);border-color:#f6d365;color:#2b1d00}
+  #result.bad{background:var(--bad);border-color:#ff8a8a;color:#fff}
+  #result.nv{background:var(--info);border-color:#b39dff;color:#fff}
+  #result.idle .big{font-size:20px;color:var(--muted);font-weight:600}
+  .cam{background:#000;border-radius:14px;overflow:hidden;margin-bottom:10px;position:relative;min-height:60px}
+  #reader{width:100%}
+  .row{display:flex;gap:8px}
+  button.b{font:inherit;font-weight:700;border:0;border-radius:12px;padding:13px 16px;background:#6a4bd6;color:#fff;cursor:pointer;flex:1}
+  button.b.sec{background:#2f2540}
+  button.b.bad{background:#7a2d2d}
+  button:disabled{opacity:.5}
+  input[type=text],input[type=email],input[type=password]{width:100%;font:inherit;font-size:18px;color:var(--text);background:#2a2135;border:1px solid var(--line);border-radius:12px;padding:13px;outline:none;letter-spacing:.5px}
+  label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+  h3{margin:18px 0 8px;font-size:15px;color:var(--muted);font-weight:600}
+  .rs{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
+  .rs:last-child{border-bottom:0}
+  .tag{font-size:12px;font-weight:800;border-radius:999px;padding:3px 10px;white-space:nowrap}
+  .tag.ok{background:#1f9d5533;color:#6ee7a0}.tag.already_used{background:#d69e2e33;color:#ffd27a}.tag.invalid{background:#d6454533;color:#ff9a9a}
+  .tag.not_valid{background:#7b5cd633;color:#c9b8ff}.tag.undone{background:#ffffff22;color:#ddd}
+  .login{max-width:380px;margin:12vh auto;padding:0 16px}
+  .err{color:#ff9a9a;font-size:14px;margin:10px 0}
+  .msg{font-size:13px;color:var(--muted);margin:4px 0 10px}
+</style>
+</head>
+<body>
+
+<section id="login" class="login hide">
+  <h2 style="text-align:center">Gate Scanner</h2>
+  <div class="card">
+    <label for="lg_email">Email</label><input id="lg_email" type="email" autocomplete="username" inputmode="email">
+    <label for="lg_pw">Password</label><input id="lg_pw" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <div id="lg_err" class="err"></div>
+    <button class="b" style="width:100%" onclick="doLogin()">Sign in</button>
+  </div>
+</section>
+
+<div id="app" class="hide">
+  <header><span class="who" id="who"></span><button onclick="doLogout()">Sign out</button></header>
+  <main>
+    <div class="count"><b id="cnt">– of –</b> <span style="color:var(--muted)">checked in</span><div class="bar"><i id="cntBar"></i></div></div>
+
+    <div id="result" class="idle"><div class="big">Ready to scan</div></div>
+
+    <div class="cam"><div id="reader"></div></div>
+    <div class="row" style="margin-bottom:10px">
+      <button class="b" id="camBtn" onclick="toggleCam()">Start camera</button>
+      <button class="b sec" onclick="$('photo').click()">Scan from photo</button>
+    </div>
+    <input id="photo" type="file" accept="image/*" class="hide" onchange="scanPhoto(this)">
+    <div id="fileReader" class="hide"></div>
+
+    <div class="card">
+      <label style="margin-top:0" for="manual">Type the ticket code</label>
+      <div class="row"><input id="manual" type="text" autocapitalize="characters" autocomplete="off" placeholder="TKT-XXXXXXXXXX" onkeydown="if(event.key==='Enter')manualGo()"><button class="b" style="flex:0 0 auto" onclick="manualGo()">Check</button></div>
+    </div>
+
+    <button class="b bad" style="width:100%" id="undoBtn" onclick="undoLast()">Undo last check-in</button>
+
+    <h3>Recent scans</h3>
+    <div class="card" style="padding:0" id="recent"><div class="msg" style="padding:12px">No scans yet.</div></div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+// ───────────── CONFIG ─────────────
+var SUPABASE_URL = 'https://iuvxavsuoiekrjnylxpy.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_RAac6qm2v3UEhQx4H4DJ-Q_xxuPy9mv';   // publishable key
+// ──────────────────────────────────
+
+var sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+var cam = null, camOn = false, busy = false, lastCode = '', lastAt = 0, statTimer = null;
+function $(id) { return document.getElementById(id); }
+function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function fmtTime(ts) { return ts ? new Date(ts).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', second: '2-digit' }) : ''; }
+function isStaff(ses) { var r = ses && ses.user && (ses.user.app_metadata || {}).role; return r === 'scanner' || r === 'admin'; }
+
+// ───────────── auth ─────────────
+async function boot() {
+  var ses = (await sb.auth.getSession()).data.session;
+  if (isStaff(ses)) return start(ses);
+  if (ses) await sb.auth.signOut();
+  $('login').classList.remove('hide');
+}
+async function doLogin() {
+  $('lg_err').textContent = '';
+  var r = await sb.auth.signInWithPassword({ email: $('lg_email').value.trim(), password: $('lg_pw').value });
+  if (r.error) { $('lg_err').textContent = r.error.message; return; }
+  if (!isStaff(r.data.session)) { await sb.auth.signOut(); $('lg_err').textContent = 'This login cannot use the scanner.'; return; }
+  $('login').classList.add('hide'); start(r.data.session);
+}
+async function doLogout() { await stopCam(); await sb.auth.signOut(); location.reload(); }
+function revoked() { alert('Your scanner login is no longer active. Please contact the organiser.'); doLogout(); }
+
+function start(ses) {
+  $('app').classList.remove('hide');
+  $('who').textContent = ses.user.email;
+  refreshStats(); refreshRecent();
+  statTimer = setInterval(function () { refreshStats(); refreshRecent(); }, 20000);
+  toggleCam();
+}
+
+// ───────────── camera ─────────────
+async function toggleCam() {
+  if (camOn) return stopCam();
+  try {
+    if (!cam) cam = new Html5Qrcode('reader', { verbose: false });
+    await cam.start({ facingMode: 'environment' }, { fps: 10, qrbox: function (w, h) { var s = Math.floor(Math.min(w, h) * 0.75); return { width: s, height: s }; } },
+      onDecoded, function () {});
+    camOn = true; $('camBtn').textContent = 'Stop camera';
+  } catch (e) {
+    camOn = false; $('camBtn').textContent = 'Start camera';
+    showMsg('Camera not available: ' + (e && e.message || e) + '. Use the photo or typed-code options below.');
+  }
+}
+async function stopCam() {
+  try { if (cam && camOn) await cam.stop(); } catch (e) {}
+  camOn = false; $('camBtn').textContent = 'Start camera';
+}
+function onDecoded(text) {
+  var code = String(text || '').trim().toUpperCase(), now = Date.now();
+  if (busy) return;
+  if (code === lastCode && now - lastAt < 4000) return;      // ignore the same QR still in front of the camera
+  lastCode = code; lastAt = now; checkCode(code);
+}
+async function scanPhoto(inp) {
+  var f = inp.files && inp.files[0]; inp.value = ''; if (!f) return;
+  try {
+    var r = new Html5Qrcode('fileReader', { verbose: false });
+    var text = await r.scanFile(f, false);
+    try { r.clear(); } catch (e) {}
+    checkCode(String(text).trim().toUpperCase());
+  } catch (e) { showResult({ result: 'invalid' }, 'No QR code found in that photo'); }
+}
+function manualGo() {
+  var c = $('manual').value.trim().toUpperCase().replace(/\s+/g, '');
+  if (!c) return;
+  if (/^[A-Z0-9]{10}$/.test(c)) c = 'TKT-' + c;
+  $('manual').value = ''; checkCode(c);
+}
+
+// ───────────── check-in ─────────────
+async function checkCode(code) {
+  if (busy) return; busy = true;
+  try {
+    var r = await sb.rpc('check_in', { p_code: code });
+    if (r.error) { if (/FORBIDDEN/.test(r.error.message)) return revoked(); throw r.error; }
+    showResult(r.data);
+  } catch (e) { showMsg('Could not check the ticket: ' + (e && e.message || e) + '. Try again.'); }
+  busy = false; refreshStats(); refreshRecent();
+}
+function buzz(pattern) { try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) {} }
+function showResult(r, note) {
+  var el = $('result'), h = '';
+  el.className = '';
+  if (r.result === 'ok') {
+    el.className = 'ok'; buzz(120);
+    h = '<div class="ico">✔</div><div class="big">VALID — ENTRY OK</div><div class="name">' + esc(r.attendee_name) + '</div><div class="sub">' + esc(r.type_name) + '</div>';
+  } else if (r.result === 'already_used') {
+    el.className = 'used'; buzz([200, 100, 200]);
+    h = '<div class="ico">⚠</div><div class="big">ALREADY USED</div><div class="name">' + esc(r.attendee_name) + '</div><div class="sub">' + esc(r.type_name) + '</div><div class="sub"><b>Used at ' + esc(fmtTime(r.used_at)) + '</b></div>';
+  } else if (r.result === 'not_valid') {
+    el.className = 'nv'; buzz([300, 100, 300]);
+    h = '<div class="ico">⛔</div><div class="big">NOT VALID</div><div class="sub">This order is not approved.</div><div class="name">' + esc(r.attendee_name || '') + '</div>';
+  } else {
+    el.className = 'bad'; buzz([400]);
+    h = '<div class="ico">✖</div><div class="big">INVALID TICKET</div><div class="sub">' + esc(note || 'This code is not a ticket for this event.') + '</div>';
+  }
+  el.innerHTML = h;
+}
+function showMsg(m) { var el = $('result'); el.className = 'idle'; el.innerHTML = '<div class="big">' + esc(m) + '</div>'; }
+
+async function undoLast() {
+  if (!confirm('Undo your last successful check-in?')) return;
+  var r = await sb.rpc('undo_check_in');
+  if (r.error) { if (/FORBIDDEN/.test(r.error.message)) return revoked(); return showMsg('Undo failed: ' + r.error.message); }
+  if (r.data.result === 'undone') {
+    var el = $('result'); el.className = 'idle'; el.innerHTML = '<div class="ico">↩</div><div class="big">Check-in undone</div><div class="sub">' + esc(r.data.attendee_name || r.data.code) + ' can be scanned again.</div>';
+    lastCode = '';
+  } else showMsg('Nothing to undo.');
+  refreshStats(); refreshRecent();
+}
+
+// ───────────── counter + recent ─────────────
+async function refreshStats() {
+  var r = await sb.rpc('scan_stats'); if (r.error || !r.data) return;
+  var c = r.data.checked_in, t = r.data.total;
+  $('cnt').textContent = c + ' of ' + t; $('cntBar').style.width = (t ? Math.round(c * 100 / t) : 0) + '%';
+}
+var LABEL = { ok: 'Valid', already_used: 'Already used', invalid: 'Invalid', not_valid: 'Not valid', undone: 'Undone' };
+async function refreshRecent() {
+  var r = await sb.rpc('recent_scans', { p_limit: 15 }); if (r.error || !r.data) return;
+  $('recent').innerHTML = r.data.length ? r.data.map(function (x) {
+    return '<div class="rs"><div style="min-width:0"><div style="font-weight:600;overflow:hidden;text-overflow:ellipsis">' + esc(x.attendee_name || x.code || '?') + (x.undone ? ' <span class="msg">(undone)</span>' : '') +
+      '</div><div class="msg" style="margin:0">' + esc(x.type_name || '') + ' · ' + esc(fmtTime(x.created_at)) + '</div></div><span class="tag ' + esc(x.result) + '">' + esc(LABEL[x.result] || x.result) + '</span></div>';
+  }).join('') : '<div class="msg" style="padding:12px">No scans yet.</div>';
+}
+
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "sps-tickets-admin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Admin site + serverless functions for the event ticketing system",
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "nodemailer": "^6.9.14",
+    "pdfkit": "^0.15.0",
+    "qrcode": "^1.5.4"
+  }
+}

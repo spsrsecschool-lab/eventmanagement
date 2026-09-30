@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Event Tickets</title>
+<meta name="theme-color" content="#1f0823">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Noto fonts are always loaded: the on-screen ticket uses them so it matches the PDF (Hindi names too) -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Sans+Devanagari:wght@400;700&display=swap" rel="stylesheet">
+<link id="themeFont" rel="stylesheet" href="">
+<style>
+  :root{
+    --primary:#f5b83d; --bg:#1f0823; --card:#321037; --text:#fdf3e3; --accent:#f5cc6a; --btntext:#2b0a30;
+    --radius:14px; --font:'Poppins','Noto Sans Devanagari',sans-serif;
+    --muted:color-mix(in srgb, var(--text) 68%, transparent);
+    --line:color-mix(in srgb, var(--text) 16%, transparent);
+    --field:color-mix(in srgb, var(--text) 8%, var(--card));
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.5;min-height:100vh;
+       padding-bottom:env(safe-area-inset-bottom)}
+  a{color:var(--accent)}
+  .wrap{max-width:640px;margin:0 auto;padding:0 16px 40px}
+  .banner{width:100%;aspect-ratio:16/7;object-fit:cover;display:block;background:var(--card)}
+  .hero{padding:18px 0 4px;text-align:center}
+  .logo{width:72px;height:72px;object-fit:contain;border-radius:calc(var(--radius) - 2px);margin:-44px auto 8px;display:block;background:var(--card);border:2px solid var(--bg)}
+  h1{font-size:28px;line-height:1.15;margin:6px 0 8px;color:var(--accent)}
+  h2{font-size:18px;margin:26px 0 10px}
+  .meta{color:var(--muted);font-size:14px;margin:2px 0}
+  .desc{white-space:pre-wrap;margin:14px 0;color:var(--text)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin:12px 0}
+  .row{display:flex;gap:12px;align-items:center;justify-content:space-between}
+  .tname{font-weight:600;font-size:17px}
+  .price{font-weight:700;font-size:20px;color:var(--accent);white-space:nowrap}
+  .sub{color:var(--muted);font-size:13px}
+  .pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--line)}
+  .pill.ok{background:#1e6b3a33;border-color:#2fb36a;color:#6ee7a0}
+  .pill.warn{background:#a8700033;border-color:#e0a030;color:#ffd27a}
+  .pill.bad{background:#8a1c1c33;border-color:#e05555;color:#ff9a9a}
+  button,.btn{font-family:inherit;font-size:16px;font-weight:600;border:0;border-radius:var(--radius);padding:13px 18px;cursor:pointer;
+       background:var(--primary);color:var(--btntext);text-decoration:none;display:inline-block;text-align:center}
+  button:disabled{opacity:.55;cursor:default}
+  .btn.ghost,button.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+  .btn.block,button.block{display:block;width:100%}
+  label{display:block;font-size:13px;font-weight:600;margin:14px 0 5px;color:var(--muted)}
+  input,select,textarea{width:100%;font-family:inherit;font-size:16px;color:var(--text);background:var(--field);border:1px solid var(--line);
+       border-radius:calc(var(--radius) - 4px);padding:12px;outline:none}
+  input:focus,select:focus{border-color:var(--primary)}
+  input.bad{border-color:#ff6b6b}
+  .err{background:#8a1c1c44;border:1px solid #e05555;color:#ffb3b3;border-radius:calc(var(--radius) - 4px);padding:10px 12px;margin:14px 0;font-size:14px;display:none}
+  .err.show{display:block}
+  .steps{display:flex;gap:6px;margin:16px 0}
+  .steps i{flex:1;height:5px;border-radius:5px;background:var(--line)}
+  .steps i.on{background:var(--primary)}
+  .steplabel{font-size:13px;color:var(--muted);margin-bottom:2px}
+  .terms{font-size:13px;color:var(--muted);white-space:pre-wrap;border-top:1px solid var(--line);margin-top:18px;padding-top:12px}
+  .total{font-size:34px;font-weight:700;color:var(--accent);text-align:center;margin:6px 0}
+  .qr{display:block;margin:10px auto;width:min(280px,80%);aspect-ratio:1;object-fit:contain;background:#fff;border-radius:12px;padding:8px}
+  .instr{white-space:pre-wrap;font-size:14px;color:var(--text)}
+  .tick{margin:14px 0;border-radius:calc(var(--radius) - 2px);overflow:hidden;border:1px solid var(--line)}
+  .thumb{max-width:100%;max-height:260px;border-radius:10px;display:block;margin:10px auto}
+  .center{text-align:center}
+  .loading{padding:70px 0;text-align:center;color:var(--muted)}
+  .back{background:none;border:0;color:var(--muted);padding:14px 0 0;font-size:14px;cursor:pointer;font-family:inherit}
+  .footer{margin-top:34px;text-align:center;color:var(--muted);font-size:13px}
+  .nameRow{display:flex;gap:8px;align-items:center}
+  .nameRow span{min-width:22px;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading">Loading…</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script>
+// ───────────── CONFIG (edit these three lines) ─────────────
+var SUPABASE_URL = 'https://iuvxavsuoiekrjnylxpy.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_RAac6qm2v3UEhQx4H4DJ-Q_xxuPy9mv';   // publishable (anon) key: safe in the browser
+var API_BASE     = 'https://YOUR-ADMIN-PROJECT.vercel.app';            // admin project URL (only its /api/ functions are called)
+// ───────────────────────────────────────────────────────────
+
+var sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+var S = { settings: null, types: [], route: null };   // S.settings = public event_settings row
+var B = null;                                          // buy-form state
+var pollTimer = null;
+var MY_KEY = 'tk_my_orders';
+var SETTINGS_COLS = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,theme,ticket_design';
+var FONTS = {
+  'Poppins': 'Poppins:wght@400;500;600;700', 'Inter': 'Inter:wght@400;500;600;700',
+  'Playfair Display': 'Playfair+Display:wght@400;600;700', 'Hind': 'Hind:wght@400;500;600;700',
+  'Noto Sans Devanagari': 'Noto+Sans+Devanagari:wght@400;500;600;700'
+};
+
+// <ticket-svg>
+// MASTER COPY of the on-screen ticket renderer. It is inlined into public/index.html and admin/index.html
+// between the "<ticket-svg>" markers by tools/sync-ticket-svg.py (edit here, then run that script).
+// Keep the geometry identical to drawTicket() in admin/api/_pdf.js so screen and PDF look the same.
+var TK_W = 1000, TK_ART_H = 780 / 2016 * 1000, TK_STRIP_H = 170, TK_H = TK_ART_H + TK_STRIP_H;
+function tkEsc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function tkHex(c, d) { return /^#[0-9a-fA-F]{6}$/.test(c || '') ? c : d; }
+function tkFit(text, size, maxW, bold, min) {
+  var k = bold ? 0.66 : 0.6, s = size;
+  while (s > (min || 14) && text.length * s * k > maxW) s -= 1;
+  if (text.length * s * k > maxW) text = text.slice(0, Math.max(1, Math.floor(maxW / (s * k)) - 1)) + '…';
+  return { text: text, size: s };
+}
+// t: {code, attendee_name}; c: {s: event settings, typeName, accent, logoUrl, bgUrl}
+function renderTicketSVG(t, c) {
+  var s = c.s || {}, d = s.ticket_design || {};
+  var stripBg = tkHex(d.strip_bg, '#2b0a30'), stripText = tkHex(d.strip_text, '#fff4e0');
+  var accent = tkHex(c.accent, tkHex(d.accent, '#f5cc6a'));
+  var numColor = tkHex(d.number_color, '#f9d77a'), qrColor = tkHex(d.qr_color, '#2b0a30');
+  var FF = "font-family=\"'Noto Sans','Noto Sans Devanagari',sans-serif\"";
+  var qr = qrcode(0, 'M'); qr.addData(t.code); qr.make();
+  var n = qr.getModuleCount(), cell = 100 / n, qp = '', r, q;
+  for (r = 0; r < n; r++) for (q = 0; q < n; q++) {
+    if (qr.isDark(r, q)) qp += 'M' + (57.1 + q * cell).toFixed(2) + ' ' + (162.3 + r * cell).toFixed(2) + 'h' + (cell + 0.05).toFixed(2) + 'v' + (cell + 0.05).toFixed(2) + 'h-' + (cell + 0.05).toFixed(2) + 'z';
+  }
+  var y0 = TK_ART_H, tx = 36, o = '';
+  o += '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + TK_W + ' ' + TK_H.toFixed(2) + '" width="100%" style="display:block" role="img" aria-label="Ticket ' + tkEsc(t.code) + '">';
+  o += '<image href="' + tkEsc(c.bgUrl) + '" x="0" y="0" width="' + TK_W + '" height="' + TK_ART_H.toFixed(2) + '" preserveAspectRatio="none"/>';
+  if (d.show_number !== false) {
+    o += '<text x="106.6" y="95" text-anchor="middle" font-size="19" letter-spacing="2.5" fill="' + numColor + '" ' + FF + '>' + tkEsc(t.code.replace(/^TKT-/, '')) + '</text>';
+  }
+  o += '<path d="' + qp + '" fill="' + qrColor + '"/>';
+  o += '<rect x="0" y="' + y0.toFixed(2) + '" width="' + TK_W + '" height="' + TK_STRIP_H + '" fill="' + stripBg + '"/>';
+  o += '<rect x="0" y="' + y0.toFixed(2) + '" width="' + TK_W + '" height="5" fill="' + accent + '"/>';
+  if (d.show_logo && c.logoUrl) {
+    o += '<image href="' + tkEsc(c.logoUrl) + '" x="36" y="' + (y0 + 37).toFixed(2) + '" width="96" height="96" preserveAspectRatio="xMidYMid meet"/>';
+    tx = 154;
+  }
+  var maxW = 964 - tx, f;
+  if (d.header_text) {
+    f = tkFit(d.header_text, 15, maxW, false, 11);
+    o += '<text x="' + tx + '" y="' + (y0 + 38).toFixed(2) + '" font-size="' + f.size + '" letter-spacing="3" fill="' + accent + '" ' + FF + '>' + tkEsc(f.text) + '</text>';
+  }
+  f = tkFit(t.attendee_name || '', 40, maxW, true, 20);
+  o += '<text x="' + tx + '" y="' + (y0 + 88).toFixed(2) + '" font-size="' + f.size + '" font-weight="700" fill="' + stripText + '" ' + FF + '>' + tkEsc(f.text) + '</text>';
+  var bits = [];
+  if (d.show_type !== false && c.typeName) bits.push(c.typeName);
+  if (d.show_date !== false && s.date_text) bits.push(s.date_text);
+  if (d.show_venue !== false && s.venue) bits.push(s.venue);
+  if (bits.length) {
+    f = tkFit(bits.join('  •  '), 20, maxW, false, 12);
+    o += '<text x="' + tx + '" y="' + (y0 + 122).toFixed(2) + '" font-size="' + f.size + '" fill="' + stripText + '" fill-opacity="0.85" xml:space="preserve" ' + FF + '>' + tkEsc(f.text) + '</text>';
+  }
+  var codeW = d.show_number !== false ? 190 : 0;
+  if (d.footer_note) {
+    f = tkFit(d.footer_note, 17, maxW - codeW, false, 11);
+    o += '<text x="' + tx + '" y="' + (y0 + 154).toFixed(2) + '" font-size="' + f.size + '" fill="' + stripText + '" fill-opacity="0.7" ' + FF + '>' + tkEsc(f.text) + '</text>';
+  }
+  if (d.show_number !== false) {
+    o += '<text x="964" y="' + (y0 + 154).toFixed(2) + '" text-anchor="end" font-size="16" letter-spacing="1" fill="' + stripText + '" fill-opacity="0.7" ' + FF + '>' + tkEsc(t.code) + '</text>';
+  }
+  return o + '</svg>';
+}
+// </ticket-svg>
+
+// ───────────── helpers ─────────────
+function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function $(id) { return document.getElementById(id); }
+function pubUrl(path) { return path ? SUPABASE_URL + '/storage/v1/object/public/branding/' + path : ''; }
+function rupees(n) { return '₹' + Number(n).toLocaleString('en-IN'); }
+function lsGet(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+function go(h) { location.hash = h; }
+
+// ───────────── theme ─────────────
+function applyTheme(th) {
+  th = th || {};
+  var r = document.documentElement.style;
+  function set(k, v) { if (v) r.setProperty(k, v); }
+  set('--primary', th.primary); set('--bg', th.background); set('--card', th.card); set('--text', th.text);
+  set('--accent', th.accent); set('--btntext', th.button_text);
+  if (th.radius != null) r.setProperty('--radius', Number(th.radius) + 'px');
+  var f = FONTS[th.font] ? th.font : 'Poppins';
+  r.setProperty('--font', "'" + f + "','Noto Sans Devanagari',sans-serif");
+  $('themeFont').href = 'https://fonts.googleapis.com/css2?family=' + FONTS[f] + '&display=swap';
+  document.documentElement.style.colorScheme = th.mode === 'light' ? 'light' : 'dark';
+  var m = document.querySelector('meta[name=theme-color]'); if (m && th.background) m.content = th.background;
+}
+
+// ───────────── data ─────────────
+async function loadSettings() {
+  var r = await sb.from('event_settings').select(SETTINGS_COLS).eq('id', 1).single();
+  if (r.error) throw r.error;
+  S.settings = r.data;
+  lsSet('tk_settings_cache', r.data);
+  applyTheme(r.data.theme);
+  document.title = r.data.name;
+}
+async function loadTypes() {
+  var r = await sb.rpc('public_ticket_types');
+  if (r.error) throw r.error;
+  S.types = r.data || [];
+}
+function salesState(s) {
+  var now = Date.now();
+  if (!s.sales_open) return 'closed';
+  if (s.sales_start && now < new Date(s.sales_start).getTime()) return 'closed';
+  if (s.sales_end && now > new Date(s.sales_end).getTime()) return 'closed';
+  return 'open';
+}
+
+// ───────────── router ─────────────
+function route() {
+  clearInterval(pollTimer);
+  var h = (location.hash || '#/').replace(/^#/, '');
+  var p = h.split('/').filter(Boolean);
+  window.scrollTo(0, 0);
+  if (p[0] === 'buy' && p[1]) return viewBuy(p[1]);
+  if (p[0] === 'order' && p[1]) return viewOrder(p[1]);
+  return viewHome();
+}
+window.addEventListener('hashchange', route);
+
+function shell(inner, opts) {
+  var s = S.settings || {};
+  opts = opts || {};
+  var head = '';
+  if (opts.home) {
+    head = (s.banner_path ? '<img class="banner" src="' + esc(pubUrl(s.banner_path)) + '" alt="">' : '') +
+           '<div class="wrap hero">' + (s.logo_path ? '<img class="logo" src="' + esc(pubUrl(s.logo_path)) + '" alt="" style="' + (s.banner_path ? '' : 'margin-top:14px') + '">' : '') + '</div>';
+  }
+  return head + '<div class="wrap" style="' + (opts.home ? 'padding-top:0' : 'padding-top:18px') + '">' + inner + '</div>';
+}
+function fail(e) {
+  $('app').innerHTML = shell('<div class="card center"><p>Something went wrong loading this page.</p><p class="sub">' + esc(e && e.message || e) + '</p><button onclick="location.reload()">Try again</button></div>');
+}
+
+// ───────────── home ─────────────
+async function viewHome() {
+  try {
+    if (!S.settings) await loadSettings();
+    await Promise.all([loadTypes(), loadSettings()]);
+  } catch (e) { return fail(e); }
+  var s = S.settings, open = salesState(s) === 'open';
+  var h = '<div class="hero" style="padding-top:0"><h1>' + esc(s.name) + '</h1>' +
+    (s.date_text ? '<div class="meta">📅 ' + esc(s.date_text) + '</div>' : '') +
+    (s.venue ? '<div class="meta">📍 ' + esc(s.venue) + '</div>' : '') + '</div>' +
+    (s.description ? '<div class="desc">' + esc(s.description) + '</div>' : '');
+
+  h += '<h2>Tickets</h2>';
+  if (!open) h += '<div class="card center">' + esc(s.closed_message || 'Ticket sales are closed.') + '</div>';
+  if (!S.types.length) h += '<div class="card center sub">No tickets available right now.</div>';
+  S.types.forEach(function (t) {
+    var soldOut = t.remaining <= 0;
+    h += '<div class="card"' + (t.accent_color ? ' style="border-left:4px solid ' + esc(t.accent_color) + '"' : '') + '><div class="row"><div>' +
+      '<div class="tname">' + esc(t.name) + '</div>' + (t.description ? '<div class="sub">' + esc(t.description) + '</div>' : '') +
+      '<div style="margin-top:6px">' + (soldOut ? '<span class="pill bad">Sold out</span>' : '<span class="pill ' + (t.remaining <= 10 ? 'warn' : 'ok') + '">' + t.remaining + ' left</span>') + '</div>' +
+      '</div><div class="price">' + rupees(t.price) + '</div></div>' +
+      (open && !soldOut ? '<button class="block" style="margin-top:12px" onclick="go(\'#/buy/' + t.id + '\')">Buy ticket</button>' : '') + '</div>';
+  });
+
+  var mine = lsGet(MY_KEY, []);
+  h += '<div id="mine"></div>';
+  if (s.contact_phone || s.contact_email) {
+    h += '<h2>Contact</h2><div class="card">' +
+      (s.contact_phone ? '<div>📞 <a href="tel:' + esc(s.contact_phone) + '">' + esc(s.contact_phone) + '</a></div>' : '') +
+      (s.contact_email ? '<div>✉️ <a href="mailto:' + esc(s.contact_email) + '">' + esc(s.contact_email) + '</a></div>' : '') + '</div>';
+  }
+  $('app').innerHTML = shell(h, { home: true });
+  if (mine.length) loadMine(mine);
+}
+async function loadMine(mine) {
+  var out = '<h2>Your orders on this device</h2>';
+  var res = await Promise.all(mine.slice(0, 10).map(function (m) { return sb.rpc('get_order', { p_token: m.token }); }));
+  res.forEach(function (r, i) {
+    var o = r.data; if (!o) return;
+    var cls = o.status === 'approved' ? 'ok' : o.status === 'rejected' ? 'bad' : 'warn';
+    var label = o.status === 'approved' ? 'Ticket ready' : o.status === 'rejected' ? 'Rejected' : 'Verifying payment';
+    out += '<a class="card row" style="text-decoration:none;color:inherit" href="#/order/' + esc(mine[i].token) + '"><div><div class="tname">' + esc(o.order_no) +
+      '</div><div class="sub">' + esc(o.qty) + ' × ' + esc(o.type_name) + ' · ' + rupees(o.amount) + '</div></div><span class="pill ' + cls + '">' + label + '</span></a>';
+  });
+  if ($('mine')) $('mine').innerHTML = out;
+}
+
+// ───────────── buy ─────────────
+async function viewBuy(typeId) {
+  try {
+    if (!S.settings) await loadSettings();
+    await loadTypes();
+  } catch (e) { return fail(e); }
+  var t = S.types.filter(function (x) { return String(x.id) === String(typeId); })[0];
+  if (!t) { $('app').innerHTML = shell('<div class="card center">This ticket type is not available.<br><br><a class="btn" href="#/">Back to event</a></div>'); return; }
+  if (salesState(S.settings) !== 'open') { $('app').innerHTML = shell('<div class="card center">' + esc(S.settings.closed_message || 'Ticket sales are closed.') + '<br><br><a class="btn ghost" href="#/">Back to event</a></div>'); return; }
+  if (t.remaining <= 0) { $('app').innerHTML = shell('<div class="card center">Sorry, <b>' + esc(t.name) + '</b> is sold out.<br><br><a class="btn ghost" href="#/">Back to event</a></div>'); return; }
+  if (!B || B.typeId !== t.id) B = { typeId: t.id, step: 1, qty: 1, name: '', phone: '', email: '', email2: '', names: [''], firstEdited: false, payer: '', shot: null, shotUrl: '', busy: false };
+  drawBuy();
+}
+function maxQty(t) { return Math.max(1, Math.min(S.settings.max_per_order, t.remaining)); }
+function curType() { return S.types.filter(function (x) { return x.id === B.typeId; })[0]; }
+
+function drawBuy() {
+  var t = curType(), s = S.settings, h = '';
+  var labels = ['Details', 'Pay', 'Screenshot'];
+  h += '<button class="back" style="padding-top:0" onclick="' + (B.step === 1 ? "go('#/')" : 'buyStep(' + (B.step - 1) + ')') + '">← ' + (B.step === 1 ? 'Back to event' : 'Back') + '</button>';
+  h += '<div class="steps">' + [1, 2, 3].map(function (n) { return '<i class="' + (n <= B.step ? 'on' : '') + '"></i>'; }).join('') + '</div>';
+  h += '<div class="steplabel">Step ' + B.step + ' of 3 · ' + labels[B.step - 1] + '</div>';
+  h += '<div class="card row"><div><div class="tname">' + esc(t.name) + '</div><div class="sub">' + esc(s.name) + '</div></div><div class="price">' + rupees(t.price) + '</div></div>';
+
+  if (B.step === 1) {
+    var mq = maxQty(t), opts = '';
+    for (var i = 1; i <= mq; i++) opts += '<option value="' + i + '"' + (i === B.qty ? ' selected' : '') + '>' + i + '</option>';
+    h += '<label for="f_qty">Number of tickets (' + t.remaining + ' left)</label><select id="f_qty" onchange="onQty()">' + opts + '</select>';
+    h += '<label for="f_name">Your name</label><input id="f_name" autocomplete="name" value="' + esc(B.name) + '" oninput="onBuyerName()">';
+    h += '<label for="f_phone">Phone number</label><input id="f_phone" type="tel" inputmode="tel" autocomplete="tel" value="' + esc(B.phone) + '">';
+    h += '<label for="f_email">Email (your ticket is sent here)</label><input id="f_email" type="email" inputmode="email" autocomplete="email" value="' + esc(B.email) + '">';
+    h += '<label for="f_email2">Confirm email</label><input id="f_email2" type="email" inputmode="email" autocomplete="off" value="' + esc(B.email2) + '">';
+    h += '<div id="namesBox"></div>';
+    h += '<div id="err" class="err"></div><button class="block" onclick="toStep2()">Continue to payment</button>';
+    if (s.terms_text) h += '<div class="terms">' + esc(s.terms_text) + '</div>';
+  } else if (B.step === 2) {
+    var total = t.price * B.qty;
+    h += '<div class="card"><div class="center sub">Pay exactly</div><div class="total">' + rupees(total) + '</div><div class="center sub">' + B.qty + ' × ' + rupees(t.price) + '</div>' +
+      (t.payment_qr_path ? '<img class="qr" src="' + esc(pubUrl(t.payment_qr_path)) + '" alt="UPI QR code">' : '<p class="center sub">Payment QR is not set up yet. Please contact the organiser.</p>') +
+      '<div class="center sub" style="margin-bottom:8px">Paying from this phone? Take a screenshot of the QR, then in your UPI app choose “Scan from gallery”.</div></div>';
+    if (s.payment_instructions) h += '<div class="card instr">' + esc(s.payment_instructions) + '</div>';
+    h += '<label for="f_payer">Name shown in your payment app</label><input id="f_payer" autocomplete="off" value="' + esc(B.payer) + '" placeholder="Exactly as your UPI app shows it">';
+    h += '<div id="err" class="err"></div><button class="block" onclick="toStep3()">I have paid — continue</button>';
+  } else {
+    h += '<div class="card"><b>Upload your payment screenshot</b><div class="sub">Used only as a reference so we can verify your payment.</div>' +
+      '<input id="f_shot" type="file" accept="image/*" style="margin-top:12px" onchange="onShot(this)">' +
+      '<div id="shotPrev">' + (B.shotUrl ? '<img class="thumb" src="' + B.shotUrl + '" alt="screenshot preview">' : '') + '</div></div>';
+    h += '<div class="card sub">' + B.qty + ' × ' + esc(t.name) + ' = <b>' + rupees(t.price * B.qty) + '</b><br>Payer name: <b>' + esc(B.payer) + '</b></div>';
+    h += '<div id="err" class="err"></div><button id="submitBtn" class="block" onclick="submitOrder()">Submit order</button>';
+  }
+  $('app').innerHTML = shell(h);
+  if (B.step === 1) drawNames();
+}
+
+function drawNames() {
+  var h = '<label>Name on each ticket</label>';
+  for (var i = 0; i < B.qty; i++) {
+    h += '<div class="nameRow" style="margin-bottom:8px"><span>' + (i + 1) + '.</span><input id="f_n' + i + '" placeholder="Attendee ' + (i + 1) + ' name" value="' + esc(B.names[i] || '') + '" oninput="onAttName(' + i + ')"></div>';
+  }
+  $('namesBox').innerHTML = h;
+}
+function onQty() {
+  B.qty = Number($('f_qty').value);
+  while (B.names.length < B.qty) B.names.push('');
+  B.names.length = B.qty;
+  drawNames();
+}
+function onBuyerName() {
+  B.name = $('f_name').value;
+  if (!B.firstEdited) { B.names[0] = B.name; var el = $('f_n0'); if (el) el.value = B.name; }
+}
+function onAttName(i) {
+  B.names[i] = $('f_n' + i).value;
+  if (i === 0 && $('f_n0').value !== B.name) B.firstEdited = true;
+}
+function showErr(msg, fieldId) {
+  var e = $('err'); if (!e) return;
+  e.textContent = msg; e.className = 'err show';
+  document.querySelectorAll('input.bad').forEach(function (x) { x.classList.remove('bad'); });
+  var f = fieldId && $(fieldId);
+  if (f) { f.classList.add('bad'); f.focus(); }
+  e.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+function buyStep(n) { readStep(); B.step = n; drawBuy(); window.scrollTo(0, 0); }
+function readStep() {
+  if (B.step === 1) {
+    B.qty = Number($('f_qty').value); B.name = $('f_name').value; B.phone = $('f_phone').value;
+    B.email = $('f_email').value; B.email2 = $('f_email2').value;
+    for (var i = 0; i < B.qty; i++) { var el = $('f_n' + i); if (el) B.names[i] = el.value; }
+  } else if (B.step === 2) { B.payer = $('f_payer').value; }
+}
+function validEmail(e) { return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e); }
+
+function toStep2() {
+  readStep();
+  var t = curType();
+  if (B.qty < 1 || B.qty > maxQty(t)) return showErr('Choose between 1 and ' + maxQty(t) + ' tickets.', 'f_qty');
+  if (B.name.trim().length < 2) return showErr('Please enter your name.', 'f_name');
+  if (B.phone.replace(/\D/g, '').length < 10) return showErr('Enter a phone number with at least 10 digits.', 'f_phone');
+  if (!validEmail(B.email.trim())) return showErr('Enter a valid email address.', 'f_email');
+  if (B.email.trim().toLowerCase() !== B.email2.trim().toLowerCase()) return showErr('The two email addresses do not match.', 'f_email2');
+  for (var i = 0; i < B.qty; i++) if ((B.names[i] || '').trim().length < 2) return showErr('Enter the name for ticket ' + (i + 1) + '.', 'f_n' + i);
+  B.step = 2; drawBuy(); window.scrollTo(0, 0);
+}
+function toStep3() {
+  readStep();
+  if (B.payer.trim().length < 2) return showErr('Enter the name shown in your payment app.', 'f_payer');
+  B.step = 3; drawBuy(); window.scrollTo(0, 0);
+}
+
+// Resize to ~900px wide JPEG before upload
+function compress(file) {
+  return new Promise(function (resolve, reject) {
+    var img = new Image(), url = URL.createObjectURL(file);
+    img.onload = function () {
+      var sc = Math.min(1, 900 / Math.max(img.width, img.height));
+      var c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * sc)); c.height = Math.max(1, Math.round(img.height * sc));
+      var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      c.toBlob(function (b) { b ? resolve(b) : reject(new Error('Could not process the image')); }, 'image/jpeg', 0.8);
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('That file is not a readable image')); };
+    img.src = url;
+  });
+}
+async function onShot(inp) {
+  var f = inp.files && inp.files[0]; if (!f) return;
+  try {
+    B.shot = await compress(f);
+    if (B.shotUrl) URL.revokeObjectURL(B.shotUrl);
+    B.shotUrl = URL.createObjectURL(B.shot);
+    $('shotPrev').innerHTML = '<img class="thumb" src="' + B.shotUrl + '" alt="screenshot preview">';
+    if ($('err')) $('err').className = 'err';
+  } catch (e) { B.shot = null; showErr(e.message); }
+}
+function uuid() {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  var b = crypto.getRandomValues(new Uint8Array(16)); b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;
+  var h = Array.prototype.map.call(b, function (x) { return ('0' + x.toString(16)).slice(-2); }).join('');
+  return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20);
+}
+var ERR_MAP = {
+  SALES_CLOSED: 'Ticket sales are closed.', SOLD_OUT: 'Sorry, these tickets just sold out.',
+  TYPE_UNAVAILABLE: 'This ticket type is no longer available.', TOO_MANY_PENDING: 'You already have several orders waiting for verification with this email. Please wait for them to be approved.',
+  BAD_NAME: 'Please check your name.', BAD_PHONE: 'Please check your phone number.', BAD_EMAIL: 'Please check your email address.',
+  BAD_PAYER: 'Please check the name shown in your payment app.', BAD_ATTENDEES: 'Please check the names on the tickets.',
+  BAD_SCREENSHOT: 'The screenshot upload did not work. Please choose the image again.', BAD_QTY: 'Please check the number of tickets.'
+};
+function friendly(e) {
+  var m = String(e && e.message || e), code = m.split(':')[0], arg = m.split(':')[1];
+  if (code === 'NOT_ENOUGH_SEATS') return 'Only ' + arg + ' seat' + (arg === '1' ? '' : 's') + ' left. Please reduce the number of tickets.';
+  if (code === 'MAX_PER_ORDER') return 'You can buy at most ' + arg + ' tickets per order.';
+  return ERR_MAP[code] || 'Could not place your order: ' + m;
+}
+
+async function submitOrder() {
+  if (B.busy) return;
+  if (!B.shot) return showErr('Please upload your payment screenshot.', 'f_shot');
+  var btn = $('submitBtn'), t = curType();
+  B.busy = true; btn.disabled = true; btn.textContent = 'Checking seats…';
+  try {
+    // re-check availability and sale window right before submitting
+    await Promise.all([loadTypes(), loadSettings()]);
+    if (salesState(S.settings) !== 'open') throw new Error('SALES_CLOSED');
+    var fresh = S.types.filter(function (x) { return x.id === t.id; })[0];
+    if (!fresh || fresh.remaining <= 0) throw new Error('SOLD_OUT');
+    if (fresh.remaining < B.qty) throw new Error('NOT_ENOUGH_SEATS:' + fresh.remaining);
+
+    btn.textContent = 'Uploading screenshot…';
+    var path = uuid() + '.jpg';
+    var up = await sb.storage.from('screenshots').upload(path, B.shot, { contentType: 'image/jpeg', upsert: false });
+    if (up.error) throw new Error('BAD_SCREENSHOT');
+
+    btn.textContent = 'Placing order…';
+    var r = await sb.rpc('create_order', {
+      p_type_id: t.id, p_qty: B.qty, p_buyer_name: B.name.trim(), p_email: B.email.trim(), p_phone: B.phone.trim(),
+      p_payer_name: B.payer.trim(), p_screenshot_path: path, p_names: B.names.slice(0, B.qty).map(function (n) { return n.trim(); })
+    });
+    if (r.error) throw r.error;
+    var token = r.data;
+    var mine = lsGet(MY_KEY, []); mine.unshift({ token: token, at: Date.now() }); lsSet(MY_KEY, mine.slice(0, 20));
+    if (API_BASE.indexOf('YOUR-') < 0) {       // "order received" email; failure must never block the buyer
+      try { fetch(API_BASE + '/api/order-received', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: token }), keepalive: true }); } catch (e) {}
+    }
+    B = null;
+    go('#/order/' + token);
+  } catch (e) {
+    B.busy = false; btn.disabled = false; btn.textContent = 'Submit order';
+    showErr(friendly(e));
+    if (/SOLD_OUT|NOT_ENOUGH|SALES_CLOSED|TYPE_UNAVAIL/.test(String(e.message))) { btn.textContent = 'Go back'; btn.onclick = function () { go('#/'); }; }
+  }
+}
+
+// ───────────── private order page ─────────────
+async function viewOrder(token) {
+  try { if (!S.settings) await loadSettings(); await loadSettings(); } catch (e) { return fail(e); }
+  var r = await sb.rpc('get_order', { p_token: token });
+  if (r.error) return fail(r.error);
+  var o = r.data;
+  if (!o) { $('app').innerHTML = shell('<div class="card center">We could not find this order.<br><br><a class="btn ghost" href="#/">Back to event</a></div>'); return; }
+  var mine = lsGet(MY_KEY, []);
+  if (!mine.some(function (m) { return m.token === token; })) { mine.unshift({ token: token, at: Date.now() }); lsSet(MY_KEY, mine.slice(0, 20)); }
+
+  var s = S.settings, h = '<button class="back" style="padding-top:0" onclick="go(\'#/\')">← Back to event</button><h1 style="font-size:24px;margin-top:10px">' + esc(o.order_no) + '</h1>';
+  h += '<div class="card"><div class="row"><div><div class="tname">' + esc(o.qty) + ' × ' + esc(o.type_name) + '</div><div class="sub">' + esc(o.buyer_name) + ' · ' + esc(o.email) + '</div></div><div class="price">' + rupees(o.amount) + '</div></div></div>';
+  if (o.status === 'pending') {
+    h += '<div class="card center"><span class="pill warn">Verifying payment</span><p>We are verifying your payment. Your ticket will be emailed to <b>' + esc(o.email) + '</b> once it is approved.</p><p class="sub">This page updates by itself. Keep this link — it is private to you.</p></div>';
+  } else if (o.status === 'rejected') {
+    h += '<div class="card center"><span class="pill bad">Payment not verified</span><p>' + esc(o.reject_reason || 'We could not verify your payment.') + '</p>' +
+      ((s.contact_phone || s.contact_email) ? '<p class="sub">Questions? ' + esc(s.contact_phone || '') + ' ' + esc(s.contact_email || '') + '</p>' : '') + '</div>';
+  } else {
+    h += '<div class="center" style="margin:14px 0"><span class="pill ok">Approved</span></div>';
+    var ctx = { s: s, typeName: o.type_name, accent: o.accent_color, bgUrl: 'assets/ticket-bg.jpg',
+                logoUrl: pubUrl((s.ticket_design || {}).logo_path || s.logo_path) };
+    (o.tickets || []).forEach(function (t) { h += '<div class="tick">' + renderTicketSVG(t, ctx) + '</div>'; });
+    h += '<button class="block" id="dlBtn" onclick="downloadPdf(\'' + esc(token) + '\',\'' + esc(o.order_no) + '\')">Download PDF</button><div id="err" class="err"></div>' +
+         '<p class="sub center">Show the QR code at the gate. Each ticket works once.</p>';
+  }
+  $('app').innerHTML = shell(h);
+  if (o.status === 'pending') pollTimer = setInterval(function () { viewOrderQuiet(token); }, 30000);
+}
+async function viewOrderQuiet(token) {
+  var r = await sb.rpc('get_order', { p_token: token });
+  if (r.data && r.data.status !== 'pending') viewOrder(token);
+}
+async function downloadPdf(token, no) {
+  var b = $('dlBtn'); b.disabled = true; b.textContent = 'Preparing PDF…';
+  try {
+    if (API_BASE.indexOf('YOUR-') >= 0) throw new Error('PDF service is not configured yet');
+    var r = await fetch(API_BASE + '/api/ticket-pdf?token=' + encodeURIComponent(token));
+    if (!r.ok) throw new Error('Could not create the PDF (' + r.status + ')');
+    var blob = await r.blob(), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'Ticket-' + no + '.pdf';
+    document.body.appendChild(a); a.click(); a.remove();
+  } catch (e) { showErr(e.message); }
+  b.disabled = false; b.textContent = 'Download PDF';
+}
+
+// ───────────── boot ─────────────
+(function () {
+  var c = lsGet('tk_settings_cache', null);
+  if (c) { S.settings = c; applyTheme(c.theme); document.title = c.name || document.title; }
+  else applyTheme({});
+  route();
+})();
+</script>
+</body>
+</html>
