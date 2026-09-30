@@ -1,0 +1,14 @@
+{
+  "functions": {
+    "api/*.js": {
+      "maxDuration": 30,
+      "includeFiles": "{fonts/**,node_modules/pdfkit/js/data/**}"
+    }
+  },
+  "headers": [
+    { "source": "/(.*)", "headers": [
+      { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
+      { "key": "Referrer-Policy", "value": "no-referrer" }
+    ] }
+  ]
+}

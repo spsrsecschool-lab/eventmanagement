@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Ticketing Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;700&display=swap" rel="stylesheet">
+<link id="pvFont" rel="stylesheet" href="">
+<style>
+  :root{--bg:#f4f1f6;--card:#fff;--text:#231a29;--muted:#6f6577;--line:#e4dde8;--brand:#6a1b6f;--brand2:#f5cc6a;--ok:#1f8a4c;--warn:#b7791f;--bad:#c53030;--r:12px}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--text);font:15px/1.45 'Noto Sans','Noto Sans Devanagari',system-ui,sans-serif;padding-bottom:70px}
+  .hide{display:none!important}
+  header{position:sticky;top:0;z-index:20;background:var(--brand);color:#fff;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  header b{font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  header button{background:rgba(255,255,255,.18);color:#fff;border:0;border-radius:8px;padding:7px 12px;font:inherit;font-size:13px}
+  nav{position:sticky;top:48px;z-index:19;background:#fff;border-bottom:1px solid var(--line);display:flex;overflow-x:auto;scrollbar-width:none}
+  nav::-webkit-scrollbar{display:none}
+  nav button{flex:0 0 auto;background:none;border:0;border-bottom:3px solid transparent;padding:12px 14px;font:inherit;font-size:14px;font-weight:600;color:var(--muted);white-space:nowrap}
+  nav button.on{color:var(--brand);border-bottom-color:var(--brand)}
+  main{max-width:860px;margin:0 auto;padding:14px}
+  h2{margin:4px 0 12px;font-size:19px}
+  h3{margin:18px 0 8px;font-size:15px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin:0 0 12px}
+  .row{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:520px){.grid2{grid-template-columns:1fr}}
+  .muted{color:var(--muted);font-size:13px}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700}
+  .pill.pending{background:#fff3d6;color:#8a5a00}.pill.approved{background:#d9f4e3;color:#16663a}.pill.rejected{background:#fde0e0;color:#9b2222}
+  .pill.sent{background:#d9f4e3;color:#16663a}.pill.failed{background:#fde0e0;color:#9b2222}.pill.gray{background:#ece7f0;color:#554b5e}
+  button.b,a.b{font:inherit;font-weight:600;font-size:14px;border:0;border-radius:9px;padding:9px 14px;background:var(--brand);color:#fff;cursor:pointer;text-decoration:none;display:inline-block}
+  button.b.sec{background:#ece7f0;color:var(--text)} button.b.ok{background:var(--ok)} button.b.bad{background:var(--bad)}
+  button.b.sm{padding:6px 10px;font-size:13px} button.b:disabled{opacity:.5}
+  label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:11px 0 4px}
+  input,select,textarea{width:100%;font:inherit;font-size:16px;color:var(--text);background:#fff;border:1px solid var(--line);border-radius:9px;padding:10px;outline:none}
+  input[type=color]{padding:2px;height:42px;width:100%}
+  input[type=checkbox]{width:auto}
+  input:focus,select:focus,textarea:focus{border-color:var(--brand)}
+  textarea{min-height:110px;resize:vertical}
+  .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:8px}
+  .chip{flex:0 0 auto;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 13px;font:inherit;font-size:13px;font-weight:600;color:var(--muted)}
+  .chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+  .payer{display:inline-block;background:#fff176;color:#3b2f00;font-weight:800;padding:3px 9px;border-radius:7px;font-size:15px;border:2px solid #f2c200}
+  .thumb{width:92px;height:92px;object-fit:cover;border-radius:10px;border:1px solid var(--line);cursor:zoom-in;background:#eee}
+  .names{margin:6px 0;padding-left:18px}
+  .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .toast{position:fixed;left:12px;right:12px;bottom:14px;z-index:99;background:#231a29;color:#fff;padding:12px 14px;border-radius:10px;text-align:center;font-size:14px}
+  .toast.err{background:var(--bad)}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:60;display:flex;align-items:flex-end;justify-content:center}
+  .modal{background:#fff;border-radius:16px 16px 0 0;padding:18px;width:100%;max-width:520px;max-height:90vh;overflow:auto}
+  @media(min-width:600px){.overlay{align-items:center}.modal{border-radius:16px}}
+  .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:70;display:flex;align-items:center;justify-content:center;padding:10px}
+  .lightbox img{max-width:100%;max-height:100%}
+  .login{max-width:380px;margin:12vh auto;padding:0 16px}
+  .err{color:var(--bad);font-size:14px;margin:10px 0}
+  .colors{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .colors label{margin:6px 0 3px;font-size:12px}
+  .sw{display:flex;gap:10px;align-items:center}
+  .qrimg{width:84px;height:84px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:8px}
+  .sticky-save{position:sticky;bottom:8px;z-index:5}
+  table{border-collapse:collapse;width:100%}
+  .chk{display:flex;align-items:center;gap:8px;margin:8px 0;font-weight:500;color:var(--text);font-size:15px}
+  /* theme live preview (mini public page) */
+  .pvBox{border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  .pv{background:var(--pbg);color:var(--ptext);font-family:var(--pfont);padding:0 0 16px}
+  .pv .ban{height:84px;background:linear-gradient(135deg,var(--pprimary),var(--pcard))}
+  .pv .in{padding:12px 14px}
+  .pv h4{margin:0 0 4px;font-size:21px;color:var(--paccent)}
+  .pv .card2{background:var(--pcard);border:1px solid color-mix(in srgb,var(--ptext) 16%,transparent);border-radius:var(--prad);padding:12px;margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .pv .btn2{background:var(--pprimary);color:var(--pbtn);border:0;border-radius:var(--prad);padding:10px 14px;font:inherit;font-weight:600;width:100%;margin-top:10px}
+  .pv .fld{background:color-mix(in srgb,var(--ptext) 8%,var(--pcard));border:1px solid color-mix(in srgb,var(--ptext) 16%,transparent);border-radius:calc(var(--prad) - 4px);padding:9px;margin-top:8px;font-size:14px;opacity:.9}
+  .tkprev{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#000}
+  .emprev{background:#faf8fb;border:1px dashed var(--line);border-radius:10px;padding:12px;white-space:pre-wrap;font-size:14px}
+</style>
+</head>
+<body>
+
+<section id="login" class="login hide">
+  <h2 style="text-align:center">Ticketing Admin</h2>
+  <div class="card">
+    <label for="lg_email">Email</label><input id="lg_email" type="email" autocomplete="username" inputmode="email">
+    <label for="lg_pw">Password</label><input id="lg_pw" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <div id="lg_err" class="err"></div>
+    <button class="b" style="width:100%" onclick="doLogin()">Sign in</button>
+  </div>
+</section>
+
+<div id="app" class="hide">
+  <header><b id="hdrTitle">Admin</b><button onclick="doLogout()">Sign out</button></header>
+  <nav id="tabs"></nav>
+  <main id="content"></main>
+</div>
+<div id="lightbox" class="lightbox hide" onclick="this.classList.add('hide')"><img id="lbImg" alt=""></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script>
+// ───────────── CONFIG ─────────────
+var SUPABASE_URL = 'https://iuvxavsuoiekrjnylxpy.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_RAac6qm2v3UEhQx4H4DJ-Q_xxuPy9mv';   // publishable key. The service-role key is NEVER used in the browser.
+var SCANNER_URL  = '';    // optional: shown on the Staff tab, e.g. https://your-scanner.vercel.app
+// ──────────────────────────────────
+
+var sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+var A = { settings: null, types: [], counts: {}, orders: null, tickets: null, emails: null, templates: null,
+          tab: 'orders', ordFilter: 'pending', ordQ: '', ordLimit: 40, shots: {}, editType: null, atFilter: 'approved', atQ: '', atLimit: 100 };
+var T = {};      // tab renderers
+var ACT = {};    // click actions  (data-act="...")
+var SETTINGS_COLS = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,theme,ticket_design';
+var TABS = [['orders', 'Orders'], ['manual', 'Add order'], ['types', 'Ticket types'], ['attendees', 'Attendees'], ['emails', 'Emails'],
+            ['event', 'Event'], ['theme', 'Theme'], ['ticket', 'Ticket design'], ['templates', 'Email text'], ['staff', 'Staff']];
+var FONTS = { 'Poppins': 'Poppins:wght@400;600;700', 'Inter': 'Inter:wght@400;600;700', 'Playfair Display': 'Playfair+Display:wght@400;600;700',
+              'Hind': 'Hind:wght@400;600;700', 'Noto Sans Devanagari': 'Noto+Sans+Devanagari:wght@400;600;700' };
+var FONT_LABEL = { 'Hind': 'Hind (supports Hindi)', 'Noto Sans Devanagari': 'Noto Sans Devanagari (Hindi)' };
+var DARK = { mode: 'dark', primary: '#f5b83d', background: '#1f0823', card: '#321037', text: '#fdf3e3', accent: '#f5cc6a', button_text: '#2b0a30', radius: 14, font: 'Poppins' };
+var LIGHT = { mode: 'light', primary: '#8e1b5a', background: '#fbf7f2', card: '#ffffff', text: '#2a1a2e', accent: '#8e1b5a', button_text: '#ffffff', radius: 14, font: 'Poppins' };
+var DEFAULT_TICKET = { strip_bg: '#2b0a30', strip_text: '#fff4e0', accent: '#f5cc6a', number_color: '#f9d77a', qr_color: '#2b0a30',
+  header_text: 'ADMIT ONE', footer_note: 'Bring your school ID', show_type: true, show_date: true, show_venue: true, show_number: true, show_logo: false };
+var DEFAULT_TEMPLATES = {
+  received: { subject: 'We received your order {order_no} - {event}', body: 'Hi {name},\n\nThank you! We received your order {order_no} for {event} ({qty} x {type}, Rs {amount}).\n\nWe are verifying your payment. Once it is approved, your ticket will be emailed to you.\n\nTrack your order here: {link}\n\n{event}\n{date}\n{venue}' },
+  approved: { subject: 'Your ticket for {event} ({order_no})', body: 'Hi {name},\n\nYour payment is verified. Your ticket(s) for {event} are attached to this email as a PDF.\n\nDate: {date}\nVenue: {venue}\n\nPlease keep the QR code ready at the gate. Each ticket can be used only once.\n\nBackup link to your tickets: {link}' },
+  rejected: { subject: 'Update on your order {order_no} - {event}', body: 'Hi {name},\n\nWe could not verify the payment for order {order_no}.\nReason: {reason}\n\nIf you think this is a mistake, please contact us: {contact_phone} {contact_email}\n\nOrder link: {link}' }
+};
+
+// <ticket-svg>
+// MASTER COPY of the on-screen ticket renderer. It is inlined into public/index.html and admin/index.html
+// between the "<ticket-svg>" markers by tools/sync-ticket-svg.py (edit here, then run that script).
+// Keep the geometry identical to drawTicket() in admin/api/_pdf.js so screen and PDF look the same.
+var TK_W = 1000, TK_ART_H = 780 / 2016 * 1000, TK_STRIP_H = 170, TK_H = TK_ART_H + TK_STRIP_H;
+function tkEsc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function tkHex(c, d) { return /^#[0-9a-fA-F]{6}$/.test(c || '') ? c : d; }
+function tkFit(text, size, maxW, bold, min) {
+  var k = bold ? 0.66 : 0.6, s = size;
+  while (s > (min || 14) && text.length * s * k > maxW) s -= 1;
+  if (text.length * s * k > maxW) text = text.slice(0, Math.max(1, Math.floor(maxW / (s * k)) - 1)) + '…';
+  return { text: text, size: s };
+}
+// t: {code, attendee_name}; c: {s: event settings, typeName, accent, logoUrl, bgUrl}
+function renderTicketSVG(t, c) {
+  var s = c.s || {}, d = s.ticket_design || {};
+  var stripBg = tkHex(d.strip_bg, '#2b0a30'), stripText = tkHex(d.strip_text, '#fff4e0');
+  var accent = tkHex(c.accent, tkHex(d.accent, '#f5cc6a'));
+  var numColor = tkHex(d.number_color, '#f9d77a'), qrColor = tkHex(d.qr_color, '#2b0a30');
+  var FF = "font-family=\"'Noto Sans','Noto Sans Devanagari',sans-serif\"";
+  var qr = qrcode(0, 'M'); qr.addData(t.code); qr.make();
+  var n = qr.getModuleCount(), cell = 100 / n, qp = '', r, q;
+  for (r = 0; r < n; r++) for (q = 0; q < n; q++) {
+    if (qr.isDark(r, q)) qp += 'M' + (57.1 + q * cell).toFixed(2) + ' ' + (162.3 + r * cell).toFixed(2) + 'h' + (cell + 0.05).toFixed(2) + 'v' + (cell + 0.05).toFixed(2) + 'h-' + (cell + 0.05).toFixed(2) + 'z';
+  }
+  var y0 = TK_ART_H, tx = 36, o = '';
+  o += '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + TK_W + ' ' + TK_H.toFixed(2) + '" width="100%" style="display:block" role="img" aria-label="Ticket ' + tkEsc(t.code) + '">';
+  o += '<image href="' + tkEsc(c.bgUrl) + '" x="0" y="0" width="' + TK_W + '" height="' + TK_ART_H.toFixed(2) + '" preserveAspectRatio="none"/>';
+  if (d.show_number !== false) {
+    o += '<text x="106.6" y="95" text-anchor="middle" font-size="19" letter-spacing="2.5" fill="' + numColor + '" ' + FF + '>' + tkEsc(t.code.replace(/^TKT-/, '')) + '</text>';
+  }
+  o += '<path d="' + qp + '" fill="' + qrColor + '"/>';
+  o += '<rect x="0" y="' + y0.toFixed(2) + '" width="' + TK_W + '" height="' + TK_STRIP_H + '" fill="' + stripBg + '"/>';
+  o += '<rect x="0" y="' + y0.toFixed(2) + '" width="' + TK_W + '" height="5" fill="' + accent + '"/>';
+  if (d.show_logo && c.logoUrl) {
+    o += '<image href="' + tkEsc(c.logoUrl) + '" x="36" y="' + (y0 + 37).toFixed(2) + '" width="96" height="96" preserveAspectRatio="xMidYMid meet"/>';
+    tx = 154;
+  }
+  var maxW = 964 - tx, f;
+  if (d.header_text) {
+    f = tkFit(d.header_text, 15, maxW, false, 11);
+    o += '<text x="' + tx + '" y="' + (y0 + 38).toFixed(2) + '" font-size="' + f.size + '" letter-spacing="3" fill="' + accent + '" ' + FF + '>' + tkEsc(f.text) + '</text>';
+  }
+  f = tkFit(t.attendee_name || '', 40, maxW, true, 20);
+  o += '<text x="' + tx + '" y="' + (y0 + 88).toFixed(2) + '" font-size="' + f.size + '" font-weight="700" fill="' + stripText + '" ' + FF + '>' + tkEsc(f.text) + '</text>';
+  var bits = [];
+  if (d.show_type !== false && c.typeName) bits.push(c.typeName);
+  if (d.show_date !== false && s.date_text) bits.push(s.date_text);
+  if (d.show_venue !== false && s.venue) bits.push(s.venue);
+  if (bits.length) {
+    f = tkFit(bits.join('  •  '), 20, maxW, false, 12);
+    o += '<text x="' + tx + '" y="' + (y0 + 122).toFixed(2) + '" font-size="' + f.size + '" fill="' + stripText + '" fill-opacity="0.85" xml:space="preserve" ' + FF + '>' + tkEsc(f.text) + '</text>';
+  }
+  var codeW = d.show_number !== false ? 190 : 0;
+  if (d.footer_note) {
+    f = tkFit(d.footer_note, 17, maxW - codeW, false, 11);
+    o += '<text x="' + tx + '" y="' + (y0 + 154).toFixed(2) + '" font-size="' + f.size + '" fill="' + stripText + '" fill-opacity="0.7" ' + FF + '>' + tkEsc(f.text) + '</text>';
+  }
+  if (d.show_number !== false) {
+    o += '<text x="964" y="' + (y0 + 154).toFixed(2) + '" text-anchor="end" font-size="16" letter-spacing="1" fill="' + stripText + '" fill-opacity="0.7" ' + FF + '>' + tkEsc(t.code) + '</text>';
+  }
+  return o + '</svg>';
+}
+// </ticket-svg>
+
+// ───────────── helpers ─────────────
+function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function $(id) { return document.getElementById(id); }
+function val(id) { var e = $(id); return e ? e.value : ''; }
+function pubUrl(p) { return p ? SUPABASE_URL + '/storage/v1/object/public/branding/' + p : ''; }
+function rupees(n) { return '₹' + Number(n || 0).toLocaleString('en-IN'); }
+function fmt(ts) { return ts ? new Date(ts).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : ''; }
+function errText(e) { return (e && (e.message || e.error_description || e.error)) || String(e); }
+function toast(msg, isErr) {
+  var t = document.createElement('div'); t.className = 'toast' + (isErr ? ' err' : ''); t.textContent = msg; document.body.appendChild(t);
+  setTimeout(function () { t.remove(); }, isErr ? 6000 : 3000);
+}
+function modal(html) {
+  closeModal();
+  var o = document.createElement('div'); o.className = 'overlay'; o.id = 'modalOv';
+  o.innerHTML = '<div class="modal">' + html + '</div>';
+  o.addEventListener('click', function (e) { if (e.target === o) closeModal(); });
+  document.body.appendChild(o);
+}
+function closeModal() { var o = $('modalOv'); if (o) o.remove(); }
+function busy(b, on) { if (b) { b.disabled = on !== false; } }
+function dlBlob(name, blob) { var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
+function loadingHtml() { return '<div class="muted" style="padding:40px;text-align:center">Loading…</div>'; }
+
+async function api(path, body, method) {
+  var ses = (await sb.auth.getSession()).data.session;
+  var opt = { method: method || 'POST', headers: { 'Authorization': 'Bearer ' + (ses ? ses.access_token : ''), 'Content-Type': 'application/json' } };
+  if (opt.method !== 'GET') opt.body = JSON.stringify(body || {});
+  var r = await fetch(path, opt), j;
+  try { j = await r.json(); } catch (e) { j = { ok: false, error: 'Server error (' + r.status + ')' }; }
+  if (!r.ok && j.ok == null) j.ok = false;
+  if (!r.ok && !j.error) j.error = 'Error ' + r.status;
+  return j;
+}
+
+// Resize + re-encode an image file in the browser. kind: 'png' (keeps transparency) or 'jpeg'.
+function resizeImage(file, maxDim, kind) {
+  return new Promise(function (resolve, reject) {
+    var img = new Image(), url = URL.createObjectURL(file);
+    img.onload = function () {
+      var sc = Math.min(1, maxDim / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * sc)); c.height = Math.max(1, Math.round(img.height * sc));
+      var x = c.getContext('2d');
+      if (kind === 'jpeg') { x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); }
+      x.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      c.toBlob(function (b) { b ? resolve(b) : reject(new Error('Could not process image')); }, kind === 'jpeg' ? 'image/jpeg' : 'image/png', 0.85);
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('That file is not a readable image')); };
+    img.src = url;
+  });
+}
+async function uploadBranding(prefix, file, maxDim, kind) {
+  var blob = await resizeImage(file, maxDim, kind);
+  var path = prefix + '-' + Date.now() + (kind === 'jpeg' ? '.jpg' : '.png');
+  var r = await sb.storage.from('branding').upload(path, blob, { contentType: blob.type, upsert: false });
+  if (r.error) throw r.error;
+  return path;
+}
+function removeBranding(path) { if (path) sb.storage.from('branding').remove([path]).catch(function () {}); }
+
+// ───────────── auth ─────────────
+function isAdmin(ses) { return !!(ses && ses.user && (ses.user.app_metadata || {}).role === 'admin'); }
+async function boot() {
+  var ses = (await sb.auth.getSession()).data.session;
+  if (isAdmin(ses)) return startApp();
+  if (ses) await sb.auth.signOut();
+  $('login').classList.remove('hide');
+}
+async function doLogin() {
+  var e = $('lg_err'); e.textContent = '';
+  var r = await sb.auth.signInWithPassword({ email: val('lg_email').trim(), password: val('lg_pw') });
+  if (r.error) { e.textContent = r.error.message; return; }
+  if (!isAdmin(r.data.session)) { await sb.auth.signOut(); e.textContent = 'This login is not an admin account.'; return; }
+  $('login').classList.add('hide');
+  startApp();
+}
+async function doLogout() { await sb.auth.signOut(); location.reload(); }
+
+async function startApp() {
+  $('app').classList.remove('hide');
+  $('tabs').innerHTML = TABS.map(function (t) { return '<button data-tab="' + t[0] + '">' + t[1] + '</button>'; }).join('');
+  try { await loadSettings(); } catch (e) { toast('Could not load settings: ' + errText(e), true); }
+  showTab(A.tab);
+}
+async function loadSettings() {
+  var r = await sb.from('event_settings').select(SETTINGS_COLS).eq('id', 1).single();
+  if (r.error) throw r.error;
+  A.settings = r.data; $('hdrTitle').textContent = r.data.name + ' · Admin';
+}
+async function loadTypes() {
+  var r = await sb.from('ticket_types').select('*').order('sort_order').order('id');
+  if (r.error) throw r.error;
+  A.types = r.data;
+  var c = await sb.rpc('admin_type_counts');
+  A.counts = {}; (c.data || []).forEach(function (x) { A.counts[x.type_id] = x; });
+}
+async function loadOrders(force) {
+  if (A.orders && !force) return;
+  var r = await sb.from('orders').select('*, tickets(id,code,attendee_name,used)').order('created_at', { ascending: false }).limit(3000);
+  if (r.error) throw r.error;
+  A.orders = r.data;
+}
+
+async function showTab(t) {
+  A.tab = t;
+  document.querySelectorAll('#tabs button').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === t); });
+  var on = document.querySelector('#tabs button.on'); if (on && on.scrollIntoView) on.scrollIntoView({ inline: 'center', block: 'nearest' });
+  $('content').innerHTML = loadingHtml();
+  window.scrollTo(0, 0);
+  try { await T[t](); } catch (e) { $('content').innerHTML = '<div class="card"><b>Could not load.</b><div class="err">' + esc(errText(e)) + '</div><button class="b" onclick="showTab(A.tab)">Retry</button></div>'; }
+}
+
+// single delegated click handler: <button data-act="name" data-id="..">
+document.addEventListener('click', function (e) {
+  var tb = e.target.closest('#tabs button'); if (tb) return showTab(tb.dataset.tab);
+  var b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
+  var f = ACT[b.dataset.act]; if (f) f(b.dataset, b);
+});
+
+// ───────────── ORDERS ─────────────
+T.orders = async function () {
+  await loadOrders(true);
+  $('content').innerHTML = '<h2>Orders</h2><div id="ordChips" class="chips"></div>' +
+    '<input id="ordQ" placeholder="Search name, phone, email or order no." value="' + esc(A.ordQ) + '" oninput="A.ordQ=this.value;A.ordLimit=40;drawOrderList()" style="margin-bottom:12px">' +
+    '<div id="ordList"></div>';
+  drawOrderList();
+};
+function ordMatches(o, q) {
+  if (!q) return true; q = q.toLowerCase();
+  var hay = [o.order_no, o.buyer_name, o.email, o.phone, o.payer_name].concat((o.tickets || []).map(function (t) { return t.attendee_name; })).join(' ').toLowerCase();
+  return hay.indexOf(q) >= 0 || (q.replace(/\D/g, '') && o.phone.replace(/\D/g, '').indexOf(q.replace(/\D/g, '')) >= 0);
+}
+function drawOrderList() {
+  var all = A.orders || [], cnt = { all: all.length, pending: 0, approved: 0, rejected: 0 };
+  all.forEach(function (o) { cnt[o.status]++; });
+  $('ordChips').innerHTML = ['pending', 'approved', 'rejected', 'all'].map(function (s) {
+    return '<button class="chip' + (A.ordFilter === s ? ' on' : '') + '" data-act="ordFilter" data-s="' + s + '">' + s[0].toUpperCase() + s.slice(1) + ' (' + cnt[s] + ')</button>';
+  }).join('');
+  var list = all.filter(function (o) { return (A.ordFilter === 'all' || o.status === A.ordFilter) && ordMatches(o, A.ordQ); });
+  var show = list.slice(0, A.ordLimit);
+  $('ordList').innerHTML = show.length ? show.map(orderCard).join('') + (list.length > show.length ? '<button class="b sec" style="width:100%" data-act="ordMore">Show more (' + (list.length - show.length) + ')</button>' : '')
+    : '<div class="card muted" style="text-align:center">No orders here.</div>';
+  loadShots(show);
+}
+function orderCard(o) {
+  var names = (o.tickets || []).map(function (t) { return '<li>' + esc(t.attendee_name) + (t.used ? ' <span class="pill gray">checked in</span>' : '') + '</li>'; }).join('');
+  var h = '<div class="card" id="o' + o.id + '"><div class="row"><div><b>' + esc(o.order_no) + '</b> <span class="pill ' + o.status + '">' + o.status + '</span>' +
+    (o.source === 'manual' ? ' <span class="pill gray">manual</span>' : '') + '</div><span class="muted">' + fmt(o.created_at) + '</span></div>' +
+    '<div style="margin-top:6px"><b>' + esc(o.qty) + ' × ' + esc(o.type_name) + '</b> = <b>' + rupees(o.amount) + '</b></div>';
+  h += '<div class="row" style="align-items:flex-start;margin-top:8px"><div style="min-width:0;flex:1">' +
+    '<div>' + esc(o.buyer_name) + '</div>' +
+    '<div class="muted"><a href="tel:' + esc(o.phone) + '">' + esc(o.phone) + '</a> · ' + esc(o.email) + '</div>' +
+    (o.source === 'online' ? '<div style="margin-top:8px" class="muted">Payer name in payment app</div><span class="payer">' + esc(o.payer_name) + '</span>' : '') +
+    '<div class="muted" style="margin-top:8px">Names on tickets</div><ol class="names">' + names + '</ol>' +
+    (o.status === 'rejected' && o.reject_reason ? '<div class="muted">Reason: ' + esc(o.reject_reason) + '</div>' : '') +
+    '</div>' + (o.screenshot_path ? '<img class="thumb" data-shot="' + esc(o.screenshot_path) + '" data-act="lightbox" alt="payment screenshot">' : '') + '</div>';
+  h += '<div class="acts">';
+  if (o.status === 'pending') h += '<button class="b ok" data-act="approve" data-id="' + o.id + '">Approve &amp; send ticket</button><button class="b bad" data-act="rejectAsk" data-id="' + o.id + '">Reject</button>';
+  if (o.status === 'approved') h += '<button class="b" data-act="resend" data-id="' + o.id + '">Resend email</button>';
+  if (o.status === 'rejected') h += '<button class="b" data-act="resend" data-id="' + o.id + '">Resend email</button><button class="b sec" data-act="toPending" data-id="' + o.id + '">Move back to pending</button>';
+  h += '<button class="b sec" data-act="editEmail" data-id="' + o.id + '">Edit email</button></div></div>';
+  return h;
+}
+async function loadShots(list) {
+  var need = [];
+  list.forEach(function (o) { if (o.screenshot_path && !A.shots[o.screenshot_path]) need.push(o.screenshot_path); });
+  if (need.length) {
+    var r = await sb.storage.from('screenshots').createSignedUrls(need, 3600);
+    (r.data || []).forEach(function (x) { if (x.signedUrl) A.shots[x.path] = x.signedUrl; });
+  }
+  document.querySelectorAll('img[data-shot]').forEach(function (im) { var u = A.shots[im.dataset.shot]; if (u && im.src !== u) im.src = u; });
+}
+function orderById(id) { return (A.orders || []).filter(function (o) { return String(o.id) === String(id); })[0]; }
+async function refreshOrders() { await loadOrders(true); if (A.tab === 'orders') drawOrderList(); }
+
+ACT.ordFilter = function (d) { A.ordFilter = d.s; A.ordLimit = 40; drawOrderList(); };
+ACT.ordMore = function () { A.ordLimit += 40; drawOrderList(); };
+ACT.lightbox = function (d, b) { $('lbImg').src = b.src; $('lightbox').classList.remove('hide'); };
+
+ACT.approve = async function (d, b) {
+  var o = orderById(d.id);
+  if (!confirm('Approve ' + o.order_no + ' and email the ticket to ' + o.email + '?')) return;
+  busy(b);
+  try {
+    var r = await sb.rpc('admin_set_order_status', { p_order_id: +d.id, p_status: 'approved' });
+    if (r.error) throw r.error;
+    var m = await api('/api/send-ticket', { order_id: +d.id, kind: 'approved' });
+    toast(m.ok ? 'Approved. Ticket emailed.' : 'Approved, but the email failed: ' + m.error + ' — use Resend.', !m.ok);
+  } catch (e) { toast(errText(e), true); }
+  refreshOrders();
+};
+ACT.rejectAsk = function (d) {
+  modal('<h3 style="margin-top:0">Reject ' + esc(orderById(d.id).order_no) + '</h3><label>Reason (optional, shown to the buyer)</label><textarea id="rjReason" placeholder="e.g. Payment not found in our account"></textarea>' +
+    '<div class="acts"><button class="b bad" data-act="rejectDo" data-id="' + d.id + '">Reject &amp; email buyer</button><button class="b sec" onclick="closeModal()">Cancel</button></div>');
+};
+ACT.rejectDo = async function (d, b) {
+  var reason = val('rjReason'); busy(b);
+  try {
+    var r = await sb.rpc('admin_set_order_status', { p_order_id: +d.id, p_status: 'rejected', p_reason: reason });
+    if (r.error) throw r.error;
+    closeModal();
+    var m = await api('/api/send-ticket', { order_id: +d.id, kind: 'rejected' });
+    toast(m.ok ? 'Rejected. Buyer emailed.' : 'Rejected, but the email failed: ' + m.error, !m.ok);
+  } catch (e) { toast(errText(e), true); busy(b, false); }
+  refreshOrders();
+};
+ACT.resend = async function (d, b) {
+  busy(b); var m = await api('/api/send-ticket', { order_id: +d.id, kind: 'resent' });
+  toast(m.ok ? 'Email sent.' : 'Email failed: ' + m.error, !m.ok); busy(b, false);
+  if (A.emails) A.emails = null;
+};
+ACT.toPending = async function (d, b) {
+  busy(b);
+  try { var r = await sb.rpc('admin_set_order_status', { p_order_id: +d.id, p_status: 'pending' }); if (r.error) throw r.error; toast('Moved back to pending.'); }
+  catch (e) { toast(/NO_SEATS_LEFT/.test(errText(e)) ? 'No seats left for this ticket type. Increase its seats first.' : errText(e), true); }
+  refreshOrders();
+};
+ACT.editEmail = function (d) {
+  var o = orderById(d.id);
+  modal('<h3 style="margin-top:0">Edit email for ' + esc(o.order_no) + '</h3><label>Email address</label><input id="emNew" type="email" inputmode="email" value="' + esc(o.email) + '">' +
+    '<div class="acts"><button class="b" data-act="emSave" data-id="' + d.id + '" data-resend="1">Save &amp; resend</button><button class="b sec" data-act="emSave" data-id="' + d.id + '">Save only</button><button class="b sec" onclick="closeModal()">Cancel</button></div>');
+};
+ACT.emSave = async function (d, b) {
+  var em = val('emNew').trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return toast('Enter a valid email address.', true);
+  busy(b);
+  var r = await sb.from('orders').update({ email: em }).eq('id', +d.id);
+  if (r.error) { toast(errText(r.error), true); busy(b, false); return; }
+  closeModal();
+  if (d.resend) { var m = await api('/api/send-ticket', { order_id: +d.id, kind: 'resent' }); toast(m.ok ? 'Saved. Email sent.' : 'Saved, but the email failed: ' + m.error, !m.ok); }
+  else toast('Email saved.');
+  refreshOrders();
+};
+
+// ───────────── ADD MANUAL ORDER ─────────────
+var M = { qty: 1, names: [''], firstEdited: false, free: false };
+T.manual = async function () {
+  await loadTypes();
+  var types = A.types;
+  if (!types.length) { $('content').innerHTML = '<h2>Add order</h2><div class="card">Add a ticket type first.</div>'; return; }
+  $('content').innerHTML = '<h2>Add manual order</h2><div class="card muted">For cash sales or complimentary tickets. No payment screenshot; issued as approved and the ticket is emailed.</div>' +
+    '<div class="card"><label>Ticket type</label><select id="mn_type" onchange="mnTotal()">' + types.map(function (t) {
+      var left = t.capacity - ((A.counts[t.id] || {}).taken || 0);
+      return '<option value="' + t.id + '">' + esc(t.name) + ' — ' + rupees(t.price) + ' (' + left + ' left)' + (t.active ? '' : ' [off sale]') + '</option>'; }).join('') + '</select>' +
+    '<div class="grid2"><div><label>Quantity</label><input id="mn_qty" type="number" min="1" max="50" value="1" oninput="mnQty()"></div>' +
+    '<div><label>Amount received (₹)</label><input id="mn_amt" type="number" min="0"></div></div>' +
+    '<label class="chk"><input type="checkbox" id="mn_free" onchange="mnTotal()"> Complimentary (₹0)</label>' +
+    '<label>Buyer name</label><input id="mn_name" oninput="mnBuyer()">' +
+    '<div class="grid2"><div><label>Email (ticket is sent here)</label><input id="mn_email" type="email" inputmode="email"></div>' +
+    '<div><label>Phone (optional)</label><input id="mn_phone" type="tel"></div></div>' +
+    '<div id="mn_names"></div><div id="mn_err" class="err"></div>' +
+    '<button class="b" id="mn_go" data-act="mnSave">Issue ticket &amp; email</button></div>';
+  M = { qty: 1, names: [''], firstEdited: false };
+  mnNames(); mnTotal();
+};
+function mnTotal() {
+  var t = A.types.filter(function (x) { return String(x.id) === val('mn_type'); })[0]; if (!t) return;
+  var free = $('mn_free').checked; $('mn_amt').value = free ? 0 : t.price * (+val('mn_qty') || 1); $('mn_amt').disabled = free;
+}
+function mnNames() {
+  var h = '<label>Name on each ticket</label>';
+  for (var i = 0; i < M.qty; i++) h += '<input id="mn_n' + i + '" style="margin-bottom:6px" placeholder="Attendee ' + (i + 1) + '" value="' + esc(M.names[i] || '') + '" oninput="mnAtt(' + i + ')">';
+  $('mn_names').innerHTML = h;
+}
+function mnQty() {
+  var q = Math.max(1, Math.min(50, +val('mn_qty') || 1)); M.qty = q;
+  while (M.names.length < q) M.names.push(''); M.names.length = q; mnNames(); mnTotal();
+}
+function mnBuyer() { if (!M.firstEdited) { M.names[0] = val('mn_name'); var e = $('mn_n0'); if (e) e.value = M.names[0]; } }
+function mnAtt(i) { M.names[i] = val('mn_n' + i); if (i === 0 && M.names[0] !== val('mn_name')) M.firstEdited = true; }
+ACT.mnSave = async function (d, b) {
+  var err = $('mn_err'); err.textContent = '';
+  var name = val('mn_name').trim(), email = val('mn_email').trim(), names = [];
+  for (var i = 0; i < M.qty; i++) names.push(val('mn_n' + i).trim());
+  if (name.length < 2) { err.textContent = 'Enter the buyer name.'; return; }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { err.textContent = 'Enter a valid email.'; return; }
+  for (i = 0; i < names.length; i++) if (names[i].length < 2) { err.textContent = 'Enter the name for ticket ' + (i + 1) + '.'; return; }
+  busy(b);
+  try {
+    var r = await sb.rpc('admin_create_manual_order', { p_type_id: +val('mn_type'), p_qty: M.qty, p_buyer_name: name, p_email: email,
+      p_phone: val('mn_phone').trim(), p_names: names, p_amount: $('mn_free').checked ? 0 : (+val('mn_amt') || 0) });
+    if (r.error) throw r.error;
+    var m = await api('/api/send-ticket', { order_id: r.data.order_id, kind: 'approved' });
+    toast(m.ok ? r.data.order_no + ' issued and emailed.' : r.data.order_no + ' issued, but the email failed: ' + m.error + ' (Resend from Orders).', !m.ok);
+    A.orders = null; showTab('manual');
+  } catch (e) {
+    var t = errText(e); busy(b, false);
+    err.textContent = /NOT_ENOUGH_SEATS:(\d+)/.test(t) ? 'Only ' + RegExp.$1 + ' seat(s) left for this type.' : t;
+  }
+};
+
+// ───────────── TICKET TYPES ─────────────
+T.types = async function () { await Promise.all([loadTypes(), loadOrders()]); drawTypes(); };
+function typeOrderCount(id) { return (A.orders || []).filter(function (o) { return o.type_id === id; }).length; }
+function drawTypes() {
+  var h = '<div class="row"><h2>Ticket types</h2><button class="b" data-act="typeNew">+ Add type</button></div>';
+  if (A.editType === 'new') h += typeForm({ id: 'new', name: '', description: '', price: 0, capacity: 100, accent_color: null, active: false });
+  A.types.forEach(function (t, i) {
+    if (A.editType === t.id) { h += typeForm(t); return; }
+    var c = A.counts[t.id] || { taken: 0, approved: 0 }, n = typeOrderCount(t.id);
+    h += '<div class="card"' + (t.accent_color ? ' style="border-left:5px solid ' + esc(t.accent_color) + '"' : '') + '><div class="row"><div><b>' + esc(t.name) + '</b> ' +
+      (t.active ? '<span class="pill approved">On sale</span>' : '<span class="pill gray">Off sale</span>') + '<div class="muted">' + esc(t.description) + '</div></div>' +
+      '<div style="text-align:right"><b>' + rupees(t.price) + '</b><div class="muted">' + c.taken + ' of ' + t.capacity + ' taken</div></div></div>' +
+      '<div class="muted" style="margin-top:4px">' + c.approved + ' approved · ' + (c.taken - c.approved) + ' pending · ' + Math.max(t.capacity - c.taken, 0) + ' left</div>' +
+      '<div class="row" style="margin-top:10px;justify-content:flex-start"><div>' +
+      (t.payment_qr_path ? '<img class="qrimg" src="' + esc(pubUrl(t.payment_qr_path)) + '" alt="payment QR">' : '<div class="qrimg muted" style="display:flex;align-items:center;justify-content:center;font-size:12px;text-align:center">No QR yet</div>') +
+      '</div><div><label style="margin:0 0 4px">Payment QR image (UPI)</label><input type="file" accept="image/*" onchange="typeQr(' + t.id + ',this)" style="font-size:13px;padding:6px"></div></div>' +
+      '<div class="acts"><button class="b sec sm" data-act="typeUp" data-id="' + t.id + '"' + (i === 0 ? ' disabled' : '') + '>▲</button><button class="b sec sm" data-act="typeDown" data-id="' + t.id + '"' + (i === A.types.length - 1 ? ' disabled' : '') + '>▼</button>' +
+      '<button class="b sec" data-act="typeEdit" data-id="' + t.id + '">Edit</button>' +
+      '<button class="b sec" data-act="typeToggle" data-id="' + t.id + '">' + (t.active ? 'Turn off sale' : 'Turn on sale') + '</button>' +
+      (n ? '<button class="b sec" disabled title="Has orders; turn it off instead">Delete (has ' + n + ' orders)</button>' : '<button class="b bad" data-act="typeDelete" data-id="' + t.id + '">Delete</button>') + '</div></div>';
+  });
+  if (!A.types.length && A.editType !== 'new') h += '<div class="card muted" style="text-align:center">No ticket types yet.</div>';
+  $('content').innerHTML = h;
+}
+function typeForm(t) {
+  var hasAcc = !!t.accent_color;
+  return '<div class="card" style="border:2px solid var(--brand)"><b>' + (t.id === 'new' ? 'New ticket type' : 'Edit ticket type') + '</b>' +
+    '<label>Name</label><input id="tf_name" value="' + esc(t.name) + '"><label>Description</label><input id="tf_desc" value="' + esc(t.description) + '">' +
+    '<div class="grid2"><div><label>Price (₹)</label><input id="tf_price" type="number" min="0" value="' + esc(t.price) + '"></div><div><label>Total seats</label><input id="tf_cap" type="number" min="0" value="' + esc(t.capacity) + '"></div></div>' +
+    '<label class="chk"><input type="checkbox" id="tf_hasacc"' + (hasAcc ? ' checked' : '') + '> Use an accent colour on this ticket</label><input type="color" id="tf_acc" value="' + esc(t.accent_color || '#f5cc6a') + '">' +
+    '<label class="chk"><input type="checkbox" id="tf_active"' + (t.active ? ' checked' : '') + '> On sale</label><div id="tf_err" class="err"></div>' +
+    '<div class="acts"><button class="b" data-act="typeSave" data-id="' + t.id + '">Save</button><button class="b sec" data-act="typeCancel">Cancel</button></div></div>';
+}
+ACT.typeNew = function () { A.editType = 'new'; drawTypes(); };
+ACT.typeEdit = function (d) { A.editType = +d.id; drawTypes(); };
+ACT.typeCancel = function () { A.editType = null; drawTypes(); };
+ACT.typeSave = async function (d, b) {
+  var row = { name: val('tf_name').trim(), description: val('tf_desc').trim(), price: Math.round(+val('tf_price')), capacity: Math.round(+val('tf_cap')),
+              accent_color: $('tf_hasacc').checked ? val('tf_acc') : null, active: $('tf_active').checked };
+  var e = $('tf_err');
+  if (!row.name) { e.textContent = 'Enter a name.'; return; }
+  if (!(row.price >= 0) || !(row.capacity >= 0)) { e.textContent = 'Price and seats must be 0 or more.'; return; }
+  busy(b);
+  var r;
+  if (d.id === 'new') { row.sort_order = A.types.length ? Math.max.apply(null, A.types.map(function (t) { return t.sort_order; })) + 10 : 10; r = await sb.from('ticket_types').insert(row); }
+  else r = await sb.from('ticket_types').update(row).eq('id', +d.id);
+  if (r.error) { e.textContent = errText(r.error); busy(b, false); return; }
+  A.editType = null; toast('Saved.'); T.types();
+};
+ACT.typeToggle = async function (d) {
+  var t = A.types.filter(function (x) { return x.id === +d.id; })[0];
+  var r = await sb.from('ticket_types').update({ active: !t.active }).eq('id', t.id);
+  if (r.error) return toast(errText(r.error), true); T.types();
+};
+ACT.typeDelete = async function (d) {
+  var t = A.types.filter(function (x) { return x.id === +d.id; })[0];
+  if (!confirm('Delete "' + t.name + '"? This cannot be undone.')) return;
+  var r = await sb.from('ticket_types').delete().eq('id', t.id);
+  if (r.error) return toast(/foreign key|violates/i.test(errText(r.error)) ? 'This type has orders. Turn it off instead.' : errText(r.error), true);
+  removeBranding(t.payment_qr_path); toast('Deleted.'); T.types();
+};
+async function typeMove(id, dir) {
+  var i = A.types.map(function (t) { return t.id; }).indexOf(id), j = i + dir;
+  if (j < 0 || j >= A.types.length) return;
+  var arr = A.types.slice(); var x = arr[i]; arr[i] = arr[j]; arr[j] = x;
+  for (var k = 0; k < arr.length; k++) {
+    var r = await sb.from('ticket_types').update({ sort_order: (k + 1) * 10 }).eq('id', arr[k].id);
+    if (r.error) return toast(errText(r.error), true);
+  }
+  T.types();
+}
+ACT.typeUp = function (d) { typeMove(+d.id, -1); };
+ACT.typeDown = function (d) { typeMove(+d.id, 1); };
+async function typeQr(id, inp) {
+  var f = inp.files && inp.files[0]; if (!f) return;
+  try {
+    var t = A.types.filter(function (x) { return x.id === id; })[0];
+    var path = await uploadBranding('qr-' + id, f, 1000, 'png');
+    var r = await sb.from('ticket_types').update({ payment_qr_path: path }).eq('id', id);
+    if (r.error) throw r.error;
+    removeBranding(t.payment_qr_path); toast('QR image saved.'); T.types();
+  } catch (e) { toast(errText(e), true); }
+}
+
+// ───────────── ATTENDEES ─────────────
+T.attendees = async function () {
+  var r = await sb.from('tickets').select('id,code,attendee_name,used,used_at,used_by,orders(order_no,type_name,status,buyer_name,email,phone)').order('id', { ascending: false }).limit(5000);
+  if (r.error) throw r.error;
+  A.tickets = r.data;
+  $('content').innerHTML = '<div class="row"><h2>Attendees</h2><button class="b" data-act="csv">Export CSV</button></div><div id="atStat" class="card"></div>' +
+    '<div class="chips"><button class="chip" data-act="atF" data-s="approved" id="atf_a">Approved</button><button class="chip" data-act="atF" data-s="all" id="atf_b">All (incl. pending / rejected)</button></div>' +
+    '<input id="atQ" placeholder="Search name, ticket code, order no., buyer" value="' + esc(A.atQ) + '" oninput="A.atQ=this.value;A.atLimit=100;drawAttendees()" style="margin-bottom:12px"><div id="atList"></div>';
+  drawAttendees();
+};
+function atRows() {
+  var q = A.atQ.toLowerCase();
+  return (A.tickets || []).filter(function (t) {
+    var o = t.orders || {};
+    if (A.atFilter === 'approved' && o.status !== 'approved') return false;
+    return !q || (t.attendee_name + ' ' + t.code + ' ' + o.order_no + ' ' + o.buyer_name).toLowerCase().indexOf(q) >= 0;
+  });
+}
+function drawAttendees() {
+  var appr = (A.tickets || []).filter(function (t) { return (t.orders || {}).status === 'approved'; });
+  var done = appr.filter(function (t) { return t.used; }).length;
+  $('atStat').innerHTML = '<div class="row"><b style="font-size:20px">' + done + ' of ' + appr.length + ' checked in</b></div>';
+  $('atf_a').classList.toggle('on', A.atFilter === 'approved'); $('atf_b').classList.toggle('on', A.atFilter === 'all');
+  var rows = atRows(), show = rows.slice(0, A.atLimit);
+  $('atList').innerHTML = show.map(function (t) {
+    var o = t.orders || {};
+    return '<div class="card row" style="padding:10px 14px"><div style="min-width:0"><b>' + esc(t.attendee_name) + '</b><div class="muted">' + esc(o.type_name) + ' · ' + esc(o.order_no) + ' · ' + esc(t.code) +
+      (o.status !== 'approved' ? ' · <span class="pill ' + o.status + '">' + o.status + '</span>' : '') + '</div></div>' +
+      '<div style="text-align:right">' + (t.used ? '<span class="pill approved">Checked in</span><div class="muted">' + fmt(t.used_at) + '</div>' : '<span class="pill gray">Not yet</span>') + '</div></div>';
+  }).join('') || '<div class="card muted" style="text-align:center">No attendees.</div>';
+  if (rows.length > show.length) $('atList').innerHTML += '<button class="b sec" style="width:100%" data-act="atMore">Show more (' + (rows.length - show.length) + ')</button>';
+}
+ACT.atF = function (d) { A.atFilter = d.s; A.atLimit = 100; drawAttendees(); };
+ACT.atMore = function () { A.atLimit += 100; drawAttendees(); };
+ACT.csv = function () {
+  function q(v) { v = v == null ? '' : String(v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+  var head = ['Ticket code', 'Attendee', 'Ticket type', 'Order no', 'Order status', 'Buyer', 'Email', 'Phone', 'Checked in', 'Checked in at'];
+  var lines = [head.join(',')].concat(atRows().map(function (t) {
+    var o = t.orders || {};
+    return [t.code, t.attendee_name, o.type_name, o.order_no, o.status, o.buyer_name, o.email, o.phone, t.used ? 'Yes' : 'No', t.used_at ? new Date(t.used_at).toLocaleString('en-IN') : ''].map(q).join(',');
+  }));
+  dlBlob('attendees.csv', new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }));   // BOM so Excel shows Hindi names
+};
+
+// ───────────── EMAIL LOG ─────────────
+T.emails = async function () {
+  var r = await sb.from('email_log').select('id,order_id,kind,to_email,status,error,created_at,orders(order_no,buyer_name)').order('created_at', { ascending: false }).limit(300);
+  if (r.error) throw r.error;
+  var rows = r.data, fails = rows.filter(function (x) { return x.status === 'failed'; }).length;
+  $('content').innerHTML = '<h2>Emails</h2><div class="card muted">Gmail allows about 500 recipients per day. ' + (fails ? '<b style="color:var(--bad)">' + fails + ' failed in the last ' + rows.length + '.</b>' : 'No failures recently.') + '</div>' +
+    (rows.map(function (x) {
+      var o = x.orders || {};
+      return '<div class="card"><div class="row"><div><b>' + esc(o.order_no || '') + '</b> <span class="pill gray">' + x.kind + '</span> <span class="pill ' + x.status + '">' + x.status + '</span></div><span class="muted">' + fmt(x.created_at) + '</span></div>' +
+        '<div class="muted">' + esc(x.to_email) + (o.buyer_name ? ' · ' + esc(o.buyer_name) : '') + '</div>' + (x.error ? '<div class="err">' + esc(x.error) + '</div>' : '') +
+        '<div class="acts"><button class="b sec sm" data-act="resendLog" data-id="' + x.order_id + '">Resend</button></div></div>';
+    }).join('') || '<div class="card muted" style="text-align:center">No emails sent yet.</div>');
+};
+ACT.resendLog = async function (d, b) {
+  busy(b); var m = await api('/api/send-ticket', { order_id: +d.id, kind: 'resent' });
+  toast(m.ok ? 'Email sent.' : 'Email failed: ' + m.error, !m.ok); T.emails();
+};
+
+// ───────────── EVENT SETTINGS ─────────────
+function toLocalInput(ts) { if (!ts) return ''; var d = new Date(ts), p = function (n) { return ('0' + n).slice(-2); }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()); }
+T.event = async function () {
+  await loadSettings(); var s = A.settings;
+  $('content').innerHTML = '<h2>Event settings</h2><div class="card">' +
+    '<label>Event name</label><input id="ev_name" value="' + esc(s.name) + '">' +
+    '<div class="grid2"><div><label>Date (as shown to buyers)</label><input id="ev_date" value="' + esc(s.date_text) + '"></div><div><label>Venue</label><input id="ev_venue" value="' + esc(s.venue) + '"></div></div>' +
+    '<label>Description</label><textarea id="ev_desc">' + esc(s.description) + '</textarea>' +
+    '<div class="grid2"><div><label>Contact phone</label><input id="ev_phone" value="' + esc(s.contact_phone) + '"></div><div><label>Contact email</label><input id="ev_email" value="' + esc(s.contact_email) + '"></div></div>' +
+    '<label>Payment instructions (shown on the pay step)</label><textarea id="ev_pay">' + esc(s.payment_instructions) + '</textarea>' +
+    '<label>Terms (shown on the buy page)</label><textarea id="ev_terms">' + esc(s.terms_text) + '</textarea></div>' +
+    '<div class="card"><label class="chk" style="margin-top:0"><input type="checkbox" id="ev_open"' + (s.sales_open ? ' checked' : '') + '> <b>Ticket sales are open</b></label>' +
+    '<div class="grid2"><div><label>Sale starts (optional)</label><input id="ev_start" type="datetime-local" value="' + toLocalInput(s.sales_start) + '"></div><div><label>Sale ends (optional)</label><input id="ev_end" type="datetime-local" value="' + toLocalInput(s.sales_end) + '"></div></div>' +
+    '<label>Message shown when sales are closed</label><input id="ev_closed" value="' + esc(s.closed_message) + '">' +
+    '<label>Max tickets per order</label><input id="ev_max" type="number" min="1" max="50" value="' + esc(s.max_per_order) + '"></div>' +
+    '<div class="card"><b>Logo</b> <span class="muted">(square works best)</span><div class="row" style="justify-content:flex-start;margin-top:8px">' +
+    (s.logo_path ? '<img class="qrimg" src="' + esc(pubUrl(s.logo_path)) + '" alt="">' : '<div class="qrimg muted" style="display:flex;align-items:center;justify-content:center;font-size:12px">None</div>') +
+    '<input type="file" accept="image/*" onchange="evImg(\'logo_path\',\'logo\',600,\'png\',this)" style="font-size:13px"></div>' +
+    '<b style="display:block;margin-top:14px">Banner</b><div class="row" style="justify-content:flex-start;margin-top:8px">' +
+    (s.banner_path ? '<img class="qrimg" style="width:160px;height:70px" src="' + esc(pubUrl(s.banner_path)) + '" alt="">' : '<div class="qrimg muted" style="width:160px;height:70px;display:flex;align-items:center;justify-content:center;font-size:12px">None</div>') +
+    '<input type="file" accept="image/*" onchange="evImg(\'banner_path\',\'banner\',1600,\'jpeg\',this)" style="font-size:13px"></div></div>' +
+    '<div class="sticky-save"><button class="b" style="width:100%" data-act="evSave">Save event settings</button></div>';
+};
+async function evImg(col, prefix, maxDim, kind, inp) {
+  var f = inp.files && inp.files[0]; if (!f) return;
+  try {
+    var old = A.settings[col], path = await uploadBranding(prefix, f, maxDim, kind), u = {}; u[col] = path;
+    var r = await sb.from('event_settings').update(u).eq('id', 1); if (r.error) throw r.error;
+    removeBranding(old); toast('Image saved.'); T.event();
+  } catch (e) { toast(errText(e), true); }
+}
+ACT.evSave = async function (d, b) {
+  var row = { name: val('ev_name').trim(), date_text: val('ev_date').trim(), venue: val('ev_venue').trim(), description: val('ev_desc'), contact_phone: val('ev_phone').trim(),
+    contact_email: val('ev_email').trim(), payment_instructions: val('ev_pay'), terms_text: val('ev_terms'), sales_open: $('ev_open').checked,
+    sales_start: val('ev_start') ? new Date(val('ev_start')).toISOString() : null, sales_end: val('ev_end') ? new Date(val('ev_end')).toISOString() : null,
+    closed_message: val('ev_closed').trim(), max_per_order: Math.round(+val('ev_max')) || 5, updated_at: new Date().toISOString() };
+  if (!row.name) return toast('Event name is required.', true);
+  if (row.sales_start && row.sales_end && row.sales_start >= row.sales_end) return toast('Sale end must be after sale start.', true);
+  busy(b); var r = await sb.from('event_settings').update(row).eq('id', 1); busy(b, false);
+  if (r.error) return toast(errText(r.error), true);
+  toast('Saved. The public page is updated.'); loadSettings();
+};
+
+// ───────────── THEME ─────────────
+var TH = null;
+T.theme = async function () {
+  await loadSettings();
+  TH = Object.assign({}, DARK, A.settings.theme || {});
+  var cf = [['primary', 'Primary'], ['background', 'Background'], ['card', 'Card'], ['text', 'Text'], ['accent', 'Accent'], ['button_text', 'Button text']];
+  $('content').innerHTML = '<h2>Theme</h2><div class="card"><label style="margin-top:0">Light or dark (fills in a matching palette; tweak after)</label>' +
+    '<div class="chips"><button class="chip" id="thm_dark" data-act="thMode" data-m="dark">Dark</button><button class="chip" id="thm_light" data-act="thMode" data-m="light">Light</button></div>' +
+    '<div class="colors">' + cf.map(function (c) { return '<div><label>' + c[1] + '</label><input type="color" id="th_' + c[0] + '" value="' + esc(TH[c[0]]) + '" oninput="thRead()"></div>'; }).join('') + '</div>' +
+    '<label>Corner roundness: <span id="th_rv">' + TH.radius + '</span>px</label><input type="range" id="th_radius" min="0" max="28" value="' + TH.radius + '" oninput="thRead()">' +
+    '<label>Font</label><select id="th_font" onchange="thRead()">' + Object.keys(FONTS).map(function (f) { return '<option value="' + f + '"' + (TH.font === f ? ' selected' : '') + '>' + esc(FONT_LABEL[f] || f) + '</option>'; }).join('') + '</select>' +
+    '<div class="acts"><button class="b" data-act="thSave">Save theme</button><button class="b sec" data-act="thReset">Reset to default</button></div></div>' +
+    '<h3>Live preview</h3><div class="pvBox"><div id="pv"></div></div>';
+  thDraw();
+};
+function thRead() {
+  ['primary', 'background', 'card', 'text', 'accent', 'button_text'].forEach(function (k) { TH[k] = val('th_' + k); });
+  TH.radius = +val('th_radius'); TH.font = val('th_font'); $('th_rv').textContent = TH.radius; thDraw();
+}
+function thDraw() {
+  $('thm_dark').classList.toggle('on', TH.mode !== 'light'); $('thm_light').classList.toggle('on', TH.mode === 'light');
+  $('pvFont').href = 'https://fonts.googleapis.com/css2?family=' + (FONTS[TH.font] || FONTS.Poppins) + '&display=swap';
+  var s = A.settings;
+  $('pv').className = 'pv';
+  $('pv').setAttribute('style', '--pbg:' + TH.background + ';--pcard:' + TH.card + ';--ptext:' + TH.text + ';--pprimary:' + TH.primary + ';--paccent:' + TH.accent +
+    ';--pbtn:' + TH.button_text + ';--prad:' + TH.radius + 'px;--pfont:\'' + TH.font + '\',\'Noto Sans Devanagari\',sans-serif');
+  $('pv').innerHTML = '<div class="ban"></div><div class="in"><h4>' + esc(s.name) + '</h4><div style="font-size:13px;opacity:.75">📅 ' + esc(s.date_text) + '<br>📍 ' + esc(s.venue) + '</div>' +
+    '<div class="card2"><div><b>General Entry</b><div style="font-size:12px;opacity:.7">12 left · हिन्दी परीक्षण</div></div><b style="color:var(--paccent);font-size:18px">₹100</b></div>' +
+    '<button class="btn2">Buy ticket</button><div class="fld">Your name</div><div class="fld">Phone number</div></div>';
+}
+ACT.thMode = function (d) { var p = d.m === 'light' ? LIGHT : DARK; TH = Object.assign({}, p, { radius: TH.radius, font: TH.font }); ['primary', 'background', 'card', 'text', 'accent', 'button_text'].forEach(function (k) { $('th_' + k).value = TH[k]; }); thDraw(); };
+ACT.thReset = function () { TH = Object.assign({}, DARK); ['primary', 'background', 'card', 'text', 'accent', 'button_text'].forEach(function (k) { $('th_' + k).value = TH[k]; }); $('th_radius').value = TH.radius; $('th_font').value = TH.font; $('th_rv').textContent = TH.radius; thDraw(); toast('Default colours loaded. Press Save to apply.'); };
+ACT.thSave = async function (d, b) {
+  busy(b); var r = await sb.from('event_settings').update({ theme: TH, updated_at: new Date().toISOString() }).eq('id', 1); busy(b, false);
+  if (r.error) return toast(errText(r.error), true); toast('Theme saved. The public page is updated.'); loadSettings();
+};
+
+// ───────────── TICKET DESIGN ─────────────
+var TD = null, TDNAME = 'राहुल शर्मा';
+T.ticket = async function () {
+  await Promise.all([loadSettings(), loadTypes()]);
+  TD = Object.assign({}, DEFAULT_TICKET, A.settings.ticket_design || {});
+  var cf = [['strip_bg', 'Strip background'], ['strip_text', 'Strip text'], ['accent', 'Accent (lines, header)'], ['number_color', 'Ticket no. colour'], ['qr_color', 'QR colour']];
+  var tg = [['show_type', 'Ticket type'], ['show_date', 'Date'], ['show_venue', 'Venue'], ['show_number', 'Ticket number'], ['show_logo', 'Logo']];
+  $('content').innerHTML = '<h2>Ticket design</h2><div class="card muted">The artwork is your Dandiya Nights template. Edit the strip below it: colours, text and which details appear. The PDF follows the same settings.</div>' +
+    '<h3>Preview</h3><div class="tkprev" id="tkPrev"></div>' +
+    '<div class="row" style="margin:10px 0"><input id="td_name" style="flex:1;min-width:160px" value="' + esc(TDNAME) + '" oninput="TDNAME=this.value;tdDraw()" aria-label="Sample attendee name"><button class="b sec" data-act="tdPdf">Preview as PDF</button></div>' +
+    '<div class="card"><div class="colors">' + cf.map(function (c) { return '<div><label>' + c[1] + '</label><input type="color" id="td_' + c[0] + '" value="' + esc(TD[c[0]]) + '" oninput="tdRead()"></div>'; }).join('') + '</div>' +
+    '<label>Header text</label><input id="td_header_text" value="' + esc(TD.header_text) + '" oninput="tdRead()">' +
+    '<label>Footer note</label><input id="td_footer_note" value="' + esc(TD.footer_note) + '" oninput="tdRead()">' +
+    '<label>Show on ticket</label>' + tg.map(function (g) { return '<label class="chk"><input type="checkbox" id="td_' + g[0] + '"' + (TD[g[0]] !== false && TD[g[0]] ? ' checked' : '') + ' onchange="tdRead()"> ' + g[1] + '</label>'; }).join('') +
+    '<label>Ticket logo (uses the event logo if none uploaded)</label><input type="file" accept="image/*" onchange="tdLogo(this)" style="font-size:13px">' +
+    '<div class="acts"><button class="b" data-act="tdSave">Save ticket design</button><button class="b sec" data-act="tdReset">Reset to default</button></div></div>';
+  tdDraw();
+};
+function tdRead() {
+  ['strip_bg', 'strip_text', 'accent', 'number_color', 'qr_color'].forEach(function (k) { TD[k] = val('td_' + k); });
+  TD.header_text = val('td_header_text'); TD.footer_note = val('td_footer_note');
+  ['show_type', 'show_date', 'show_venue', 'show_number', 'show_logo'].forEach(function (k) { TD[k] = $('td_' + k).checked; });
+  tdDraw();
+}
+function tdCtx() {
+  var t = A.types[0] || {};
+  return { s: Object.assign({}, A.settings, { ticket_design: TD }), typeName: t.name || 'General Entry', accent: t.accent_color || null, bgUrl: 'assets/ticket-bg.jpg', logoUrl: pubUrl(TD.logo_path || A.settings.logo_path) };
+}
+function tdDraw() { $('tkPrev').innerHTML = renderTicketSVG({ code: 'TKT-ABCD234XYZ', attendee_name: TDNAME }, tdCtx()); }
+async function tdLogo(inp) {
+  var f = inp.files && inp.files[0]; if (!f) return;
+  try { TD.logo_path = await uploadBranding('ticket-logo', f, 500, 'png'); TD.show_logo = true; $('td_show_logo').checked = true; tdDraw(); toast('Logo added. Press Save to keep it.'); }
+  catch (e) { toast(errText(e), true); }
+}
+ACT.tdReset = function () { TD = Object.assign({}, DEFAULT_TICKET); ['strip_bg', 'strip_text', 'accent', 'number_color', 'qr_color'].forEach(function (k) { $('td_' + k).value = TD[k]; }); $('td_header_text').value = TD.header_text; $('td_footer_note').value = TD.footer_note; ['show_type', 'show_date', 'show_venue', 'show_number', 'show_logo'].forEach(function (k) { $('td_' + k).checked = !!TD[k]; }); tdDraw(); toast('Default design loaded. Press Save to apply.'); };
+ACT.tdSave = async function (d, b) {
+  busy(b); var r = await sb.from('event_settings').update({ ticket_design: TD, updated_at: new Date().toISOString() }).eq('id', 1); busy(b, false);
+  if (r.error) return toast(errText(r.error), true); toast('Ticket design saved.'); loadSettings();
+};
+ACT.tdPdf = async function (d, b) {
+  busy(b);
+  try {
+    var t = A.types[0] || {}, ses = (await sb.auth.getSession()).data.session;
+    var r = await fetch('/api/preview-pdf', { method: 'POST', headers: { 'Authorization': 'Bearer ' + ses.access_token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: TDNAME, type_name: t.name || 'General Entry', accent: t.accent_color || null, design: TD }) });
+    if (!r.ok) { var j = await r.json().catch(function () { return {}; }); throw new Error(j.error || 'PDF failed (' + r.status + ')'); }
+    dlBlob('ticket-preview.pdf', await r.blob());
+  } catch (e) { toast(errText(e), true); }
+  busy(b, false);
+};
+
+// ───────────── EMAIL TEMPLATES ─────────────
+var ET = null;
+var SAMPLE = { name: 'Asha Sharma', order_no: 'ORD-1001', event: '', date: '', venue: '', link: 'https://example.com/#/order/abc123', reason: 'Payment not found in our account', type: 'General Entry', qty: 2, amount: 200, contact_phone: '', contact_email: '' };
+function fillTpl(str, v) { return String(str || '').replace(/\{(\w+)\}/g, function (m, k) { return v[k] != null ? v[k] : m; }); }
+T.templates = async function () {
+  await loadSettings();
+  var r = await sb.rpc('admin_get_email_templates'); if (r.error) throw r.error;
+  var cur = r.data || {}; ET = {};
+  ['received', 'approved', 'rejected'].forEach(function (k) { ET[k] = Object.assign({}, DEFAULT_TEMPLATES[k], cur[k] || {}); });
+  var titles = { received: 'Order received (sent when the buyer submits)', approved: 'Ticket (sent on approval, PDF attached)', rejected: 'Rejected (includes your reason)' };
+  $('content').innerHTML = '<h2>Email text</h2><div class="card muted">Placeholders: <code>{name} {order_no} {event} {date} {venue} {link} {reason} {type} {qty} {amount} {contact_phone} {contact_email}</code></div>' +
+    ['received', 'approved', 'rejected'].map(function (k) {
+      return '<div class="card"><b>' + titles[k] + '</b><label>Subject</label><input id="et_s_' + k + '" value="' + esc(ET[k].subject) + '" oninput="etRead()">' +
+        '<label>Body</label><textarea id="et_b_' + k + '" style="min-height:170px" oninput="etRead()">' + esc(ET[k].body) + '</textarea>' +
+        '<label>Preview</label><div class="emprev" id="et_p_' + k + '"></div><div class="acts"><button class="b sec sm" data-act="etDef" data-k="' + k + '">Reset this email to default</button></div></div>';
+    }).join('') + '<div class="sticky-save"><button class="b" style="width:100%" data-act="etSave">Save email text</button></div>';
+  etDraw();
+};
+function etRead() { ['received', 'approved', 'rejected'].forEach(function (k) { ET[k] = { subject: val('et_s_' + k), body: val('et_b_' + k) }; }); etDraw(); }
+function etDraw() {
+  var v = Object.assign({}, SAMPLE, { event: A.settings.name, date: A.settings.date_text, venue: A.settings.venue, contact_phone: A.settings.contact_phone, contact_email: A.settings.contact_email });
+  ['received', 'approved', 'rejected'].forEach(function (k) {
+    $('et_p_' + k).innerHTML = '<b>' + esc(fillTpl(ET[k].subject, v)) + '</b>\n\n' + esc(fillTpl(ET[k].body, v));
+  });
+}
+ACT.etDef = function (d) { $('et_s_' + d.k).value = DEFAULT_TEMPLATES[d.k].subject; $('et_b_' + d.k).value = DEFAULT_TEMPLATES[d.k].body; etRead(); };
+ACT.etSave = async function (d, b) {
+  etRead(); busy(b); var r = await sb.from('event_settings').update({ email_templates: ET, updated_at: new Date().toISOString() }).eq('id', 1); busy(b, false);
+  if (r.error) return toast(errText(r.error), true); toast('Email text saved.');
+};
+
+// ───────────── STAFF ─────────────
+T.staff = async function () {
+  var r = await api('/api/staff', null, 'GET');
+  if (r.error) throw new Error(r.error);
+  $('content').innerHTML = '<h2>Scanner staff</h2><div class="card muted">Gate volunteers sign in to the scanner site with these logins. Remove a login to revoke access immediately — your admin account is not affected.' +
+    (SCANNER_URL ? '<br>Scanner site: <a href="' + esc(SCANNER_URL) + '" target="_blank" rel="noopener">' + esc(SCANNER_URL) + '</a>' : '') + '</div>' +
+    '<div class="card"><b>Add scanner login</b><label>Name</label><input id="st_name"><label>Email</label><input id="st_email" type="email" inputmode="email" autocomplete="off">' +
+    '<label>Password (min 8 characters)</label><input id="st_pw" type="text" autocomplete="off"><div id="st_err" class="err"></div><button class="b" data-act="stAdd">Create login</button></div>' +
+    (r.staff.map(function (u) {
+      return '<div class="card row"><div style="min-width:0"><b>' + esc(u.name || u.email) + '</b><div class="muted">' + esc(u.email) + '<br>Last sign-in: ' + (u.last_sign_in_at ? fmt(u.last_sign_in_at) : 'never') + '</div></div><button class="b bad sm" data-act="stDel" data-id="' + esc(u.id) + '" data-em="' + esc(u.email) + '">Remove</button></div>';
+    }).join('') || '<div class="card muted" style="text-align:center">No scanner logins yet.</div>');
+};
+ACT.stAdd = async function (d, b) {
+  var e = $('st_err'); e.textContent = ''; busy(b);
+  var r = await api('/api/staff', { name: val('st_name'), email: val('st_email'), password: val('st_pw') });
+  if (!r.ok) { e.textContent = r.error || 'Failed'; busy(b, false); return; }
+  toast('Scanner login created.'); T.staff();
+};
+ACT.stDel = async function (d, b) {
+  if (!confirm('Remove the login for ' + d.em + '? They will be signed out of the scanner.')) return;
+  busy(b); var r = await api('/api/staff', { id: d.id }, 'DELETE');
+  if (!r.ok) { toast(r.error || 'Failed', true); busy(b, false); return; }
+  toast('Login removed.'); T.staff();
+};
+
+boot();
+</script>
+</body>
+</html>
