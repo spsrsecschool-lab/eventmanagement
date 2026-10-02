@@ -95,7 +95,9 @@
 
   /* hero: the event poster is the hero */
   .lp-band.lp-hero{position:relative;background:var(--poster);text-align:center;padding:0 0 40px;overflow:hidden;isolation:isolate}
-  .lp-hero-bg{position:absolute;inset:0;z-index:-1;background:radial-gradient(ellipse 60% 55% at 50% 38%,#6c0d66 0%,#4a0450 45%,var(--poster) 75%,#2a0430 100%)}
+  .lp-hero-bg{position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,transparent 0%,transparent 55%,var(--poster) 88%),
+    radial-gradient(ellipse 60% 55% at 50% 38%,#6c0d66 0%,#4a0450 45%,var(--poster) 75%,var(--poster) 100%)}
+  @media (max-width:599px){ .lp-hero-bg{background:var(--poster)} }
   .lp-poster{display:block;width:100%;max-width:620px;height:auto;margin:0 auto;
     -webkit-mask-image:linear-gradient(180deg,#000 80%,transparent 100%);mask-image:linear-gradient(180deg,#000 80%,transparent 100%)}
   .lp-hero .lp-in{position:relative;z-index:2;margin-top:-6%;padding:0 16px}
@@ -187,6 +189,88 @@
   .lp-reveal{opacity:0;transform:translateY(12px);transition:opacity .5s ease,transform .5s ease}
   .lp-reveal.in{opacity:1;transform:none}
   @media (min-width:700px){ .lp-band{padding:40px 24px 60px} .lp-band.lp-hero{padding:0 0 56px} }
+  /* ═════════ Booking flow (buy steps + order page): same art direction as the landing page ═════════ */
+  .bk{background:var(--au);color:var(--cream);min-height:100vh}
+  .bk-head{position:relative;overflow:hidden;isolation:isolate;text-align:center;padding:14px 64px 16px;background:linear-gradient(180deg,#5c0a5a 0%,var(--poster) 100%)}
+  .bk-head .lp-fx{z-index:0;-webkit-mask-image:linear-gradient(90deg,#000 0 18%,transparent 30% 70%,#000 82%);mask-image:linear-gradient(90deg,#000 0 18%,transparent 30% 70%,#000 82%)}
+  .bk-home{position:absolute;left:10px;top:50%;transform:translateY(-50%);z-index:2;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    color:var(--cream);background:rgba(255,255,255,.08);border:1px solid rgba(251,238,214,.28)}
+  .bk-home svg{width:20px;height:20px}
+  .bk-home:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+  .bk-brand{position:relative;z-index:1}
+  .bk-name{font-family:var(--f-display);font-weight:700;font-size:25px;line-height:1.1;color:var(--cream)}
+  .bk-name em{font-style:italic;font-weight:600;color:var(--mari)}
+  .bk-date{font-size:13px;color:#ecd2e4;margin-top:3px;letter-spacing:.03em}
+  .bk-main{max-width:600px;margin:0 auto;padding:6px 16px 48px}
+  .bk-main > *{animation:bkIn .4s ease both}
+  @keyframes bkIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .bk .back{display:inline-flex;align-items:center;min-height:44px;padding:0;color:#ecd2e4;font-size:14px}
+  .bk-steps{display:flex;list-style:none;margin:8px 0 16px;padding:0}
+  .bk-steps li{flex:1;position:relative;text-align:center;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:rgba(251,238,214,.5)}
+  .bk-steps li i{display:block;width:14px;height:14px;margin:0 auto 8px;transform:rotate(45deg);border:2px solid rgba(251,238,214,.4);background:var(--au);position:relative;z-index:1}
+  .bk-steps li::before{content:"";position:absolute;top:8px;left:-50%;right:50%;height:2px;background:rgba(251,238,214,.18)}
+  .bk-steps li:first-child::before{display:none}
+  .bk-steps li.done{color:#f0d9b0}
+  .bk-steps li.done i{background:var(--mari);border-color:var(--mari)}
+  .bk-steps li.on{color:var(--cream);font-weight:700}
+  .bk-steps li.on i{background:var(--gold);border-color:var(--gold);box-shadow:0 0 0 5px rgba(255,213,106,.18)}
+  .bk-steps li.done::before,.bk-steps li.on::before{background:var(--mari)}
+  .bk .card{background:var(--cream);color:var(--ink);border:0;border-radius:12px;box-shadow:0 10px 26px rgba(0,0,0,.28)}
+  .bk .tname{font-family:var(--f-display);font-weight:700;font-size:20px;color:var(--ink)}
+  .bk .card .sub,.bk-sheet .sub{color:rgba(42,4,48,.66)}
+  .bk-main > .sub,.bk-main > p.sub{color:rgba(251,238,214,.78)}
+  .bk .price{font-family:var(--f-display);font-weight:700;font-size:26px;color:var(--red)}
+  .bk-sheet{color-scheme:light;position:relative;background:var(--cream);color:var(--ink);border-radius:16px;border-top:5px solid var(--mari);padding:16px 16px 20px;margin-top:14px;box-shadow:0 18px 40px rgba(0,0,0,.35)}
+  .bk-sheet .card{background:#f6e4c4;box-shadow:none;border:1px solid rgba(42,4,48,.08)}
+  .bk-sheet label{color:rgba(42,4,48,.78)}
+  .bk input,.bk select{background:#fffdf7;color:var(--ink);border:1.5px solid rgba(42,4,48,.2);border-radius:10px;min-height:48px}
+  .bk input:focus,.bk select:focus{border-color:var(--mari);box-shadow:0 0 0 3px rgba(244,182,63,.35)}
+  .bk input.bad{border-color:#d23a64;box-shadow:0 0 0 3px rgba(210,58,100,.18)}
+  .bk input[type=file]{min-height:0;background:#fff}
+  .bk input[type=checkbox]{min-height:0;width:22px;height:22px;padding:0;border-radius:4px;accent-color:var(--red);background:#fff}
+  .bk .chk{align-items:center;min-height:44px;cursor:pointer}
+  .bk .person{background:#fffaf0;border:1.5px dashed rgba(42,4,48,.2)}
+  .bk .nameRow span{color:rgba(42,4,48,.6);font-weight:700}
+  .bk .idUp{color:var(--ink);background:#fff;border:1.5px dashed rgba(42,4,48,.32);min-height:48px}
+  .bk .idUp.ok{border:1.5px solid #2e9e5b;background:#f1fbf4}
+  .bk .idUp.bad{border-color:#d23a64}
+  .bk .card.notice{background:#fff3d6;border-left:4px solid var(--mari)}
+  .bk .instr{color:var(--ink)}
+  .bk .chk{color:var(--ink)}
+  .bk .chk.bad{color:#9b1c3a}
+  .bk .err{background:#fdecef;border:1px solid #e07a96;color:#8c1236}
+  .bk .terms{color:rgba(42,4,48,.6);border-top-color:rgba(42,4,48,.12)}
+  .bk button.block,.bk .btn.block,.bk-cta{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;width:100%;min-height:54px;margin-top:16px;border-radius:10px;
+    background:var(--primary);color:var(--btntext);font-weight:700;letter-spacing:.05em;text-transform:uppercase;box-shadow:0 10px 24px rgba(244,182,63,.28);text-decoration:none}
+  .bk button.block::after,.bk .btn.block::after{content:"";position:absolute;top:0;bottom:0;left:-60%;width:40%;pointer-events:none;
+    background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);transform:skewX(-20deg);animation:lpSheen 5s ease-in-out 1.5s infinite}
+  .bk button.block:disabled::after{display:none}
+  .bk .btn.ghost{background:transparent;color:var(--ink);border:1.5px solid rgba(42,4,48,.3)}
+  .bk .total{font-family:var(--f-display);font-weight:700;font-size:46px;color:var(--red)}
+  .bk .qr{border:3px solid var(--mari);border-radius:14px;padding:10px;background:#fff;box-shadow:0 0 0 6px #fff3d6}
+  .bk .pill.ok{background:#e3f6ea;color:#17703d;border-color:#9fd8b4}
+  .bk .pill.warn{background:#fff1d1;color:#8a5a00;border-color:#f0c66b}
+  .bk .pill.bad{background:#fde3e6;color:#9b1c3a;border-color:#efa1b2}
+  .bk-order{text-align:center;margin:10px 0 4px}
+  .bk-order small{display:block;font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--gold)}
+  .bk-order h1{font-family:var(--f-display);font-weight:700;font-size:32px;color:var(--cream);margin:2px 0 0}
+  .bk-status{text-align:center;padding:22px 18px}
+  .bk-status h2{font-family:var(--f-display);font-weight:700;font-size:24px;margin:10px 0 6px;color:var(--ink)}
+  .bk-status p{margin:6px 0;color:rgba(42,4,48,.82)}
+  .bk-ico{width:62px;height:62px;margin:0 auto;border-radius:50%;display:flex;align-items:center;justify-content:center}
+  .bk-ico svg{width:30px;height:30px}
+  .bk-ico.wait{background:#fff1d1;color:#a46a00;animation:bkPulse 2.2s ease-in-out infinite}
+  .bk-ico.no{background:#fde3e6;color:#9b1c3a}
+  @keyframes bkPulse{0%,100%{box-shadow:0 0 0 0 rgba(244,182,63,.45)}50%{box-shadow:0 0 0 12px rgba(244,182,63,0)}}
+  .bk-yay{text-align:center;margin:8px 0 14px}
+  .bk-yay h2{font-family:var(--f-display);font-weight:700;font-style:italic;font-size:36px;color:var(--mari);margin:0}
+  .bk-yay p{margin:4px 0 0;color:#ecd2e4}
+  .bk .tick{border:0;border-radius:10px;box-shadow:0 0 0 2px var(--mari),0 18px 40px rgba(0,0,0,.45);margin:14px 0 16px}
+  .bk-people h3{font-family:var(--f-display);font-weight:700;font-size:20px;margin:0 0 6px;color:var(--ink)}
+  .bk-people ol{margin:0;padding-left:22px;line-height:1.7}
+  .bk .loading{color:rgba(251,238,214,.7)}
+  @media (prefers-reduced-motion:reduce){ .bk-main > *{animation:none} .bk-ico.wait{animation:none} .bk button.block::after,.bk .btn.block::after{animation:none;display:none} }
+
   /* living hero: bokeh, sparkles, rising gold dust, breathing poster, diyas, button sheen */
   .lp-fx{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:hidden}
   .lp-bokeh{position:absolute;border-radius:50%;opacity:0;filter:blur(5px);mix-blend-mode:screen;will-change:transform,opacity;
@@ -379,15 +463,20 @@ function route() {
 }
 window.addEventListener('hashchange', route);
 
+// Booking-flow frame: slim poster-purple header (sparkles, event name, back to event), scalloped edge, tile footer
 function shell(inner, opts) {
   var s = S.settings || {};
   opts = opts || {};
-  var head = '';
-  if (opts.home) {
-    head = (s.banner_path ? '<img class="banner" src="' + esc(pubUrl(s.banner_path)) + '" alt="">' : '') +
-           '<div class="wrap hero">' + (s.logo_path ? '<img class="logo" src="' + esc(pubUrl(s.logo_path)) + '" alt="" style="' + (s.banner_path ? '' : 'margin-top:14px') + '">' : '') + '</div>';
-  }
-  return head + '<div class="wrap" style="' + (opts.home ? 'padding-top:0' : 'padding-top:18px') + '">' + inner + '</div>';
+  return '<div class="bk"><header class="bk-head">' + fxHTML(opts.celebrate ? 0.9 : 0.35) +
+      '<a class="bk-home" href="#/" aria-label="Back to the event page">' + ICON.back + '</a>' +
+      '<div class="bk-brand"><div class="bk-name">' + titleHTML(s.name || '') + '</div>' + (s.date_text ? '<div class="bk-date">' + esc(s.date_text) + '</div>' : '') + '</div></header>' +
+    edge(LP.poster, LP.au) + '<main class="bk-main">' + inner + '</main>' + tilesHTML() + '</div>';
+}
+function titleHTML(name) {   // last word in italic gold, as on the poster
+  var w = String(name || '').trim().split(/\s+/);
+  if (w.length < 2) return esc(name);
+  var last = w.pop();
+  return esc(w.join(' ')) + ' <em>' + esc(last) + '</em>';
 }
 function fail(e) {
   $('app').innerHTML = shell('<div class="card center"><p>Something went wrong loading this page.</p><p class="sub">' + esc(e && e.message || e) + '</p><button onclick="location.reload()">Try again</button></div>');
@@ -400,6 +489,9 @@ var ICON = {
   cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
   pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
   arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>',
   phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2Z"/></svg>',
   mail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>'
 };
@@ -440,19 +532,19 @@ function tilesHTML() {
 function hd(text) { return '<h2 class="lp-h"><span class="lp-orn" aria-hidden="true"><i></i><i></i><i></i></span>' + text + '</h2>'; }
 // Admin instructions -> list (one point per line; leading •, -, * removed)
 // Hero effects: bokeh orbs, twinkling sparkles, rising gold dust (positions randomised per visit)
-function fxHTML() {
-  var h = '', i, r = Math.random;
+function fxHTML(scale) {
+  var h = '', i, r = Math.random, k = scale == null ? 1 : scale;
   var star = '<svg viewBox="0 0 20 20"><path d="M10 0 C10.8 7.2 12.8 9.2 20 10 C12.8 10.8 10.8 12.8 10 20 C9.2 12.8 7.2 10.8 0 10 C7.2 9.2 9.2 7.2 10 0 Z" fill="#fff3c4"/></svg>';
-  for (i = 0; i < 14; i++) {
+  for (i = 0; i < Math.round(14 * k); i++) {
     var sz = 18 + Math.round(r() * 46);
     h += '<i class="lp-bokeh ' + (i % 3 ? 'g' : 'm') + '" style="left:' + (r() * 96).toFixed(1) + '%;top:' + (4 + r() * 70).toFixed(1) + '%;width:' + sz + 'px;height:' + sz + 'px;' +
          '--o:' + (0.35 + r() * 0.4).toFixed(2) + ';--dx:' + Math.round(r() * 60 - 30) + 'px;--d:' + (8 + r() * 9).toFixed(1) + 's;--dl:-' + (r() * 12).toFixed(1) + 's"></i>';
   }
-  for (i = 0; i < 12; i++) {
+  for (i = 0; i < Math.round(12 * k); i++) {
     h += '<i class="lp-spark" style="left:' + (8 + r() * 84).toFixed(1) + '%;top:' + (6 + r() * 62).toFixed(1) + '%;--s:' + (9 + Math.round(r() * 12)) + 'px;' +
          '--d:' + (2.6 + r() * 2.6).toFixed(1) + 's;--dl:-' + (r() * 5).toFixed(1) + 's">' + star + '</i>';
   }
-  for (i = 0; i < 18; i++) {
+  for (i = 0; i < Math.round(18 * k); i++) {
     h += '<i class="lp-dust" style="left:' + (r() * 100).toFixed(1) + '%;--dx:' + Math.round(r() * 80 - 40) + 'px;--d:' + (9 + r() * 10).toFixed(1) + 's;--dl:-' + (r() * 18).toFixed(1) + 's"></i>';
   }
   return '<div class="lp-fx" aria-hidden="true">' + h + '</div>';
@@ -608,10 +700,12 @@ function curType() { return S.types.filter(function (x) { return x.id === B.type
 function drawBuy() {
   var t = curType(), s = S.settings, h = '';
   var labels = ['Details', 'Pay', 'Screenshot'];
-  h += '<button class="back" style="padding-top:0" onclick="' + (B.step === 1 ? "go('#/')" : 'buyStep(' + (B.step - 1) + ')') + '">← ' + (B.step === 1 ? 'Back to event' : 'Back') + '</button>';
-  h += '<div class="steps">' + [1, 2, 3].map(function (n) { return '<i class="' + (n <= B.step ? 'on' : '') + '"></i>'; }).join('') + '</div>';
-  h += '<div class="steplabel">Step ' + B.step + ' of 3 · ' + labels[B.step - 1] + '</div>';
-  h += '<div class="card row"><div><div class="tname">' + esc(t.name) + '</div><div class="sub">' + esc(s.name) + '</div></div><div class="price">' + rupees(t.price) + '</div></div>';
+  if (B.step > 1) h += '<button class="back" onclick="buyStep(' + (B.step - 1) + ')">\u2190 Back to ' + labels[B.step - 2].toLowerCase() + '</button>';
+  h += '<ol class="bk-steps" aria-label="Step ' + B.step + ' of 3">' + labels.map(function (l, n) {
+    return '<li class="' + (n + 1 < B.step ? 'done' : n + 1 === B.step ? 'on' : '') + '"' + (n + 1 === B.step ? ' aria-current="step"' : '') + '><i></i>' + l + '</li>';
+  }).join('') + '</ol>';
+  h += '<div class="card row"><div><div class="tname">' + esc(t.name) + '</div><div class="sub">' + rupees(t.price) + ' per person</div></div><div class="price">' + rupees(t.price * B.qty) + '</div></div>';
+  h += '<section class="bk-sheet">';
 
   if (B.step === 1) {
     var mq = maxQty(t), opts = '';
@@ -643,6 +737,7 @@ function drawBuy() {
     h += '<div class="card sub">' + B.qty + ' × ' + esc(t.name) + ' = <b>' + rupees(t.price * B.qty) + '</b><br>Payer name: <b>' + esc(B.payer) + '</b></div>';
     h += '<div id="err" class="err"></div><button id="submitBtn" class="block" onclick="submitOrder()">Submit order</button>';
   }
+  h += '</section>';
   $('app').innerHTML = shell(h);
   if (B.step === 1) drawNames();
 }
@@ -659,6 +754,7 @@ function drawNames() {
 }
 function onQty() {
   B.qty = Number($('f_qty').value);
+  var pe = document.querySelector('.bk .price'), tt = curType(); if (pe && tt) pe.textContent = rupees(tt.price * B.qty);
   while (B.names.length < B.qty) B.names.push('');
   B.names.length = B.qty; B.ids.length = B.qty; B.idUrls.length = B.qty;
   drawNames();
@@ -828,26 +924,26 @@ async function viewOrder(token) {
   var mine = lsGet(MY_KEY, []);
   if (!mine.some(function (m) { return m.token === token; })) { mine.unshift({ token: token, at: Date.now() }); lsSet(MY_KEY, mine.slice(0, 20)); }
 
-  var s = S.settings, h = '<button class="back" style="padding-top:0" onclick="go(\'#/\')">← Back to event</button><h1 style="font-size:24px;margin-top:10px">' + esc(o.order_no) + '</h1>';
+  var s = S.settings, h = '<div class="bk-order"><small>Your booking</small><h1>' + esc(o.order_no) + '</h1></div>';
   h += '<div class="card"><div class="row"><div><div class="tname">' + esc(o.qty) + ' × ' + esc(o.type_name) + '</div><div class="sub">' + esc(o.buyer_name) + ' · ' + esc(o.email) + '</div></div><div class="price">' + rupees(o.amount) + '</div></div></div>';
   if (o.status === 'pending') {
-    h += '<div class="card center"><span class="pill warn">Verifying payment</span><p>We are verifying your payment. Your ticket will be emailed to <b>' + esc(o.email) + '</b> once it is approved.</p><p class="sub">This page updates by itself. Keep this link — it is private to you.</p></div>';
+    h += '<div class="card bk-status"><div class="bk-ico wait">' + ICON.clock + '</div><h2>Verifying your payment</h2><p>Your pass will be emailed to <b>' + esc(o.email) + '</b> once it is approved.</p><p class="sub">This page updates by itself. Keep this link \u2014 it is private to you.</p></div>';
   } else if (o.status === 'rejected') {
-    h += '<div class="card center"><span class="pill bad">Payment not verified</span><p>' + esc(o.reject_reason || 'We could not verify your payment.') + '</p>' +
+    h += '<div class="card bk-status"><div class="bk-ico no">' + ICON.x + '</div><h2>Payment not verified</h2><p>' + esc(o.reject_reason || 'We could not verify your payment.') + '</p>' +
       ((s.contact_phone || s.contact_email) ? '<p class="sub">Questions? ' + esc(s.contact_phone || '') + ' ' + esc(s.contact_email || '') + '</p>' : '') + '</div>';
   } else {
-    h += '<div class="center" style="margin:14px 0"><span class="pill ok">Approved</span></div>';
+    h += '<div class="bk-yay"><h2>You\'re in!</h2><p>Your pass is ready. See you on the dance floor.</p></div>';
     var ctx = { s: s, typeName: o.type_name, accent: o.accent_color, bgUrl: 'assets/ticket-bg.jpg',
                 logoUrl: pubUrl((s.ticket_design || {}).logo_path || s.logo_path) };
     var people = o.people || [];
     if (o.code) h += '<div class="tick">' + renderTicketSVG({ code: o.code, attendee_name: people.join(', '), count: people.length }, ctx) + '</div>';
-    h += '<div class="card"><b>This ticket admits ' + people.length + (people.length === 1 ? ' person' : ' people') + '</b><ol style="margin:6px 0 0;padding-left:20px">' +
+    h += '<div class="card bk-people"><h3>Admits ' + people.length + (people.length === 1 ? ' person' : ' people') + '</h3><ol>' +
          people.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ol></div>';
     // plain link (not fetch): a normal page visit needs no CORS and also works on iPhone
     h += '<a class="btn block" id="dlBtn" href="' + esc(API_BASE + '/api/ticket-pdf?token=' + encodeURIComponent(token)) + '" target="_blank" rel="noopener">Download PDF</a>' +
          '<p class="sub center">Show this QR code at the gate. It lets everyone on the ticket in together, once. Bring every person\'s original Aadhaar card.</p>';
   }
-  $('app').innerHTML = shell(h);
+  $('app').innerHTML = shell(h, { celebrate: o.status === 'approved' });
   if (o.status === 'pending') pollTimer = setInterval(function () { viewOrderQuiet(token); }, 30000);
 }
 async function viewOrderQuiet(token) {
