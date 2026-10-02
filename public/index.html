@@ -98,7 +98,7 @@
   .lp-hero-bg{position:absolute;inset:0;z-index:-1;background:radial-gradient(ellipse 60% 55% at 50% 38%,#6c0d66 0%,#4a0450 45%,var(--poster) 75%,#2a0430 100%)}
   .lp-poster{display:block;width:100%;max-width:620px;height:auto;margin:0 auto;
     -webkit-mask-image:linear-gradient(180deg,#000 80%,transparent 100%);mask-image:linear-gradient(180deg,#000 80%,transparent 100%)}
-  .lp-hero .lp-in{position:relative;margin-top:-6%;padding:0 16px}
+  .lp-hero .lp-in{position:relative;z-index:2;margin-top:-6%;padding:0 16px}
   @media (min-width:600px){
     .lp-hero .lp-in{margin-top:4px}
     .lp-poster{-webkit-mask-image:linear-gradient(180deg,#000 80%,transparent 100%),linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);
@@ -187,7 +187,46 @@
   .lp-reveal{opacity:0;transform:translateY(12px);transition:opacity .5s ease,transform .5s ease}
   .lp-reveal.in{opacity:1;transform:none}
   @media (min-width:700px){ .lp-band{padding:40px 24px 60px} .lp-band.lp-hero{padding:0 0 56px} }
-  @media (prefers-reduced-motion:reduce){ .lp-reveal{opacity:1;transform:none;transition:none} .lp-sticky,.lp-cta,.lp-btn{transition:none} }
+  /* living hero: bokeh, sparkles, rising gold dust, breathing poster, diyas, button sheen */
+  .lp-fx{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+  .lp-bokeh{position:absolute;border-radius:50%;opacity:0;filter:blur(5px);mix-blend-mode:screen;will-change:transform,opacity;
+    animation:lpBokeh var(--d) ease-in-out var(--dl) infinite}
+  .lp-bokeh.g{background:radial-gradient(circle,rgba(255,214,140,.85) 0%,rgba(255,160,70,.35) 45%,transparent 70%)}
+  .lp-bokeh.m{background:radial-gradient(circle,rgba(255,120,200,.75) 0%,rgba(200,40,140,.3) 45%,transparent 70%)}
+  @keyframes lpBokeh{0%{opacity:0;transform:translate3d(0,0,0) scale(.75)}30%,65%{opacity:var(--o)}100%{opacity:0;transform:translate3d(var(--dx),-70px,0) scale(1.2)}}
+  .lp-spark{position:absolute;width:var(--s);height:var(--s);opacity:0;filter:drop-shadow(0 0 6px rgba(255,214,120,.95));
+    animation:lpTwinkle var(--d) ease-in-out var(--dl) infinite}
+  .lp-spark svg{display:block;width:100%;height:100%}
+  @keyframes lpTwinkle{0%,100%{opacity:0;transform:scale(.2) rotate(0deg)}45%,55%{opacity:1;transform:scale(1) rotate(45deg)}}
+  .lp-dust{position:absolute;bottom:-8px;width:3px;height:3px;border-radius:50%;background:#ffeab0;box-shadow:0 0 6px 2px rgba(255,196,90,.75);opacity:0;
+    animation:lpRise var(--d) linear var(--dl) infinite}
+  @keyframes lpRise{0%{opacity:0;transform:translate3d(0,0,0)}12%{opacity:.9}80%{opacity:.6}100%{opacity:0;transform:translate3d(var(--dx),-820px,0)}}
+  .lp-poster{animation:lpBreathe 10s ease-in-out infinite alternate;transform-origin:50% 60%}
+  @keyframes lpBreathe{from{transform:scale(1)}to{transform:scale(1.03)}}
+  .lp-diya{position:absolute;top:-14px;width:42px;height:auto;z-index:2}
+  .lp-diya.l{left:max(6px,calc(50% - 230px))}
+  .lp-diya.r{right:max(6px,calc(50% - 230px))}
+  .lp-flame{transform-origin:50% 100%;animation:lpFlicker 1.7s ease-in-out infinite}
+  .lp-diya.r .lp-flame{animation-delay:-.6s}
+  .lp-glow{animation:lpGlow 1.7s ease-in-out infinite}
+  @keyframes lpFlicker{0%,100%{transform:scale(1,1) skewX(0)}20%{transform:scale(.94,1.08) skewX(2deg)}45%{transform:scale(1.05,.93) skewX(-2deg)}70%{transform:scale(.97,1.05) skewX(1deg)}}
+  @keyframes lpGlow{0%,100%{opacity:.55}50%{opacity:.85}}
+  .lp-cta{position:relative;overflow:hidden}
+  .lp-cta::after{content:"";position:absolute;top:0;bottom:0;left:-60%;width:40%;pointer-events:none;
+    background:linear-gradient(100deg,transparent,rgba(255,255,255,.6),transparent);transform:skewX(-20deg);animation:lpSheen 4.8s ease-in-out 1.2s infinite}
+  @keyframes lpSheen{0%{left:-60%}32%,100%{left:130%}}
+  .lp-orn i{animation:lpPulse 3s ease-in-out infinite}
+  .lp-orn i:nth-child(2){animation-delay:.4s}
+  .lp-orn i:nth-child(3){animation-delay:.8s}
+  @keyframes lpPulse{0%,100%{opacity:.55}50%{opacity:1}}
+  .lp-star{animation:lpSpin 26s linear infinite}
+  @keyframes lpSpin{from{transform:translateX(-50%) rotate(0)}to{transform:translateX(-50%) rotate(360deg)}}
+  .lp-hero.paused *,.lp-hero.paused *::after{animation-play-state:paused!important}
+  @media (prefers-reduced-motion:reduce){
+    .lp-reveal{opacity:1;transform:none;transition:none} .lp-sticky,.lp-cta,.lp-btn{transition:none}
+    .lp-bokeh,.lp-dust{display:none} .lp-spark{animation:none;opacity:.7}
+    .lp-poster,.lp-flame,.lp-glow,.lp-orn i,.lp-star,.lp-cta::after{animation:none}
+  }
 </style>
 </head>
 <body>
@@ -400,6 +439,36 @@ function tilesHTML() {
 }
 function hd(text) { return '<h2 class="lp-h"><span class="lp-orn" aria-hidden="true"><i></i><i></i><i></i></span>' + text + '</h2>'; }
 // Admin instructions -> list (one point per line; leading •, -, * removed)
+// Hero effects: bokeh orbs, twinkling sparkles, rising gold dust (positions randomised per visit)
+function fxHTML() {
+  var h = '', i, r = Math.random;
+  var star = '<svg viewBox="0 0 20 20"><path d="M10 0 C10.8 7.2 12.8 9.2 20 10 C12.8 10.8 10.8 12.8 10 20 C9.2 12.8 7.2 10.8 0 10 C7.2 9.2 9.2 7.2 10 0 Z" fill="#fff3c4"/></svg>';
+  for (i = 0; i < 14; i++) {
+    var sz = 18 + Math.round(r() * 46);
+    h += '<i class="lp-bokeh ' + (i % 3 ? 'g' : 'm') + '" style="left:' + (r() * 96).toFixed(1) + '%;top:' + (4 + r() * 70).toFixed(1) + '%;width:' + sz + 'px;height:' + sz + 'px;' +
+         '--o:' + (0.35 + r() * 0.4).toFixed(2) + ';--dx:' + Math.round(r() * 60 - 30) + 'px;--d:' + (8 + r() * 9).toFixed(1) + 's;--dl:-' + (r() * 12).toFixed(1) + 's"></i>';
+  }
+  for (i = 0; i < 12; i++) {
+    h += '<i class="lp-spark" style="left:' + (8 + r() * 84).toFixed(1) + '%;top:' + (6 + r() * 62).toFixed(1) + '%;--s:' + (9 + Math.round(r() * 12)) + 'px;' +
+         '--d:' + (2.6 + r() * 2.6).toFixed(1) + 's;--dl:-' + (r() * 5).toFixed(1) + 's">' + star + '</i>';
+  }
+  for (i = 0; i < 18; i++) {
+    h += '<i class="lp-dust" style="left:' + (r() * 100).toFixed(1) + '%;--dx:' + Math.round(r() * 80 - 40) + 'px;--d:' + (9 + r() * 10).toFixed(1) + 's;--dl:-' + (r() * 18).toFixed(1) + 's"></i>';
+  }
+  return '<div class="lp-fx" aria-hidden="true">' + h + '</div>';
+}
+// Clay diya with a flickering flame
+function diyaSVG(side) {
+  return '<svg class="lp-diya ' + side + '" viewBox="0 0 60 64" aria-hidden="true">' +
+    '<defs><radialGradient id="dg' + side + '" cx="50%" cy="60%" r="50%"><stop offset="0" stop-color="#ffd27a" stop-opacity=".9"/><stop offset="1" stop-color="#ff8a1f" stop-opacity="0"/></radialGradient>' +
+    '<linearGradient id="db' + side + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e2783a"/><stop offset="1" stop-color="#8f3014"/></linearGradient>' +
+    '<radialGradient id="df' + side + '" cx="50%" cy="70%" r="60%"><stop offset="0" stop-color="#fffbe6"/><stop offset=".45" stop-color="#ffd45a"/><stop offset="1" stop-color="#ff7a1a"/></radialGradient></defs>' +
+    '<circle class="lp-glow" cx="30" cy="22" r="22" fill="url(#dg' + side + ')"/>' +
+    '<path class="lp-flame" d="M30 6 C35 15 37 21 30 30 C23 21 25 15 30 6 Z" fill="url(#df' + side + ')"/>' +
+    '<path d="M4 36 C10 33 50 33 56 36 C54 50 44 58 30 58 C16 58 6 50 4 36 Z" fill="url(#db' + side + ')"/>' +
+    '<path d="M4 36 C10 33 50 33 56 36 C50 40 10 40 4 36 Z" fill="#f5b83d"/>' +
+    '<path d="M12 46 H48" stroke="#f5b83d" stroke-width="1.6" stroke-dasharray="2 3" opacity=".8"/></svg>';
+}
 function rulesList(text) {
   return String(text || '').split(/\n+/).map(function (l) { return l.replace(/^\s*[•\-*·]+\s*/, '').trim(); }).filter(Boolean);
 }
@@ -417,9 +486,9 @@ async function viewHome() {
 
   // ── hero: the event poster (uploaded banner if set, else the bundled Dandiya Nights poster)
   var poster = s.banner_path ? pubUrl(s.banner_path) : 'assets/hero-poster.jpg';
-  h += '<header class="lp-band lp-hero"><div class="lp-hero-bg" aria-hidden="true"></div>' +
+  h += '<header class="lp-band lp-hero" id="lpHero"><div class="lp-hero-bg" aria-hidden="true"></div>' + fxHTML() +
     '<img class="lp-poster" src="' + esc(poster) + '"' + (s.banner_path ? '' : ' width="800" height="1020"') + ' fetchpriority="high" alt="' + esc(s.name) + ' poster">' +
-    '<div class="lp-in"><h1 class="lp-sr">' + esc(s.name) + '</h1>' +
+    '<div class="lp-in">' + diyaSVG('l') + diyaSVG('r') + '<h1 class="lp-sr">' + esc(s.name) + '</h1>' +
     '<div class="lp-meta">' +
       (s.date_text ? '<span>' + ICON.cal + esc(s.date_text) + '</span>' : '') +
       (s.date_text && s.venue ? '<i class="sep" aria-hidden="true"></i>' : '') +
@@ -497,6 +566,8 @@ function lpObserve() {
     es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
   }, { rootMargin: '0px 0px -8% 0px' });
   els.forEach(function (e) { io.observe(e); });
+  var hero = $('lpHero');
+  if (hero) new IntersectionObserver(function (es) { es.forEach(function (e) { hero.classList.toggle('paused', !e.isIntersecting); }); }).observe(hero);
   var cta = $('heroCta'), bar = $('lpSticky'), tk = $('tickets');
   if (cta && bar) {
     var seen = { cta: true, tickets: false };
