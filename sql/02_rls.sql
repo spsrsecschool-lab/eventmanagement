@@ -94,3 +94,12 @@ create policy dandiya_admin_read on public.dandiya_rentals for select to authent
 drop policy if exists dandiya_admin_upd on public.dandiya_rentals;
 create policy dandiya_admin_upd on public.dandiya_rentals for update to authenticated
   using (public.is_admin()) with check (public.is_admin());
+
+-- ===== Realtime: admin Orders tab updates instantly (RLS still applies: only admins receive rows) =====
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    begin alter publication supabase_realtime add table public.orders;          exception when duplicate_object then null; end;
+    begin alter publication supabase_realtime add table public.dandiya_rentals; exception when duplicate_object then null; end;
+  end if;
+end $$;
