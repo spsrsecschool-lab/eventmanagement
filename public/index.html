@@ -155,6 +155,7 @@
   .lp-star{position:absolute;left:50%;top:-21px;width:34px;height:34px;transform:translateX(-50%)}
   .lp-seats{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:rgba(43,16,37,.75);margin:14px 0 12px}
   .lp-seats.low b{color:var(--red)}
+  .lp-perf + .lp-btn{margin-top:18px}
   .lp-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:50px;border:0;border-radius:8px;cursor:pointer;
     font:inherit;font-size:15px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--cream);background:var(--au);text-decoration:none;transition:background .15s ease}
   .lp-btn:hover{background:var(--au2)}
@@ -698,8 +699,7 @@ async function viewHome() {
         (t.description ? '<div class="lp-pass-desc">' + esc(t.description) + '</div>' : '') + '</div>' +
         '<div class="lp-price"><b>' + rupees(t.price) + '</b><small>per ' + unitWord(t, 1) + '</small></div></div>' +
       '<div class="lp-perf" aria-hidden="true"></div>' +
-      '<div class="lp-seats' + (!soldOut && t.remaining <= 10 ? ' low' : '') + '"><span>' + (soldOut ? 'All passes taken' : 'Passes left') + '</span>' +
-        (soldOut ? '' : '<b>' + (t.remaining <= 10 ? 'Only ' : '') + t.remaining + '</b>') + '</div>' +
+      (soldOut ? '<div class="lp-seats"><span>All passes taken</span></div>' : '') +   // the number left is not shown to buyers
       (open && !soldOut ? '<a class="lp-btn" href="#/buy/' + t.id + '">Book ' + esc(t.name) + ICON.arrow + '</a>' : '') +
     '</article>';
   });
@@ -825,7 +825,7 @@ function drawBuy() {
   if (B.step === 1) {
     var mq = maxQty(t), opts = '';
     for (var i = 1; i <= mq; i++) opts += '<option value="' + i + '"' + (i === B.qty ? ' selected' : '') + '>' + i + '</option>';
-    h += '<label for="f_qty">Number of ' + unitWord(t, 2) + ' (' + t.remaining + (ppu(t) > 1 ? ' passes' : ' places') + ' left)</label><select id="f_qty" onchange="onQty()">' + opts + '</select>';
+    h += '<label for="f_qty">Number of ' + unitWord(t, 2) + '</label><select id="f_qty" onchange="onQty()">' + opts + '</select>';
     h += '<label for="f_name">Your name</label><input id="f_name" autocomplete="name" value="' + esc(B.name) + '" oninput="onBuyerName()">';
     h += '<label for="f_phone">Phone number</label><input id="f_phone" type="tel" inputmode="tel" autocomplete="tel" value="' + esc(B.phone) + '">';
     h += '<label for="f_email">Email (your ticket is sent here)</label><input id="f_email" type="email" inputmode="email" autocomplete="email" value="' + esc(B.email) + '">';
@@ -987,7 +987,7 @@ var ERR_MAP = {
 };
 function friendly(e) {
   var m = String(e && e.message || e), code = m.split(':')[0], arg = m.split(':')[1];
-  if (code === 'NOT_ENOUGH_SEATS') return 'Only ' + arg + ' seat' + (arg === '1' ? '' : 's') + ' left. Please reduce the number of tickets.';
+  if (code === 'NOT_ENOUGH_SEATS') return 'Not enough passes left for this many. Please choose a smaller number.';
   if (code === 'MAX_PER_ORDER') return 'You can buy at most ' + arg + ' tickets per order.';
   if (code === 'BAD_PAIRS') return 'Choose between 1 and ' + arg + ' pairs.';
   if (code === 'BAD_IDS' && arg) return 'The Aadhaar photo for person ' + arg + ' did not upload. Please go back and add it again.';
@@ -998,7 +998,7 @@ async function submitOrder() {
   if (B.busy) return;
   if (!B.shot) return showErr('Please upload your payment screenshot.', 'f_shot');
   var btn = $('submitBtn'), t = curType();
-  B.busy = true; btn.disabled = true; btn.textContent = 'Checking seats…';
+  B.busy = true; btn.disabled = true; btn.textContent = 'Checking availability…';
   try {
     // re-check availability and sale window right before submitting
     await Promise.all([loadTypes(), loadSettings()]);
