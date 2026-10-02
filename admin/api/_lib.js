@@ -14,11 +14,11 @@ function db() {
 
 function publicUrl() { return (process.env.PUBLIC_URL || '').replace(/\/+$/, ''); }
 
-// CORS for the endpoints the public site calls (order-received, ticket-pdf)
+// CORS for the endpoints the public site calls (order-received, ticket-pdf).
+// Open to any origin on purpose: no cookies are involved, and the real protection is server side
+// (unguessable order token, pending/age/rate limits). A strict origin broke on small PUBLIC_URL typos.
 function cors(req, res) {
-  var o = publicUrl();
-  res.setHeader('Access-Control-Allow-Origin', o || '*');
-  res.setHeader('Vary', 'Origin');
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') { res.statusCode = 204; res.end(); return true; }
