@@ -131,6 +131,8 @@ var T = {};      // tab renderers
 var ACT = {};    // click actions  (data-act="...")
 var SETTINGS_BASE = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,theme,ticket_design';
 var SETTINGS_COLS = SETTINGS_BASE + ',payment_qr_path,instructions_text,upi_id,dandiya_enabled,dandiya_rent,dandiya_deposit,dandiya_max,dandiya_qrs';
+var SETTINGS_PRE11 = SETTINGS_COLS;                  // before sql/11 was run
+SETTINGS_COLS += ',venue_map';
 var TABS = [['orders', 'Orders'], ['manual', 'Add order'], ['types', 'Ticket types'], ['attendees', 'Attendees'], ['emails', 'Emails'],
             ['event', 'Event'], ['theme', 'Theme'], ['ticket', 'Ticket design'], ['templates', 'Email text'], ['staff', 'Staff']];
 var FONTS = { 'Poppins': 'Poppins:wght@400;600;700', 'Inter': 'Inter:wght@400;600;700', 'Playfair Display': 'Playfair+Display:wght@400;600;700',
@@ -299,6 +301,10 @@ async function startApp() {
 }
 async function loadSettings() {
   var r = await sb.from('event_settings').select(SETTINGS_COLS).eq('id', 1).single();
+  if (r.error && /column|does not exist/i.test(r.error.message)) {   // sql/11 not run yet
+    r = await sb.from('event_settings').select(SETTINGS_PRE11).eq('id', 1).single();
+    if (!r.error) toast('Run sql/11_venue_map.sql in Supabase to turn on the venue map.', true);
+  }
   if (r.error && /column|does not exist/i.test(r.error.message)) {   // newer SQL not run yet
     r = await sb.from('event_settings').select(SETTINGS_BASE).eq('id', 1).single();
     if (!r.error) toast('Database is out of date: run the newest sql/09_upgrade_v3.sql in Supabase.', true);
@@ -807,6 +813,26 @@ ACT.resendLog = async function (d, b) {
 };
 
 // ───────────── EVENT SETTINGS ─────────────
+// Venue map from settings.venue_map (a Google Maps link or a typed address). Returns null when not set.
+// q = what the embedded map pins; link = where "Open in Google Maps" goes. Short links (maps.app.goo.gl) can't be
+// read in the browser, so their pin falls back to the venue name; full links pin the exact place.
+function venueMap(s) {
+  var raw = String((s && s.venue_map) || '').trim(), q = '', link = '', m;
+  if (!raw) return null;
+  if (/^https?:\/\//i.test(raw)) {
+    link = raw;
+    m = raw.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) || raw.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) ||
+        raw.match(/[?&](?:q|query|ll|destination)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/i);
+    if (m) q = m[1] + ',' + m[2];
+    else if ((m = raw.match(/[?&](?:q|query|destination)=([^&#]+)/i) || raw.match(/\/place\/([^/@?#]+)/))) {
+      try { q = decodeURIComponent(m[1].replace(/\+/g, ' ')); } catch (e) { q = ''; }
+    }
+    if (!q) q = (s.venue || '').trim();
+  } else {
+    q = raw; link = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(raw);
+  }
+  return { q: q, link: link, embed: q ? 'https://maps.google.com/maps?q=' + encodeURIComponent(q) + '&z=16&output=embed' : '' };
+}
 function toLocalInput(ts) { if (!ts) return ''; var d = new Date(ts), p = function (n) { return ('0' + n).slice(-2); }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()); }
 T.event = async function () {
   await loadSettings(); var s = A.settings;
@@ -822,6 +848,8 @@ T.event = async function () {
     '<div class="grid2"><div><label>Sale starts (optional)</label><input id="ev_start" type="datetime-local" value="' + toLocalInput(s.sales_start) + '"></div><div><label>Sale ends (optional) \u2014 shown as a countdown on the event page</label><input id="ev_end" type="datetime-local" value="' + toLocalInput(s.sales_end) + '"></div></div>' +
     '<label>Message shown when sales are closed</label><input id="ev_closed" value="' + esc(s.closed_message) + '">' +
     '<label>Max tickets per order</label><input id="ev_max" type="number" min="1" max="50" value="' + esc(s.max_per_order) + '"></div>' +
+    (s.venue_map !== undefined ? '<div class="card"><b>Venue on Google Maps</b> <span class="muted">Shown on the buyer\u2019s pass page and in the ticket email. Paste the link from Google Maps (for the exact pin, copy it from the browser address bar after opening the place), or type the full address.</span>' +
+      '<input id="ev_map" placeholder="https://www.google.com/maps/place/... or full address" value="' + esc(s.venue_map) + '" oninput="evMapPreview()" style="margin-top:8px"><div id="ev_map_pv"></div></div>' : '') +
     (s.upi_id !== undefined ? '<div class="card"><b>UPI ID</b> <span class="muted">Shown with a Copy button on every pay step (tickets and dandiya).</span><input id="ev_upi" placeholder="e.g. schoolname@okaxis" value="' + esc(s.upi_id) + '" style="margin-top:8px"></div>' : '') +
     (s.dandiya_enabled !== undefined ? '<div class="card"><label class="chk" style="margin-top:0"><input type="checkbox" id="ev_dk"' + (s.dandiya_enabled ? ' checked' : '') + '> <b>Offer dandiya sticks for rent</b></label>' +
       '<div class="muted">After a ticket is approved, buyers are offered sticks: rent + refundable security per pair. You verify their payment in Orders \u2192 Dandiya pending.</div>' +
@@ -840,7 +868,17 @@ T.event = async function () {
     (s.banner_path ? '<img class="qrimg" style="width:160px;height:70px" src="' + esc(pubUrl(s.banner_path)) + '" alt="">' : '<div class="qrimg muted" style="width:160px;height:70px;display:flex;align-items:center;justify-content:center;font-size:12px">None</div>') +
     '<input type="file" accept="image/*" onchange="evImg(\'banner_path\',\'banner\',1600,\'jpeg\',this)" style="font-size:13px"></div></div>' +
     '<div class="sticky-save"><button class="b" style="width:100%" data-act="evSave">Save event settings</button></div>';
+  evMapPreview();
 };
+function evMapPreview() {
+  var box = $('ev_map_pv'); if (!box) return;
+  var m = venueMap({ venue_map: val('ev_map'), venue: val('ev_venue') });
+  clearTimeout(evMapPreview.t);
+  evMapPreview.t = setTimeout(function () {
+    box.innerHTML = !m ? '' : '<div class="muted" style="margin-top:8px">Map pin: <b>' + esc(m.q || '(add the Venue name above)') + '</b> \u00B7 <a href="' + esc(m.link) + '" target="_blank" rel="noopener">open link</a></div>' +
+      (m.embed ? '<iframe src="' + esc(m.embed) + '" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Venue map preview" style="width:100%;height:220px;border:0;border-radius:10px;margin-top:8px"></iframe>' : '');
+  }, 500);
+}
 async function evImg(col, prefix, maxDim, kind, inp) {
   var f = inp.files && inp.files[0]; if (!f) return;
   try {
@@ -856,6 +894,7 @@ ACT.evSave = async function (d, b) {
     closed_message: val('ev_closed').trim(), max_per_order: Math.round(+val('ev_max')) || 5, updated_at: new Date().toISOString() };
   if ($('ev_instr')) row.instructions_text = val('ev_instr').trim();
   if ($('ev_upi')) row.upi_id = val('ev_upi').trim();
+  if ($('ev_map')) row.venue_map = val('ev_map').trim();
   if ($('ev_dk')) {
     row.dandiya_enabled = $('ev_dk').checked; row.dandiya_rent = Math.max(0, Math.round(+val('ev_dk_rent')) || 0);
     row.dandiya_deposit = Math.max(0, Math.round(+val('ev_dk_dep')) || 0); row.dandiya_max = Math.min(50, Math.max(1, Math.round(+val('ev_dk_max')) || 10));
@@ -958,7 +997,7 @@ ACT.tdPdf = async function (d, b) {
 
 // ───────────── EMAIL TEMPLATES ─────────────
 var ET = null;
-var SAMPLE = { name: 'Asha Sharma', order_no: 'ORD-1001', event: '', date: '', venue: '', link: 'https://example.com/#/order/abc123', reason: 'Payment not found in our account', type: 'General Entry', qty: 2, amount: 200, contact_phone: '', contact_email: '' };
+var SAMPLE = { name: 'Asha Sharma', order_no: 'ORD-1001', event: '', date: '', venue: '', link: 'https://example.com/#/order/abc123', reason: 'Payment not found in our account', type: 'General Entry', qty: 2, amount: 200, contact_phone: '', contact_email: '', map: '' };
 function fillTpl(str, v) { return String(str || '').replace(/\{(\w+)\}/g, function (m, k) { return v[k] != null ? v[k] : m; }); }
 T.templates = async function () {
   await loadSettings();
@@ -966,7 +1005,7 @@ T.templates = async function () {
   var cur = r.data || {}; ET = {};
   ['received', 'approved', 'rejected'].forEach(function (k) { ET[k] = Object.assign({}, DEFAULT_TEMPLATES[k], cur[k] || {}); });
   var titles = { received: 'Order received (sent when the buyer submits)', approved: 'Ticket (sent on approval, PDF attached)', rejected: 'Rejected (includes your reason)' };
-  $('content').innerHTML = '<h2>Email text</h2><div class="card muted">Placeholders: <code>{name} {order_no} {event} {date} {venue} {link} {reason} {type} {qty} {amount} {contact_phone} {contact_email}</code></div>' +
+  $('content').innerHTML = '<h2>Email text</h2><div class="card muted">Placeholders: <code>{name} {order_no} {event} {date} {venue} {link} {reason} {type} {qty} {amount} {contact_phone} {contact_email} {map}</code></div>' +
     ['received', 'approved', 'rejected'].map(function (k) {
       return '<div class="card"><b>' + titles[k] + '</b><label>Subject</label><input id="et_s_' + k + '" value="' + esc(ET[k].subject) + '" oninput="etRead()">' +
         '<label>Body</label><textarea id="et_b_' + k + '" style="min-height:170px" oninput="etRead()">' + esc(ET[k].body) + '</textarea>' +
@@ -976,7 +1015,7 @@ T.templates = async function () {
 };
 function etRead() { ['received', 'approved', 'rejected'].forEach(function (k) { ET[k] = { subject: val('et_s_' + k), body: val('et_b_' + k) }; }); etDraw(); }
 function etDraw() {
-  var v = Object.assign({}, SAMPLE, { event: A.settings.name, date: A.settings.date_text, venue: A.settings.venue, contact_phone: A.settings.contact_phone, contact_email: A.settings.contact_email });
+  var v = Object.assign({}, SAMPLE, { event: A.settings.name, date: A.settings.date_text, venue: A.settings.venue, contact_phone: A.settings.contact_phone, contact_email: A.settings.contact_email, map: (venueMap(A.settings) || {}).link || '' });
   ['received', 'approved', 'rejected'].forEach(function (k) {
     $('et_p_' + k).innerHTML = '<b>' + esc(fillTpl(ET[k].subject, v)) + '</b>\n\n' + esc(fillTpl(ET[k].body, v));
   });

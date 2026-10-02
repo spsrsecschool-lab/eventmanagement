@@ -32,7 +32,9 @@ In the SQL editor, run these files in order (each is safe to re-run):
 
 **Updating an existing setup:** run the newest upgrade file once: `sql/09_upgrade_v3.sql` (couple pass, one payment QR per amount, UPI ID, dandiya rental). Earlier upgrades (`08`) must already have been run.
 
-**Live admin orders:** run `sql/10_realtime.sql` once so the admin Orders tab updates instantly (green "Live" badge). Without it the tab still checks for new orders every 20 seconds ("Auto-refresh" badge). Running 01 to 05 again also works; they are safe to re-run.
+**Live admin orders:** run `sql/10_realtime.sql` once so the admin Orders tab updates instantly (green "Live" badge). Without it the tab still checks for new orders every 20 seconds ("Auto-refresh" badge).
+
+**Venue map:** run `sql/11_venue_map.sql` once, then in Admin → Event paste the venue's Google Maps link (or type the address). Approved buyers see a map with a Get directions button on their pass page, and the ticket email gets a venue card with the same button. Use `{map}` in an email template to place the link yourself. Running 01 to 05 again also works; they are safe to re-run.
 
 **Create the first admin:** Supabase > Authentication > Users > Add user (email + password, tick Auto Confirm). Put that email into `06_make_admin.sql` and run it (should print `UPDATE 1`). Sign in on the admin site. Scanner logins are created from the admin site (Staff tab), never by hand.
 

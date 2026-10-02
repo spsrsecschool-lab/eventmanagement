@@ -79,8 +79,29 @@ function varsFor(order, s) {
     name: order.buyer_name, order_no: order.order_no, event: s.name, date: s.date_text, venue: s.venue,
     link: publicUrl() + '/#/order/' + order.token, reason: order.reject_reason || 'Not specified',
     type: order.type_name, qty: order.qty, amount: order.amount,
-    contact_phone: s.contact_phone || '', contact_email: s.contact_email || ''
+    contact_phone: s.contact_phone || '', contact_email: s.contact_email || '',
+    map: (venueMap(s) || {}).link || ''
   };
+}
+// Venue map from settings.venue_map (a Google Maps link or a typed address). Returns null when not set.
+// q = what the embedded map pins; link = where "Open in Google Maps" goes. Short links (maps.app.goo.gl) can't be
+// read in the browser, so their pin falls back to the venue name; full links pin the exact place.
+function venueMap(s) {
+  var raw = String((s && s.venue_map) || '').trim(), q = '', link = '', m;
+  if (!raw) return null;
+  if (/^https?:\/\//i.test(raw)) {
+    link = raw;
+    m = raw.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) || raw.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) ||
+        raw.match(/[?&](?:q|query|ll|destination)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/i);
+    if (m) q = m[1] + ',' + m[2];
+    else if ((m = raw.match(/[?&](?:q|query|destination)=([^&#]+)/i) || raw.match(/\/place\/([^/@?#]+)/))) {
+      try { q = decodeURIComponent(m[1].replace(/\+/g, ' ')); } catch (e) { q = ''; }
+    }
+    if (!q) q = (s.venue || '').trim();
+  } else {
+    q = raw; link = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(raw);
+  }
+  return { q: q, link: link, embed: q ? 'https://maps.google.com/maps?q=' + encodeURIComponent(q) + '&z=16&output=embed' : '' };
 }
 function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 // Themed HTML email (same art direction as the website): Dandiya Nights banner header, scalloped edge, headline per email
@@ -107,6 +128,15 @@ function htmlBody(text, s, ctx) {
       '<td align="right" style="padding:9px 0 9px 14px;border-top:1px dashed rgba(244,182,63,.35);font-family:' + SANS + ';font-size:15px;font-weight:bold;color:' + CREAM + '">' + esc(r[1]) + '</td></tr>';
   }).join('');
   var contact = [s.contact_phone, s.contact_email].filter(Boolean).map(esc).join(' &middot; ');
+  var vm = kind === 'approved' ? venueMap(s) : null;
+  var venueBox = !vm ? '' : '<tr><td style="padding:0 18px 30px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="' + CARD + '" style="background:' + CARD + ';border:1px solid rgba(244,182,63,.45);border-top:4px solid ' + GOLD + ';border-radius:14px">' +
+    '<tr><td align="center" style="padding:22px 20px 24px;font-family:' + SANS + '">' +
+      '<div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:' + GOLD + '">&#128205; Venue</div>' +
+      (s.venue ? '<div style="font-family:' + SERIF + ';font-size:22px;font-weight:bold;line-height:1.3;color:' + CREAM + ';padding-top:8px">' + esc(s.venue) + '</div>' : '') +
+      (s.date_text ? '<div style="font-size:14px;color:' + SOFT + ';padding-top:4px">' + esc(s.date_text) + '</div>' : '') +
+      '<a href="' + esc(vm.link) + '" style="display:inline-block;margin-top:16px;border:2px solid ' + GOLD + ';color:' + GOLD + ';font-family:' + SANS +
+        ';font-weight:bold;font-size:14px;letter-spacing:1px;text-transform:uppercase;text-decoration:none;padding:12px 26px;border-radius:8px">Get directions &rarr;</a>' +
+    '</td></tr></table></td></tr>';
   var html = '<div style="margin:0;padding:0;background:' + NIGHT + '">' +
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="' + NIGHT + '" style="background:' + NIGHT + '"><tr><td align="center">' +
     '<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px">' +
@@ -129,6 +159,8 @@ function htmlBody(text, s, ctx) {
       // button
       (link ? '<tr><td align="center" style="padding:26px 20px 30px"><a href="' + esc(link) + '" style="display:inline-block;background:' + GOLD + ';color:' + NIGHT + ';font-family:' + SANS +
         ';font-weight:bold;font-size:15px;letter-spacing:1px;text-transform:uppercase;text-decoration:none;padding:15px 34px;border-radius:8px">' + esc(CTA) + ' &rarr;</a></td></tr>' : '') +
+      // venue map (ticket email only)
+      venueBox +
       // footer
       (base ? '<tr><td bgcolor="' + NIGHT + '" style="line-height:0;font-size:0"><img src="' + img('email-edge-up.png') + '" width="600" alt="" style="display:block;width:100%;height:auto;border:0"></td></tr>' : '') +
       '<tr><td bgcolor="' + POSTER + '" align="center" style="background:' + POSTER + ';padding:14px 20px 20px;font-family:' + SANS + ';font-size:13px;line-height:1.7;color:' + SOFT + '">' + dia +
@@ -167,10 +199,11 @@ async function sendOrderEmail(order, s, contentKind, logKind, attachments) {
   var t = template(s, contentKind);
   var v = varsFor(order, s);
   var text = fill(t.body, v);
+  var plain = contentKind === 'approved' && v.map && t.body.indexOf('{map}') < 0 ? text + '\n\nVenue on Google Maps: ' + v.map : text;   // HTML shows a venue card instead
   try {
     await mailer().sendMail({
       from: '"' + String(s.name).replace(/"/g, '') + '" <' + process.env.GMAIL_USER + '>',
-      to: order.email, subject: fill(t.subject, v), text: text, html: htmlBody(text, s, { kind: contentKind, order: order, link: v.link }),
+      to: order.email, subject: fill(t.subject, v), text: plain, html: htmlBody(text, s, { kind: contentKind, order: order, link: v.link }),
       attachments: attachments || []
     });
     await logEmail(order.id, logKind, order.email, 'sent', null);
