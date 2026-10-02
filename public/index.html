@@ -251,6 +251,29 @@
   .bk .pill.ok{background:#e3f6ea;color:#17703d;border-color:#9fd8b4}
   .bk .pill.warn{background:#fff1d1;color:#8a5a00;border-color:#f0c66b}
   .bk .pill.bad{background:#fde3e6;color:#9b1c3a;border-color:#efa1b2}
+  .bk-upi{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1.5px dashed rgba(42,4,48,.3);border-radius:12px;padding:10px 12px;margin:12px 0 4px;text-align:left}
+  .bk-upi small{display:block;font-size:12px;color:rgba(42,4,48,.62);letter-spacing:.04em}
+  .bk-upi b{display:block;font-size:17px;color:var(--ink);word-break:break-all}
+  .bk-copy{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:10px;border:0;cursor:pointer;
+    background:var(--au);color:var(--cream);font:inherit;font-size:14px;font-weight:700}
+  .bk-copy svg{width:16px;height:16px}
+  .bk-copy.ok{background:#17703d}
+  .bk-unit{border:1.5px solid rgba(42,4,48,.12);border-radius:12px;padding:10px 10px 2px;margin-bottom:12px;background:#fdf5e6}
+  .bk-unit-h{font-family:var(--f-display);font-weight:700;font-size:17px;margin:0 0 8px;color:var(--ink)}
+  .bk .nameRow span{min-width:22px;white-space:nowrap}
+  .bk-dandiya{position:relative;border-top:5px solid var(--mari)}
+  .bk-dandiya h3{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-weight:700;font-size:21px;margin:0 0 6px;color:var(--ink)}
+  .bk-dandiya h3 svg{width:22px;height:22px;color:var(--red)}
+  .bk-dandiya p{margin:6px 0;color:rgba(42,4,48,.82);line-height:1.5}
+  .bk-dandiya .row{gap:12px;align-items:flex-end;margin-top:10px}
+  .bk-dandiya .row > div{flex:1}
+  .bk-dandiya .bk-sum{font-family:var(--f-display);font-weight:700;font-size:28px;color:var(--red);text-align:right;white-space:nowrap}
+  .bk-badge{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;padding:4px 10px;border-radius:999px}
+  .bk-badge svg{width:15px;height:15px}
+  .bk-badge.wait{background:#fff1d1;color:#8a5a00}
+  .bk-badge.ok{background:#e3f6ea;color:#17703d}
+  .bk-badge.no{background:#fde3e6;color:#9b1c3a}
+  .bk-people small{color:rgba(42,4,48,.6);font-size:13px}
   .bk-order{text-align:center;margin:10px 0 4px}
   .bk-order small{display:block;font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--gold)}
   .bk-order h1{font-family:var(--f-display);font-weight:700;font-size:32px;color:var(--cream);margin:2px 0 0}
@@ -270,6 +293,18 @@
   .bk-people ol{margin:0;padding-left:22px;line-height:1.7}
   .bk .loading{color:rgba(251,238,214,.7)}
   @media (prefers-reduced-motion:reduce){ .bk-main > *{animation:none} .bk-ico.wait{animation:none} .bk button.block::after,.bk .btn.block::after{animation:none;display:none} }
+
+  /* sale countdown strip (top of the landing page) */
+  .lp-count{position:relative;z-index:3;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 14px;padding:10px 12px 11px;
+    background:linear-gradient(90deg,#3d0444,#7d0f5c 50%,#3d0444);border-bottom:1px solid rgba(255,213,106,.35);color:var(--cream);text-align:center}
+  .lp-count-l{font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
+  .lp-count.hurry .lp-count-l{color:#fff}
+  .lp-cd{display:flex;gap:6px}
+  .lp-cd span{min-width:50px;padding:4px 6px 3px;border-radius:8px;background:rgba(0,0,0,.28);border:1px solid rgba(255,213,106,.35);line-height:1}
+  .lp-cd b{display:block;font-family:var(--f-display);font-weight:700;font-size:22px;color:var(--cream);font-variant-numeric:tabular-nums}
+  .lp-cd small{display:block;margin-top:3px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#ecd2e4}
+  .lp-count-d{width:100%;font-size:12px;color:#ecd2e4;margin-top:-2px}
+  @media (min-width:600px){ .lp-count-d{width:auto;margin:0} }
 
   /* living hero: bokeh, sparkles, rising gold dust, breathing poster, diyas, button sheen */
   .lp-fx{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:hidden}
@@ -330,7 +365,10 @@ var S = { settings: null, types: [], route: null };   // S.settings = public eve
 var B = null;                                          // buy-form state
 var pollTimer = null;
 var MY_KEY = 'tk_my_orders';
-var SETTINGS_COLS = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,payment_qr_path,instructions_text,theme,ticket_design';
+var SETTINGS_BASE = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,theme,ticket_design';
+var SETTINGS_COLS = SETTINGS_BASE + ',payment_qr_path,instructions_text,upi_id,dandiya_enabled,dandiya_rent,dandiya_deposit,dandiya_max,dandiya_qrs';
+var DR = null;                                         // dandiya-rental form state
+var cdTimer = null;                                    // landing-page countdown
 var FONTS = {
   'Poppins': 'Poppins:wght@400;500;600;700', 'Inter': 'Inter:wght@400;500;600;700',
   'Playfair Display': 'Playfair+Display:wght@400;600;700', 'Hind': 'Hind:wght@400;500;600;700',
@@ -430,8 +468,8 @@ function applyTheme(th) {
 // ───────────── data ─────────────
 async function loadSettings() {
   var r = await sb.from('event_settings').select(SETTINGS_COLS).eq('id', 1).single();
-  if (r.error && /payment_qr_path|instructions_text/.test(r.error.message))   // newer SQL not run yet: keep the site working
-    r = await sb.from('event_settings').select(SETTINGS_COLS.replace(',payment_qr_path,instructions_text', '')).eq('id', 1).single();
+  if (r.error && /column|does not exist/i.test(r.error.message))   // newer SQL not run yet: keep the site working
+    r = await sb.from('event_settings').select(SETTINGS_BASE).eq('id', 1).single();
   if (r.error) throw r.error;
   S.settings = r.data;
   lsSet('tk_settings_cache', r.data);
@@ -453,11 +491,12 @@ function salesState(s) {
 
 // ───────────── router ─────────────
 function route() {
-  clearInterval(pollTimer);
+  clearInterval(pollTimer); clearInterval(cdTimer);
   var h = (location.hash || '#/').replace(/^#/, '');
   var p = h.split('/').filter(Boolean);
   window.scrollTo(0, 0);
   if (p[0] === 'buy' && p[1]) return viewBuy(p[1]);
+  if (p[0] === 'order' && p[1] && p[2] === 'dandiya') return viewDandiya(p[1]);
   if (p[0] === 'order' && p[1]) return viewOrder(p[1]);
   return viewHome();
 }
@@ -490,6 +529,9 @@ var ICON = {
   pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
   arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>',
+  copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>',
+  sticks: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 20 17 5M7 20 20 5"/><path d="M15.5 6.7l1.8 1.8M18.5 6.7l-1.2 1.4" opacity=".7"/></svg>',
   clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
   x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>',
   phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2Z"/></svg>',
@@ -561,6 +603,37 @@ function diyaSVG(side) {
     '<path d="M4 36 C10 33 50 33 56 36 C50 40 10 40 4 36 Z" fill="#f5b83d"/>' +
     '<path d="M12 46 H48" stroke="#f5b83d" stroke-width="1.6" stroke-dasharray="2 3" opacity=".8"/></svg>';
 }
+// Countdown to the admin's "Sale ends" (or to "Sale starts" while sales have not opened yet)
+function countdownTarget(s) {
+  var now = Date.now(), st = s.sales_start ? new Date(s.sales_start).getTime() : 0, en = s.sales_end ? new Date(s.sales_end).getTime() : 0;
+  if (!s.sales_open) return null;
+  if (st && now < st) return { at: st, label: 'Booking opens in' };
+  if (en && now < en) return { at: en, label: 'Booking closes in' };
+  return null;
+}
+function countdownHTML(s) {
+  var c = countdownTarget(s); if (!c) return '';
+  var when = new Date(c.at).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  return '<div class="lp-count" id="lpCount" role="timer" aria-live="off" data-at="' + c.at + '" data-label="' + esc(c.label) + '">' +
+    '<span class="lp-count-l" id="lpCountL">' + esc(c.label) + '</span>' +
+    '<span class="lp-cd" id="lpCd"></span><span class="lp-count-d">' + esc(when) + '</span></div>';
+}
+function startCountdown() {
+  var el = $('lpCount'); if (!el) return;
+  var at = Number(el.dataset.at), base = el.dataset.label;
+  var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+  var tick = function () {
+    var ms = at - Date.now();
+    if (ms <= 0) { clearInterval(cdTimer); route(); return; }       // sale just opened / closed: redraw the page
+    var s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+    var parts = (d ? [[d, d === 1 ? 'day' : 'days']] : []).concat([[pad(h), 'hrs'], [pad(m), 'min'], [pad(x), 'sec']]);
+    $('lpCd').innerHTML = parts.map(function (p) { return '<span><b>' + p[0] + '</b><small>' + p[1] + '</small></span>'; }).join('');
+    var hurry = base === 'Booking closes in' && ms < 86400000;
+    el.classList.toggle('hurry', hurry);
+    $('lpCountL').textContent = hurry ? 'Hurry! ' + base : base;
+  };
+  tick(); clearInterval(cdTimer); cdTimer = setInterval(tick, 1000);
+}
 function rulesList(text) {
   return String(text || '').split(/\n+/).map(function (l) { return l.replace(/^\s*[•\-*·]+\s*/, '').trim(); }).filter(Boolean);
 }
@@ -578,6 +651,7 @@ async function viewHome() {
 
   // ── hero: the event poster (uploaded banner if set, else the bundled Dandiya Nights poster)
   var poster = s.banner_path ? pubUrl(s.banner_path) : 'assets/hero-poster.jpg';
+  h += countdownHTML(s);
   h += '<header class="lp-band lp-hero" id="lpHero"><div class="lp-hero-bg" aria-hidden="true"></div>' + fxHTML() +
     '<img class="lp-poster" src="' + esc(poster) + '"' + (s.banner_path ? '' : ' width="800" height="1020"') + ' fetchpriority="high" alt="' + esc(s.name) + ' poster">' +
     '<div class="lp-in">' + diyaSVG('l') + diyaSVG('r') + '<h1 class="lp-sr">' + esc(s.name) + '</h1>' +
@@ -586,7 +660,7 @@ async function viewHome() {
       (s.date_text && s.venue ? '<i class="sep" aria-hidden="true"></i>' : '') +
       (s.venue ? '<span>' + ICON.pin + esc(s.venue) + '</span>' : '') + '</div>' +
     (canBuy ? '<a class="lp-cta" id="heroCta" href="#tickets" onclick="return scrollToTickets()">Book your pass' + ICON.arrow + '</a>' +
-              '<div class="lp-from">from <b>' + rupees(minPrice) + '</b> per person</div>'
+              '<div class="lp-from">Passes from <b>' + rupees(minPrice) + '</b></div>'
             : '<div class="lp-closed">' + esc(open ? 'All passes are sold out.' : (s.closed_message || 'Ticket sales are closed.')) + '</div>') +
   '</div></header>';
 
@@ -609,9 +683,9 @@ async function viewHome() {
     h += '<article class="lp-pass lp-reveal' + (soldOut ? ' sold' : '') + '"' + (t.accent_color ? ' style="--pass-accent:' + esc(t.accent_color) + '"' : '') + '>' + starSVG(st[0], st[1]) +
       '<div class="lp-pass-top"><div>' + (soldOut ? '<span class="lp-sold">SOLD OUT</span>' : '') + '<h3 class="lp-pass-name">' + esc(t.name) + '</h3>' +
         (t.description ? '<div class="lp-pass-desc">' + esc(t.description) + '</div>' : '') + '</div>' +
-        '<div class="lp-price"><b>' + rupees(t.price) + '</b><small>per person</small></div></div>' +
+        '<div class="lp-price"><b>' + rupees(t.price) + '</b><small>per ' + unitWord(t, 1) + '</small></div></div>' +
       '<div class="lp-perf" aria-hidden="true"></div>' +
-      '<div class="lp-seats' + (!soldOut && t.remaining <= 10 ? ' low' : '') + '"><span>' + (soldOut ? 'All places taken' : 'Places left') + '</span>' +
+      '<div class="lp-seats' + (!soldOut && t.remaining <= 10 ? ' low' : '') + '"><span>' + (soldOut ? 'All passes taken' : 'Passes left') + '</span>' +
         (soldOut ? '' : '<b>' + (t.remaining <= 10 ? 'Only ' : '') + t.remaining + '</b>') + '</div>' +
       (open && !soldOut ? '<a class="lp-btn" href="#/buy/' + t.id + '">Book ' + esc(t.name) + ICON.arrow + '</a>' : '') +
     '</article>';
@@ -641,6 +715,7 @@ async function viewHome() {
 
   $('app').innerHTML = '<div class="lp">' + h + '</div>';
   lpObserve();
+  startCountdown();
   var mine = lsGet(MY_KEY, []);
   if (mine.length) loadMine(mine);
 }
@@ -691,8 +766,35 @@ async function viewBuy(typeId) {
   if (!t) { $('app').innerHTML = shell('<div class="card center">This ticket type is not available.<br><br><a class="btn" href="#/">Back to event</a></div>'); return; }
   if (salesState(S.settings) !== 'open') { $('app').innerHTML = shell('<div class="card center">' + esc(S.settings.closed_message || 'Ticket sales are closed.') + '<br><br><a class="btn ghost" href="#/">Back to event</a></div>'); return; }
   if (t.remaining <= 0) { $('app').innerHTML = shell('<div class="card center">Sorry, <b>' + esc(t.name) + '</b> is sold out.<br><br><a class="btn ghost" href="#/">Back to event</a></div>'); return; }
-  if (!B || B.typeId !== t.id) B = { typeId: t.id, step: 1, qty: 1, name: '', phone: '', email: '', email2: '', names: [''], ids: [], idUrls: [], agree: false, firstEdited: false, payer: '', shot: null, shotUrl: '', busy: false };
+  if (!B || B.typeId !== t.id) B = { typeId: t.id, step: 1, qty: 1, name: '', phone: '', email: '', email2: '', names: new Array(ppu(t)).fill(''), ids: [], idUrls: [], agree: false, firstEdited: false, payer: '', shot: null, shotUrl: '', busy: false };
   drawBuy();
+}
+function ppu(t) { return Math.max(1, (t && t.persons_per_unit) || 1); }
+function unitWord(t, n) {   // "couple"/"couples" for a couple pass, else "person"/"people"
+  var u = String((t && t.unit_label) || '').toLowerCase();
+  if (ppu(t) > 1 && u) return n === 1 ? u : u + 's';
+  return n === 1 ? 'person' : 'people';
+}
+function slotLabel(t, i) {
+  var p = ppu(t), lb = (t && t.person_labels) || [];
+  if (p > 1) return ((t.unit_label || 'Group') + ' ' + (Math.floor(i / p) + 1) + ' \u00B7 ' + (lb[i % p] || 'Person ' + (i % p + 1)));
+  return 'person ' + (i + 1);
+}
+function peopleCount() { return B.qty * ppu(curType()); }
+function upiHTML() {
+  var id = (S.settings || {}).upi_id;
+  if (!id) return '';
+  return '<div class="bk-upi"><div><small>Or pay to this UPI ID</small><b>' + esc(id) + '</b></div>' +
+    '<button type="button" class="bk-copy" onclick="copyUpi(this)">' + ICON.copy + 'Copy</button></div>';
+}
+function copyUpi(btn) {
+  var v = (S.settings || {}).upi_id || '';
+  var done = function () { btn.classList.add('ok'); btn.innerHTML = ICON.check + 'Copied'; setTimeout(function () { btn.classList.remove('ok'); btn.innerHTML = ICON.copy + 'Copy'; }, 2200); };
+  var fallback = function () {
+    var ta = document.createElement('textarea'); ta.value = v; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch (e) {} ta.remove();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(v).then(done, fallback); else fallback();
 }
 function maxQty(t) { return Math.max(1, Math.min(S.settings.max_per_order, t.remaining)); }
 function curType() { return S.types.filter(function (x) { return x.id === B.typeId; })[0]; }
@@ -704,13 +806,13 @@ function drawBuy() {
   h += '<ol class="bk-steps" aria-label="Step ' + B.step + ' of 3">' + labels.map(function (l, n) {
     return '<li class="' + (n + 1 < B.step ? 'done' : n + 1 === B.step ? 'on' : '') + '"' + (n + 1 === B.step ? ' aria-current="step"' : '') + '><i></i>' + l + '</li>';
   }).join('') + '</ol>';
-  h += '<div class="card row"><div><div class="tname">' + esc(t.name) + '</div><div class="sub">' + rupees(t.price) + ' per person</div></div><div class="price">' + rupees(t.price * B.qty) + '</div></div>';
+  h += '<div class="card row"><div><div class="tname">' + esc(t.name) + '</div><div class="sub">' + rupees(t.price) + ' per ' + unitWord(t, 1) + '</div></div><div class="price">' + rupees(t.price * B.qty) + '</div></div>';
   h += '<section class="bk-sheet">';
 
   if (B.step === 1) {
     var mq = maxQty(t), opts = '';
     for (var i = 1; i <= mq; i++) opts += '<option value="' + i + '"' + (i === B.qty ? ' selected' : '') + '>' + i + '</option>';
-    h += '<label for="f_qty">Number of people (' + t.remaining + ' places left)</label><select id="f_qty" onchange="onQty()">' + opts + '</select>';
+    h += '<label for="f_qty">Number of ' + unitWord(t, 2) + ' (' + t.remaining + (ppu(t) > 1 ? ' passes' : ' places') + ' left)</label><select id="f_qty" onchange="onQty()">' + opts + '</select>';
     h += '<label for="f_name">Your name</label><input id="f_name" autocomplete="name" value="' + esc(B.name) + '" oninput="onBuyerName()">';
     h += '<label for="f_phone">Phone number</label><input id="f_phone" type="tel" inputmode="tel" autocomplete="tel" value="' + esc(B.phone) + '">';
     h += '<label for="f_email">Email (your ticket is sent here)</label><input id="f_email" type="email" inputmode="email" autocomplete="email" value="' + esc(B.email) + '">';
@@ -723,18 +825,20 @@ function drawBuy() {
     h += '<div id="err" class="err"></div><button class="block" onclick="toStep2()">Continue to payment</button>';
     if (s.terms_text) h += '<div class="terms">' + esc(s.terms_text) + '</div>';
   } else if (B.step === 2) {
-    var total = t.price * B.qty, payQr = s.payment_qr_path || t.payment_qr_path;   // one event QR; old per-type QR as fallback
-    h += '<div class="card"><div class="center sub">Pay exactly</div><div class="total">' + rupees(total) + '</div><div class="center sub">' + B.qty + ' × ' + rupees(t.price) + '</div>' +
-      (payQr ? '<img class="qr" src="' + esc(pubUrl(payQr)) + '" alt="UPI QR code">' : '<p class="center sub">Payment QR is not set up yet. Please contact the organiser.</p>') +
-      '<div class="center sub" style="margin-bottom:8px">Paying from this phone? Take a screenshot of the QR, then in your UPI app choose “Scan from gallery”.</div></div>';
+    // QR made for this exact amount (per pass type and quantity); else the general event QR
+    var total = t.price * B.qty, payQr = (t.payment_qrs || {})[String(B.qty)] || s.payment_qr_path || t.payment_qr_path;
+    h += '<div class="card"><div class="center sub">Pay exactly</div><div class="total">' + rupees(total) + '</div><div class="center sub">' + B.qty + ' ' + unitWord(t, B.qty) + ' \u00D7 ' + rupees(t.price) + '</div>' +
+      (payQr ? '<img class="qr" src="' + esc(pubUrl(payQr)) + '" alt="UPI QR code for ' + rupees(total) + '">' : (s.upi_id ? '' : '<p class="center sub">Payment QR is not set up yet. Please contact the organiser.</p>')) +
+      upiHTML() +
+      '<div class="center sub" style="margin:8px 0">Paying from this phone? Take a screenshot of the QR, then in your UPI app choose \u201CScan from gallery\u201D, or copy the UPI ID.</div></div>';
     if (s.payment_instructions) h += '<div class="card instr">' + esc(s.payment_instructions) + '</div>';
-    h += '<label for="f_payer">Name shown in your payment app</label><input id="f_payer" autocomplete="off" value="' + esc(B.payer) + '" placeholder="Exactly as your UPI app shows it">';
+    h += '<label for="f_payer">Name by which you have made the payment</label><input id="f_payer" autocomplete="off" value="' + esc(B.payer) + '" placeholder="As shown in your UPI / bank app">';
     h += '<div id="err" class="err"></div><button class="block" onclick="toStep3()">I have paid — continue</button>';
   } else {
     h += '<div class="card"><b>Upload your payment screenshot</b><div class="sub">Used only as a reference so we can verify your payment.</div>' +
       '<input id="f_shot" type="file" accept="image/*" style="margin-top:12px" onchange="onShot(this)">' +
       '<div id="shotPrev">' + (B.shotUrl ? '<img class="thumb" src="' + B.shotUrl + '" alt="screenshot preview">' : '') + '</div></div>';
-    h += '<div class="card sub">' + B.qty + ' × ' + esc(t.name) + ' = <b>' + rupees(t.price * B.qty) + '</b><br>Payer name: <b>' + esc(B.payer) + '</b></div>';
+    h += '<div class="card sub">' + B.qty + ' \u00D7 ' + esc(t.name) + ' = <b>' + rupees(t.price * B.qty) + '</b><br>Paid by: <b>' + esc(B.payer) + '</b></div>';
     h += '<div id="err" class="err"></div><button id="submitBtn" class="block" onclick="submitOrder()">Submit order</button>';
   }
   h += '</section>';
@@ -743,20 +847,28 @@ function drawBuy() {
 }
 
 function drawNames() {
-  var h = '<label>Everyone on this ticket</label><div class="sub" style="margin-bottom:8px">One ticket admits all these people together. Enter each name as on the Aadhaar card and add a photo of that person\'s Aadhaar. Only the organiser can see it; a masked Aadhaar is fine.</div>';
-  for (var i = 0; i < B.qty; i++) {
-    h += '<div class="person"><div class="nameRow"><span>' + (i + 1) + '.</span><input id="f_n' + i + '" placeholder="Person ' + (i + 1) + ' full name" value="' + esc(B.names[i] || '') + '" oninput="onAttName(' + i + ')"></div>' +
-      '<label class="idUp' + (B.ids[i] ? ' ok' : '') + '" id="f_idl' + i + '" for="f_id' + i + '">' +
-      (B.idUrls[i] ? '<img src="' + B.idUrls[i] + '" alt="">\u2714 Aadhaar added \u00B7 tap to change' : '\uD83D\uDCCE Add Aadhaar photo') + '</label>' +
-      '<input type="file" accept="image/*" id="f_id' + i + '" class="hidden" onchange="onId(' + i + ',this)"></div>';
+  var t = curType(), p = ppu(t), lb = t.person_labels || [];
+  var h = '<label>Everyone on this pass</label><div class="sub" style="margin-bottom:8px">One QR admits all these people together. Enter each name as on the Aadhaar card and add a photo of that person\'s Aadhaar. Only the organiser can see it; a masked Aadhaar is fine.</div>';
+  for (var u = 0; u < B.qty; u++) {
+    if (p > 1) h += '<div class="bk-unit"><div class="bk-unit-h">' + esc(t.unit_label || 'Group') + ' ' + (u + 1) + '</div>';
+    for (var k = 0; k < p; k++) {
+      var i = u * p + k, who = p > 1 ? (lb[k] || 'Person ' + (k + 1)) : (i + 1) + '.';
+      var ph = (p > 1 ? (lb[k] || 'Person') + ': ' : (lb[0] ? lb[0] + ': ' : '')) + 'full name as on Aadhaar';
+      h += '<div class="person"><div class="nameRow"><span>' + esc(who) + '</span><input id="f_n' + i + '" placeholder="' + esc(ph) + '" value="' + esc(B.names[i] || '') + '" oninput="onAttName(' + i + ')"></div>' +
+        '<label class="idUp' + (B.ids[i] ? ' ok' : '') + '" id="f_idl' + i + '" for="f_id' + i + '">' +
+        (B.idUrls[i] ? '<img src="' + B.idUrls[i] + '" alt="">\u2714 Aadhaar added \u00B7 tap to change' : '\uD83D\uDCCE Add Aadhaar photo') + '</label>' +
+        '<input type="file" accept="image/*" id="f_id' + i + '" class="hidden" onchange="onId(' + i + ',this)"></div>';
+    }
+    if (p > 1) h += '</div>';
   }
   $('namesBox').innerHTML = h;
 }
 function onQty() {
   B.qty = Number($('f_qty').value);
   var pe = document.querySelector('.bk .price'), tt = curType(); if (pe && tt) pe.textContent = rupees(tt.price * B.qty);
-  while (B.names.length < B.qty) B.names.push('');
-  B.names.length = B.qty; B.ids.length = B.qty; B.idUrls.length = B.qty;
+  var n = peopleCount();
+  while (B.names.length < n) B.names.push('');
+  B.names.length = n; B.ids.length = n; B.idUrls.length = n;
   drawNames();
 }
 async function onId(i, inp) {
@@ -790,7 +902,7 @@ function readStep() {
   if (B.step === 1) {
     B.qty = Number($('f_qty').value); B.name = $('f_name').value; B.phone = $('f_phone').value;
     B.email = $('f_email').value; B.email2 = $('f_email2').value;
-    for (var i = 0; i < B.qty; i++) { var el = $('f_n' + i); if (el) B.names[i] = el.value; }
+    for (var i = 0; i < peopleCount(); i++) { var el = $('f_n' + i); if (el) B.names[i] = el.value; }
     B.agree = !!($('f_agree') && $('f_agree').checked);
   } else if (B.step === 2) { B.payer = $('f_payer').value; }
 }
@@ -804,9 +916,9 @@ function toStep2() {
   if (B.phone.replace(/\D/g, '').length < 10) return showErr('Enter a phone number with at least 10 digits.', 'f_phone');
   if (!validEmail(B.email.trim())) return showErr('Enter a valid email address.', 'f_email');
   if (B.email.trim().toLowerCase() !== B.email2.trim().toLowerCase()) return showErr('The two email addresses do not match.', 'f_email2');
-  for (var i = 0; i < B.qty; i++) {
-    if ((B.names[i] || '').trim().length < 2) return showErr('Enter the full name of person ' + (i + 1) + '.', 'f_n' + i);
-    if (!B.ids[i]) return showErr('Add the Aadhaar photo for person ' + (i + 1) + ' (' + B.names[i].trim() + ').', 'f_idl' + i);
+  for (var i = 0; i < peopleCount(); i++) {
+    if ((B.names[i] || '').trim().length < 2) return showErr('Enter the full name for ' + slotLabel(t, i) + '.', 'f_n' + i);
+    if (!B.ids[i]) return showErr('Add the Aadhaar photo for ' + slotLabel(t, i) + ' (' + B.names[i].trim() + ').', 'f_idl' + i);
   }
   if (S.settings.instructions_text && !B.agree) return showErr('Please tick that you have read and agree to the instructions.', 'f_agree_l');
   B.step = 2; drawBuy(); window.scrollTo(0, 0);
@@ -856,12 +968,15 @@ var ERR_MAP = {
   BAD_NAME: 'Please check your name.', BAD_PHONE: 'Please check your phone number.', BAD_EMAIL: 'Please check your email address.',
   BAD_PAYER: 'Please check the name shown in your payment app.', BAD_ATTENDEES: 'Please check the names on the tickets.',
   BAD_SCREENSHOT: 'The screenshot upload did not work. Please choose the image again.',
-  BAD_IDS: 'An Aadhaar photo did not upload. Please go back and add it again.', BAD_QTY: 'Please check the number of tickets.'
+  BAD_IDS: 'An Aadhaar photo did not upload. Please go back and add it again.',
+  DANDIYA_OFF: 'Dandiya rental is not available right now.', ORDER_NOT_APPROVED: 'Your ticket must be approved before renting dandiya.',
+  DANDIYA_EXISTS: 'You already have a dandiya request for this ticket.', NOT_FOUND: 'We could not find this order.', BAD_QTY: 'Please check the number of tickets.'
 };
 function friendly(e) {
   var m = String(e && e.message || e), code = m.split(':')[0], arg = m.split(':')[1];
   if (code === 'NOT_ENOUGH_SEATS') return 'Only ' + arg + ' seat' + (arg === '1' ? '' : 's') + ' left. Please reduce the number of tickets.';
   if (code === 'MAX_PER_ORDER') return 'You can buy at most ' + arg + ' tickets per order.';
+  if (code === 'BAD_PAIRS') return 'Choose between 1 and ' + arg + ' pairs.';
   if (code === 'BAD_IDS' && arg) return 'The Aadhaar photo for person ' + arg + ' did not upload. Please go back and add it again.';
   return ERR_MAP[code] || 'Could not place your order: ' + m;
 }
@@ -885,8 +1000,9 @@ async function submitOrder() {
     if (up.error) throw new Error('BAD_SCREENSHOT');
 
     var idPaths = [];
-    for (var i = 0; i < B.qty; i++) {
-      btn.textContent = 'Uploading Aadhaar ' + (i + 1) + ' of ' + B.qty + '…';
+    var np = peopleCount();
+    for (var i = 0; i < np; i++) {
+      btn.textContent = 'Uploading Aadhaar ' + (i + 1) + ' of ' + np + '\u2026';
       var ip = uuid() + '.jpg';
       var iu = await sb.storage.from('ids').upload(ip, B.ids[i], { contentType: 'image/jpeg', upsert: false });
       if (iu.error) throw new Error('BAD_IDS:' + (i + 1));
@@ -896,7 +1012,7 @@ async function submitOrder() {
     btn.textContent = 'Placing order…';
     var r = await sb.rpc('create_order', {
       p_type_id: t.id, p_qty: B.qty, p_buyer_name: B.name.trim(), p_email: B.email.trim(), p_phone: B.phone.trim(),
-      p_payer_name: B.payer.trim(), p_screenshot_path: path, p_names: B.names.slice(0, B.qty).map(function (n) { return n.trim(); }),
+      p_payer_name: B.payer.trim(), p_screenshot_path: path, p_names: B.names.slice(0, peopleCount()).map(function (n) { return n.trim(); }),
       p_id_paths: idPaths
     });
     if (r.error) throw r.error;
@@ -927,7 +1043,9 @@ async function viewOrder(token) {
   var s = S.settings, h = '<div class="bk-order"><small>Your booking</small><h1>' + esc(o.order_no) + '</h1></div>';
   h += '<div class="card"><div class="row"><div><div class="tname">' + esc(o.qty) + ' × ' + esc(o.type_name) + '</div><div class="sub">' + esc(o.buyer_name) + ' · ' + esc(o.email) + '</div></div><div class="price">' + rupees(o.amount) + '</div></div></div>';
   if (o.status === 'pending') {
-    h += '<div class="card bk-status"><div class="bk-ico wait">' + ICON.clock + '</div><h2>Verifying your payment</h2><p>Your pass will be emailed to <b>' + esc(o.email) + '</b> once it is approved.</p><p class="sub">This page updates by itself. Keep this link \u2014 it is private to you.</p></div>';
+    h += '<div class="card bk-status"><div class="bk-ico wait">' + ICON.clock + '</div><h2>Verifying your payment</h2>' +
+      '<p>This may take <b>up to 24 hours</b>. Your pass will be emailed to <b>' + esc(o.email) + '</b> once it is approved.</p>' +
+      '<p class="sub">You can come back to this same page any time to check \u2014 it updates by itself. Keep this link; it is private to you.</p></div>';
   } else if (o.status === 'rejected') {
     h += '<div class="card bk-status"><div class="bk-ico no">' + ICON.x + '</div><h2>Payment not verified</h2><p>' + esc(o.reject_reason || 'We could not verify your payment.') + '</p>' +
       ((s.contact_phone || s.contact_email) ? '<p class="sub">Questions? ' + esc(s.contact_phone || '') + ' ' + esc(s.contact_email || '') + '</p>' : '') + '</div>';
@@ -937,18 +1055,125 @@ async function viewOrder(token) {
                 logoUrl: pubUrl((s.ticket_design || {}).logo_path || s.logo_path) };
     var people = o.people || [];
     if (o.code) h += '<div class="tick">' + renderTicketSVG({ code: o.code, attendee_name: people.join(', '), count: people.length }, ctx) + '</div>';
-    h += '<div class="card bk-people"><h3>Admits ' + people.length + (people.length === 1 ? ' person' : ' people') + '</h3><ol>' +
-         people.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ol></div>';
+    var slots = o.slots || [];
+    var admits = '<div class="card bk-people"><h3>Admits ' + people.length + (people.length === 1 ? ' person' : ' people') + '</h3><ol>' +
+         people.map(function (n, i) { return '<li>' + esc(n) + (slots[i] ? ' <small>' + esc(slots[i]) + '</small>' : '') + '</li>'; }).join('') + '</ol></div>';
     // plain link (not fetch): a normal page visit needs no CORS and also works on iPhone
-    h += '<a class="btn block" id="dlBtn" href="' + esc(API_BASE + '/api/ticket-pdf?token=' + encodeURIComponent(token)) + '" target="_blank" rel="noopener">Download PDF</a>' +
+    h += '<a class="btn block" id="dlBtn" href="' + esc(API_BASE + '/api/ticket-pdf?token=' + encodeURIComponent(token)) + '" target="_blank" rel="noopener">Download PDF</a>' + dandiyaCard(o, token) + admits +
          '<p class="sub center">Show this QR code at the gate. It lets everyone on the ticket in together, once. Bring every person\'s original Aadhaar card.</p>';
   }
   $('app').innerHTML = shell(h, { celebrate: o.status === 'approved' });
-  if (o.status === 'pending') pollTimer = setInterval(function () { viewOrderQuiet(token); }, 30000);
+  var sig = orderSig(o);
+  if (o.status === 'pending' || (o.dandiya && o.dandiya.status === 'pending')) pollTimer = setInterval(function () { viewOrderQuiet(token, sig); }, 30000);
 }
-async function viewOrderQuiet(token) {
+function orderSig(o) { return o.status + '|' + (o.dandiya ? o.dandiya.status : ''); }
+async function viewOrderQuiet(token, sig) {
   var r = await sb.rpc('get_order', { p_token: token });
-  if (r.data && r.data.status !== 'pending') viewOrder(token);
+  if (r.data && orderSig(r.data) !== sig) viewOrder(token);
+}
+
+// ───────────── dandiya rental (after the ticket is approved) ─────────────
+function dandiyaPer() { var s = S.settings || {}; return (s.dandiya_rent || 0) + (s.dandiya_deposit || 0); }
+function dandiyaCard(o, token) {
+  var s = S.settings || {}, d = o.dandiya, rent = s.dandiya_rent || 0, dep = s.dandiya_deposit || 0, per = rent + dep;
+  if (d && d.status === 'pending') {
+    return '<div class="card bk-dandiya"><h3>' + ICON.sticks + 'Dandiya rental</h3><span class="bk-badge wait">' + ICON.clock + 'Verification pending</span>' +
+      '<p><b>' + d.pairs + ' pair' + (d.pairs === 1 ? '' : 's') + '</b> \u00B7 ' + rupees(d.amount) + '</p>' +
+      '<p class="sub">We are verifying your dandiya payment. This may take up to 24 hours \u2014 you can check back on this page any time.</p></div>';
+  }
+  if (d && d.status === 'approved') {
+    return '<div class="card bk-dandiya"><h3>' + ICON.sticks + 'Dandiya rental</h3><span class="bk-badge ok">' + ICON.check + 'Verification complete</span>' +
+      '<p><b>' + d.pairs + ' pair' + (d.pairs === 1 ? '' : 's') + '</b> reserved for you. Collect them at the venue.</p>' +
+      (d.deposit_refunded ? '<p><span class="bk-badge ok">' + ICON.check + 'Security refunded</span></p>'
+                          : '<p class="sub">Return them after the event to get your ' + rupees(dep * d.pairs) + ' security deposit back.</p>') + '</div>';
+  }
+  if (!s.dandiya_enabled) return '';
+  var max = s.dandiya_max || 10, opts = '';
+  for (var i = 1; i <= max; i++) opts += '<option value="' + i + '">' + i + ' pair' + (i === 1 ? '' : 's') + '</option>';
+  return '<div class="card bk-dandiya"><h3>' + ICON.sticks + 'Rent dandiya sticks?</h3>' +
+    (d && d.status === 'rejected' ? '<p><span class="bk-badge no">' + ICON.x + 'Previous request not verified</span></p>' + (d.reject_reason ? '<p class="sub">' + esc(d.reject_reason) + '</p>' : '') : '') +
+    '<p>No sticks? Rent a pair for <b>' + rupees(per) + '</b>: ' + rupees(rent) + ' rent + ' + rupees(dep) + ' security deposit. ' +
+    'The ' + rupees(dep) + ' deposit per pair is refunded when you return the sticks after the event.</p>' +
+    '<div class="row"><div><label for="dk_pairs" style="color:rgba(42,4,48,.78)">How many pairs?</label><select id="dk_pairs" onchange="$(\'dk_sum\').textContent=rupees(dandiyaPer()*this.value)">' + opts + '</select></div>' +
+    '<div class="bk-sum" id="dk_sum">' + rupees(per) + '</div></div>' +
+    '<button class="block" onclick="startDandiya(\'' + esc(token) + '\')">Rent dandiya</button></div>';
+}
+function startDandiya(token) {
+  var n = Number(($('dk_pairs') || {}).value) || 1;
+  DR = { token: token, step: 2, pairs: n, payer: '', shot: null, shotUrl: '', busy: false };
+  go('#/order/' + token + '/dandiya');
+}
+async function viewDandiya(token) {
+  try { await loadSettings(); } catch (e) { return fail(e); }
+  var r = await sb.rpc('get_order', { p_token: token });
+  var o = r.data, d = o && o.dandiya;
+  if (!o || o.status !== 'approved' || !S.settings.dandiya_enabled || (d && d.status !== 'rejected')) { go('#/order/' + token); return; }
+  if (!DR || DR.token !== token) DR = { token: token, step: 1, pairs: 1, payer: '', shot: null, shotUrl: '', busy: false };
+  drawDandiya();
+}
+function drawDandiya() {
+  var s = S.settings, labels = ['Pairs', 'Pay', 'Screenshot'], per = dandiyaPer(), total = per * DR.pairs, h = '';
+  h += '<button class="back" onclick="' + (DR.step > 1 ? 'dandiyaStep(' + (DR.step - 1) + ')' : "go('#/order/" + esc(DR.token) + "')") + '">\u2190 ' + (DR.step > 1 ? 'Back to ' + labels[DR.step - 2].toLowerCase() : 'Back to your ticket') + '</button>';
+  h += '<ol class="bk-steps" aria-label="Step ' + DR.step + ' of 3">' + labels.map(function (l, n) {
+    return '<li class="' + (n + 1 < DR.step ? 'done' : n + 1 === DR.step ? 'on' : '') + '"' + (n + 1 === DR.step ? ' aria-current="step"' : '') + '><i></i>' + l + '</li>';
+  }).join('') + '</ol>';
+  h += '<div class="card row"><div><div class="tname">Dandiya sticks</div><div class="sub">' + rupees(per) + ' per pair (' + rupees(s.dandiya_rent) + ' rent + ' + rupees(s.dandiya_deposit) + ' refundable)</div></div><div class="price">' + rupees(total) + '</div></div>';
+  h += '<section class="bk-sheet">';
+  if (DR.step === 1) {
+    var opts = '';
+    for (var i = 1; i <= (s.dandiya_max || 10); i++) opts += '<option value="' + i + '"' + (i === DR.pairs ? ' selected' : '') + '>' + i + ' pair' + (i === 1 ? '' : 's') + '</option>';
+    h += '<label for="d_pairs">How many pairs do you need?</label><select id="d_pairs" onchange="DR.pairs=Number(this.value);document.querySelector(\'.bk .price\').textContent=rupees(dandiyaPer()*DR.pairs)">' + opts + '</select>' +
+      '<div class="card notice" style="margin-top:14px"><div class="instr">Each pair costs ' + rupees(per) + ': ' + rupees(s.dandiya_rent) + ' rent + ' + rupees(s.dandiya_deposit) + ' security deposit. ' +
+      'Collect the sticks at the venue; the ' + rupees(s.dandiya_deposit) + ' deposit per pair is refunded when you return them after the event.</div></div>' +
+      '<div id="err" class="err"></div><button class="block" onclick="dandiyaStep(2)">Continue to payment</button>';
+  } else if (DR.step === 2) {
+    var qr = (s.dandiya_qrs || {})[String(DR.pairs)] || s.payment_qr_path;
+    h += '<div class="card"><div class="center sub">Pay exactly</div><div class="total">' + rupees(total) + '</div><div class="center sub">' + DR.pairs + ' pair' + (DR.pairs === 1 ? '' : 's') + ' \u00D7 ' + rupees(per) + '</div>' +
+      (qr ? '<img class="qr" src="' + esc(pubUrl(qr)) + '" alt="UPI QR code for ' + rupees(total) + '">' : '') + upiHTML() + '</div>' +
+      '<label for="d_payer">Name by which you have made the payment</label><input id="d_payer" autocomplete="off" value="' + esc(DR.payer) + '" placeholder="As shown in your UPI / bank app">' +
+      '<div id="err" class="err"></div><button class="block" onclick="dandiyaStep(3)">I have paid \u2014 continue</button>';
+  } else {
+    h += '<div class="card"><b>Upload your payment screenshot</b><div class="sub">Used only as a reference so we can verify your payment.</div>' +
+      '<input id="d_shot" type="file" accept="image/*" style="margin-top:12px" onchange="onShotD(this)">' +
+      '<div id="dShotPrev">' + (DR.shotUrl ? '<img class="thumb" src="' + DR.shotUrl + '" alt="screenshot preview">' : '') + '</div></div>' +
+      '<div class="card sub">' + DR.pairs + ' pair' + (DR.pairs === 1 ? '' : 's') + ' = <b>' + rupees(total) + '</b><br>Paid by: <b>' + esc(DR.payer) + '</b></div>' +
+      '<div id="err" class="err"></div><button id="dSubmit" class="block" onclick="submitDandiya()">Submit dandiya request</button>';
+  }
+  h += '</section>';
+  $('app').innerHTML = shell(h);
+}
+function dandiyaStep(n) {
+  if (DR.step === 2 && $('d_payer')) DR.payer = $('d_payer').value;
+  if (n === 3 && DR.step === 2 && DR.payer.trim().length < 2) return showErr('Enter the name by which you have made the payment.', 'd_payer');
+  DR.step = n; drawDandiya(); window.scrollTo(0, 0);
+}
+async function onShotD(inp) {
+  var f = inp.files && inp.files[0]; if (!f) return;
+  try {
+    DR.shot = await compress(f);
+    if (DR.shotUrl) URL.revokeObjectURL(DR.shotUrl);
+    DR.shotUrl = URL.createObjectURL(DR.shot);
+    $('dShotPrev').innerHTML = '<img class="thumb" src="' + DR.shotUrl + '" alt="screenshot preview">';
+    if ($('err')) $('err').className = 'err';
+  } catch (e) { DR.shot = null; showErr(e.message); }
+}
+async function submitDandiya() {
+  if (DR.busy) return;
+  if (!DR.shot) return showErr('Please upload your payment screenshot.', 'd_shot');
+  var btn = $('dSubmit'); DR.busy = true; btn.disabled = true; btn.textContent = 'Uploading screenshot\u2026';
+  try {
+    var path = uuid() + '.jpg';
+    var up = await sb.storage.from('screenshots').upload(path, DR.shot, { contentType: 'image/jpeg', upsert: false });
+    if (up.error) throw new Error('BAD_SCREENSHOT');
+    btn.textContent = 'Sending request\u2026';
+    var r = await sb.rpc('request_dandiya', { p_token: DR.token, p_pairs: DR.pairs, p_payer_name: DR.payer.trim(), p_screenshot_path: path });
+    if (r.error) throw r.error;
+    var tk = DR.token; DR = null;
+    go('#/order/' + tk);
+  } catch (e) {
+    DR.busy = false; btn.disabled = false; btn.textContent = 'Submit dandiya request';
+    showErr(friendly(e));
+  }
 }
 
 // ───────────── boot ─────────────

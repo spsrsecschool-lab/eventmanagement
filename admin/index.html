@@ -47,6 +47,16 @@
   .chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
   .payer{display:inline-block;background:#fff176;color:#3b2f00;font-weight:800;padding:3px 9px;border-radius:7px;font-size:15px;border:2px solid #f2c200}
   .thumb{width:92px;height:92px;object-fit:cover;border-radius:10px;border:1px solid var(--line);cursor:zoom-in;background:#eee}
+  .qrgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(98px,1fr));gap:8px;margin-top:8px}
+  .qrtile{border:1px solid var(--line);border-radius:10px;padding:8px;text-align:center;background:#faf8fb}
+  .qrtile b{display:block;font-size:14px;margin-bottom:4px}
+  .qrtile img,.qrtile .none{width:72px;height:72px;object-fit:contain;background:#fff;border-radius:6px;border:1px solid var(--line);display:block;margin:0 auto}
+  .qrtile .none{display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted)}
+  .qrtile label{display:flex;align-items:center;justify-content:center;min-height:34px;margin:6px 0 0;font-size:12px;font-weight:700;color:var(--brand);cursor:pointer}
+  .qrtile input{display:none}
+  .dk{margin-top:12px;padding:10px 12px;border-radius:10px;background:#fff8e8;border:1px solid #f0d9a6}
+  .dk .row{align-items:flex-start}
+  .slot{display:inline-block;font-size:11px;font-weight:700;color:var(--muted);background:#f1ecf4;border-radius:6px;padding:1px 6px;margin-right:6px}
   .names{margin:6px 0;padding-left:18px}
   .names li.person{margin:4px 0}
   .names li.person > *{vertical-align:middle}
@@ -114,7 +124,8 @@ var A = { settings: null, types: [], counts: {}, orders: null, tickets: null, em
           tab: 'orders', ordFilter: 'pending', ordQ: '', ordLimit: 40, shots: {}, editType: null, atFilter: 'approved', atQ: '', atLimit: 100 };
 var T = {};      // tab renderers
 var ACT = {};    // click actions  (data-act="...")
-var SETTINGS_COLS = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,payment_qr_path,instructions_text,theme,ticket_design';
+var SETTINGS_BASE = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,theme,ticket_design';
+var SETTINGS_COLS = SETTINGS_BASE + ',payment_qr_path,instructions_text,upi_id,dandiya_enabled,dandiya_rent,dandiya_deposit,dandiya_max,dandiya_qrs';
 var TABS = [['orders', 'Orders'], ['manual', 'Add order'], ['types', 'Ticket types'], ['attendees', 'Attendees'], ['emails', 'Emails'],
             ['event', 'Event'], ['theme', 'Theme'], ['ticket', 'Ticket design'], ['templates', 'Email text'], ['staff', 'Staff']];
 var FONTS = { 'Poppins': 'Poppins:wght@400;600;700', 'Inter': 'Inter:wght@400;600;700', 'Playfair Display': 'Playfair+Display:wght@400;600;700',
@@ -282,9 +293,9 @@ async function startApp() {
 }
 async function loadSettings() {
   var r = await sb.from('event_settings').select(SETTINGS_COLS).eq('id', 1).single();
-  if (r.error && /payment_qr_path|instructions_text/.test(r.error.message)) {   // newer SQL not run yet
-    r = await sb.from('event_settings').select(SETTINGS_COLS.replace(',payment_qr_path,instructions_text', '')).eq('id', 1).single();
-    if (!r.error) toast('Database is out of date: run the SQL files 01 to 05 again in Supabase.', true);
+  if (r.error && /column|does not exist/i.test(r.error.message)) {   // newer SQL not run yet
+    r = await sb.from('event_settings').select(SETTINGS_BASE).eq('id', 1).single();
+    if (!r.error) toast('Database is out of date: run the newest sql/09_upgrade_v3.sql in Supabase.', true);
   }
   if (r.error) throw r.error;
   A.settings = r.data; $('hdrTitle').textContent = r.data.name + ' · Admin';
@@ -298,9 +309,13 @@ async function loadTypes() {
 }
 async function loadOrders(force) {
   if (A.orders && !force) return;
-  var r = await sb.from('orders').select('*, tickets(id,attendee_name,id_path,used)').order('created_at', { ascending: false }).limit(3000);
+  var r = await sb.from('orders').select('*, tickets(id,attendee_name,id_path,used,slot)').order('created_at', { ascending: false }).limit(3000);
+  if (r.error && /slot/.test(r.error.message)) r = await sb.from('orders').select('*, tickets(id,attendee_name,id_path,used)').order('created_at', { ascending: false }).limit(3000);
   if (r.error) throw r.error;
   A.orders = r.data;
+  var d = await sb.from('dandiya_rentals').select('*').order('id', { ascending: false }).limit(3000);
+  A.rentals = {};
+  (d.data || []).forEach(function (x) { if (!A.rentals[x.order_id]) A.rentals[x.order_id] = x; });   // latest per order
 }
 
 async function showTab(t) {
@@ -333,12 +348,17 @@ function ordMatches(o, q) {
   return hay.indexOf(q) >= 0 || (q.replace(/\D/g, '') && o.phone.replace(/\D/g, '').indexOf(q.replace(/\D/g, '')) >= 0);
 }
 function drawOrderList() {
-  var all = A.orders || [], cnt = { all: all.length, pending: 0, approved: 0, rejected: 0 };
-  all.forEach(function (o) { cnt[o.status]++; });
-  $('ordChips').innerHTML = ['pending', 'approved', 'rejected', 'all'].map(function (s) {
-    return '<button class="chip' + (A.ordFilter === s ? ' on' : '') + '" data-act="ordFilter" data-s="' + s + '">' + s[0].toUpperCase() + s.slice(1) + ' (' + cnt[s] + ')</button>';
+  var all = A.orders || [], cnt = { all: all.length, pending: 0, approved: 0, rejected: 0, dandiya: 0 };
+  all.forEach(function (o) { cnt[o.status]++; var dk = (A.rentals || {})[o.id]; if (dk && dk.status === 'pending') cnt.dandiya++; });
+  var LBL = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected', dandiya: 'Dandiya pending', all: 'All' };
+  $('ordChips').innerHTML = ['pending', 'approved', 'rejected', 'dandiya', 'all'].map(function (s) {
+    return '<button class="chip' + (A.ordFilter === s ? ' on' : '') + '" data-act="ordFilter" data-s="' + s + '">' + LBL[s] + ' (' + cnt[s] + ')</button>';
   }).join('');
-  var list = all.filter(function (o) { return (A.ordFilter === 'all' || o.status === A.ordFilter) && ordMatches(o, A.ordQ); });
+  var list = all.filter(function (o) {
+    var dk = (A.rentals || {})[o.id];
+    var okF = A.ordFilter === 'all' || (A.ordFilter === 'dandiya' ? !!(dk && dk.status === 'pending') : o.status === A.ordFilter);
+    return okF && ordMatches(o, A.ordQ);
+  });
   var show = list.slice(0, A.ordLimit);
   $('ordList').innerHTML = show.length ? show.map(orderCard).join('') + (list.length > show.length ? '<button class="b sec" style="width:100%" data-act="ordMore">Show more (' + (list.length - show.length) + ')</button>' : '')
     : '<div class="card muted" style="text-align:center">No orders here.</div>';
@@ -346,7 +366,7 @@ function drawOrderList() {
 }
 function orderCard(o) {
   var names = (o.tickets || []).slice().sort(function (a, b) { return a.id - b.id; }).map(function (t) {
-    return '<li class="person"><span>' + esc(t.attendee_name) + '</span>' +
+    return '<li class="person">' + (t.slot ? '<span class="slot">' + esc(t.slot) + '</span>' : '') + '<span>' + esc(t.attendee_name) + '</span>' +
       (t.id_path ? '<img class="idthumb" data-shot="' + esc(t.id_path) + '" data-bucket="ids" data-act="lightbox" alt="Aadhaar of ' + esc(t.attendee_name) + '">'
                  : (o.source === 'online' ? '<span class="pill rejected">no Aadhaar</span>' : '')) + '</li>';
   }).join('');
@@ -356,7 +376,7 @@ function orderCard(o) {
   h += '<div class="row" style="align-items:flex-start;margin-top:8px"><div style="min-width:0;flex:1">' +
     '<div>' + esc(o.buyer_name) + '</div>' +
     '<div class="muted"><a href="tel:' + esc(o.phone) + '">' + esc(o.phone) + '</a> · ' + esc(o.email) + '</div>' +
-    (o.source === 'online' ? '<div style="margin-top:8px" class="muted">Payer name in payment app</div><span class="payer">' + esc(o.payer_name) + '</span>' : '') +
+    (o.source === 'online' ? '<div style="margin-top:8px" class="muted">Paid by (name on the payment)</div><span class="payer">' + esc(o.payer_name) + '</span>' : '') +
     '<div class="muted" style="margin-top:8px">People on this ticket (admits ' + (o.tickets || []).length + ') \u00B7 tap an Aadhaar to enlarge</div><ol class="names">' + names + '</ol>' +
     (o.checked_in ? '<div><span class="pill approved">Checked in ' + esc(fmt(o.checked_in_at)) + '</span></div>' : '') +
     (o.status === 'rejected' && o.reject_reason ? '<div class="muted">Reason: ' + esc(o.reject_reason) + '</div>' : '') +
@@ -365,14 +385,28 @@ function orderCard(o) {
   if (o.status === 'pending') h += '<button class="b ok" data-act="approve" data-id="' + o.id + '">Approve &amp; send ticket</button><button class="b bad" data-act="rejectAsk" data-id="' + o.id + '">Reject</button>';
   if (o.status === 'approved') h += '<button class="b" data-act="resend" data-id="' + o.id + '">Resend email</button>';
   if (o.status === 'rejected') h += '<button class="b" data-act="resend" data-id="' + o.id + '">Resend email</button><button class="b sec" data-act="toPending" data-id="' + o.id + '">Move back to pending</button>';
-  h += '<button class="b sec" data-act="editEmail" data-id="' + o.id + '">Edit email</button></div></div>';
+  h += '<button class="b sec" data-act="editEmail" data-id="' + o.id + '">Edit email</button></div>' + dandiyaBlock(o) + '</div>';
   return h;
+}
+function dandiyaBlock(o) {
+  var d = (A.rentals || {})[o.id]; if (!d) return '';
+  var h = '<div class="dk"><div class="row"><div style="min-width:0;flex:1"><b>Dandiya rental</b> <span class="pill ' + d.status + '">' + d.status + '</span>' +
+    (d.deposit_refunded ? ' <span class="pill gray">deposit refunded</span>' : '') +
+    '<div style="margin-top:4px"><b>' + d.pairs + ' pair' + (d.pairs === 1 ? '' : 's') + '</b> = <b>' + rupees(d.amount) + '</b> <span class="muted">\u00B7 ' + fmt(d.created_at) + '</span></div>' +
+    '<div class="muted" style="margin-top:6px">Paid by</div><span class="payer">' + esc(d.payer_name) + '</span>' +
+    (d.status === 'rejected' && d.reject_reason ? '<div class="muted">Reason: ' + esc(d.reject_reason) + '</div>' : '') + '</div>' +
+    (d.screenshot_path ? '<img class="thumb" data-shot="' + esc(d.screenshot_path) + '" data-act="lightbox" alt="dandiya payment screenshot">' : '') + '</div><div class="acts">';
+  if (d.status === 'pending') h += '<button class="b ok sm" data-act="dkSet" data-id="' + d.id + '" data-s="approved">Approve dandiya</button><button class="b bad sm" data-act="dkRejectAsk" data-id="' + d.id + '">Reject</button>';
+  if (d.status === 'rejected') h += '<button class="b sec sm" data-act="dkSet" data-id="' + d.id + '" data-s="approved">Approve instead</button>';
+  if (d.status === 'approved') h += '<button class="b sec sm" data-act="dkRefund" data-id="' + d.id + '" data-v="' + (d.deposit_refunded ? '0' : '1') + '">' + (d.deposit_refunded ? 'Undo: deposit not refunded' : 'Sticks returned \u00B7 deposit refunded') + '</button>';
+  return h + '</div></div>';
 }
 // Private images (payment screenshots, Aadhaar photos) are shown through short-lived signed URLs.
 async function loadShots(list) {
   var need = { screenshots: [], ids: [] };
   list.forEach(function (o) {
     if (o.screenshot_path && !A.shots[o.screenshot_path]) need.screenshots.push(o.screenshot_path);
+    var dk = (A.rentals || {})[o.id]; if (dk && dk.screenshot_path && !A.shots[dk.screenshot_path]) need.screenshots.push(dk.screenshot_path);
     (o.tickets || []).forEach(function (t) { if (t.id_path && !A.shots[t.id_path]) need.ids.push(t.id_path); });
   });
   for (var bucket in need) {
@@ -385,6 +419,28 @@ async function loadShots(list) {
 function orderById(id) { return (A.orders || []).filter(function (o) { return String(o.id) === String(id); })[0]; }
 async function refreshOrders() { await loadOrders(true); if (A.tab === 'orders') drawOrderList(); }
 
+ACT.dkSet = async function (d, b) {
+  busy(b);
+  var r = await sb.rpc('admin_set_dandiya_status', { p_id: +d.id, p_status: d.s });
+  if (r.error) { toast(errText(r.error), true); busy(b, false); return; }
+  toast(d.s === 'approved' ? 'Dandiya rental approved. The buyer sees it on their order page.' : 'Updated.'); refreshOrders();
+};
+ACT.dkRejectAsk = function (d) {
+  modal('<h3 style="margin-top:0">Reject dandiya payment</h3><label>Reason (optional, shown to the buyer)</label><textarea id="dkReason" placeholder="e.g. Payment not found"></textarea>' +
+    '<div class="acts"><button class="b bad" data-act="dkRejectDo" data-id="' + d.id + '">Reject</button><button class="b sec" onclick="closeModal()">Cancel</button></div>');
+};
+ACT.dkRejectDo = async function (d, b) {
+  busy(b);
+  var r = await sb.rpc('admin_set_dandiya_status', { p_id: +d.id, p_status: 'rejected', p_reason: val('dkReason') });
+  if (r.error) { toast(errText(r.error), true); busy(b, false); return; }
+  closeModal(); toast('Dandiya request rejected. The buyer can try again.'); refreshOrders();
+};
+ACT.dkRefund = async function (d, b) {
+  busy(b);
+  var r = await sb.from('dandiya_rentals').update({ deposit_refunded: d.v === '1' }).eq('id', +d.id);
+  if (r.error) { toast(errText(r.error), true); busy(b, false); return; }
+  toast(d.v === '1' ? 'Marked: sticks returned, deposit refunded.' : 'Updated.'); refreshOrders();
+};
 ACT.ordFilter = function (d) { A.ordFilter = d.s; A.ordLimit = 40; drawOrderList(); };
 ACT.ordMore = function () { A.ordLimit += 40; drawOrderList(); };
 ACT.lightbox = function (d, b) { $('lbImg').src = b.src; $('lightbox').classList.remove('hide'); };
@@ -451,10 +507,10 @@ T.manual = async function () {
   var types = A.types;
   if (!types.length) { $('content').innerHTML = '<h2>Add order</h2><div class="card">Add a ticket type first.</div>'; return; }
   $('content').innerHTML = '<h2>Add manual order</h2><div class="card muted">For cash sales or complimentary tickets. No payment screenshot; issued as approved and the ticket is emailed.</div>' +
-    '<div class="card"><label>Ticket type</label><select id="mn_type" onchange="mnTotal()">' + types.map(function (t) {
+    '<div class="card"><label>Ticket type</label><select id="mn_type" onchange="mnQty()">' + types.map(function (t) {
       var left = t.capacity - ((A.counts[t.id] || {}).taken || 0);
       return '<option value="' + t.id + '">' + esc(t.name) + ' — ' + rupees(t.price) + ' (' + left + ' left)' + (t.active ? '' : ' [off sale]') + '</option>'; }).join('') + '</select>' +
-    '<div class="grid2"><div><label>Quantity</label><input id="mn_qty" type="number" min="1" max="50" value="1" oninput="mnQty()"></div>' +
+    '<div class="grid2"><div><label>Number of passes</label><input id="mn_qty" type="number" min="1" max="50" value="1" oninput="mnQty()"></div>' +
     '<div><label>Amount received (₹)</label><input id="mn_amt" type="number" min="0"></div></div>' +
     '<label class="chk"><input type="checkbox" id="mn_free" onchange="mnTotal()"> Complimentary (₹0)</label>' +
     '<label>Buyer name</label><input id="mn_name" oninput="mnBuyer()">' +
@@ -469,24 +525,28 @@ function mnTotal() {
   var t = A.types.filter(function (x) { return String(x.id) === val('mn_type'); })[0]; if (!t) return;
   var free = $('mn_free').checked; $('mn_amt').value = free ? 0 : t.price * (+val('mn_qty') || 1); $('mn_amt').disabled = free;
 }
+function mnType() { return A.types.filter(function (x) { return String(x.id) === val('mn_type'); })[0] || {}; }
 function mnNames() {
-  var h = '<label>Name on each ticket</label>';
-  for (var i = 0; i < M.qty; i++) h += '<input id="mn_n' + i + '" style="margin-bottom:6px" placeholder="Attendee ' + (i + 1) + '" value="' + esc(M.names[i] || '') + '" oninput="mnAtt(' + i + ')">';
+  var t = mnType(), p = t.persons_per_unit || 1, lb = t.person_labels || [], h = '<label>Name of each person</label>';
+  for (var i = 0; i < M.qty * p; i++) {
+    var tag = p > 1 ? (t.unit_label || 'Group') + ' ' + (Math.floor(i / p) + 1) + ' \u00B7 ' + (lb[i % p] || 'Person ' + (i % p + 1)) : 'Person ' + (i + 1);
+    h += '<input id="mn_n' + i + '" style="margin-bottom:6px" placeholder="' + esc(tag) + '" value="' + esc(M.names[i] || '') + '" oninput="mnAtt(' + i + ')">';
+  }
   $('mn_names').innerHTML = h;
 }
 function mnQty() {
-  var q = Math.max(1, Math.min(50, +val('mn_qty') || 1)); M.qty = q;
-  while (M.names.length < q) M.names.push(''); M.names.length = q; mnNames(); mnTotal();
+  var q = Math.max(1, Math.min(50, +val('mn_qty') || 1)), n = q * (mnType().persons_per_unit || 1); M.qty = q;
+  while (M.names.length < n) M.names.push(''); M.names.length = n; mnNames(); mnTotal();
 }
 function mnBuyer() { if (!M.firstEdited) { M.names[0] = val('mn_name'); var e = $('mn_n0'); if (e) e.value = M.names[0]; } }
 function mnAtt(i) { M.names[i] = val('mn_n' + i); if (i === 0 && M.names[0] !== val('mn_name')) M.firstEdited = true; }
 ACT.mnSave = async function (d, b) {
   var err = $('mn_err'); err.textContent = '';
   var name = val('mn_name').trim(), email = val('mn_email').trim(), names = [];
-  for (var i = 0; i < M.qty; i++) names.push(val('mn_n' + i).trim());
+  for (var i = 0; i < M.qty * (mnType().persons_per_unit || 1); i++) names.push(val('mn_n' + i).trim());
   if (name.length < 2) { err.textContent = 'Enter the buyer name.'; return; }
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { err.textContent = 'Enter a valid email.'; return; }
-  for (i = 0; i < names.length; i++) if (names[i].length < 2) { err.textContent = 'Enter the name for ticket ' + (i + 1) + '.'; return; }
+  for (i = 0; i < names.length; i++) if (names[i].length < 2) { err.textContent = 'Enter the name for ' + ($('mn_n' + i).placeholder || 'person ' + (i + 1)) + '.'; return; }
   busy(b);
   try {
     var r = await sb.rpc('admin_create_manual_order', { p_type_id: +val('mn_type'), p_qty: M.qty, p_buyer_name: name, p_email: email,
@@ -506,14 +566,17 @@ T.types = async function () { await Promise.all([loadTypes(), loadOrders()]); dr
 function typeOrderCount(id) { return (A.orders || []).filter(function (o) { return o.type_id === id; }).length; }
 function drawTypes() {
   var h = '<div class="row"><h2>Ticket types</h2><button class="b" data-act="typeNew">+ Add type</button></div>';
-  if (A.editType === 'new') h += typeForm({ id: 'new', name: '', description: '', price: 0, capacity: 100, accent_color: null, active: false });
+  if (A.editType === 'new') h += typeForm({ id: 'new', name: '', description: '', price: 0, capacity: 100, accent_color: null, active: false, persons_per_unit: 1, person_labels: [], unit_label: '' });
   A.types.forEach(function (t, i) {
     if (A.editType === t.id) { h += typeForm(t); return; }
     var c = A.counts[t.id] || { taken: 0, approved: 0 }, n = typeOrderCount(t.id);
     h += '<div class="card"' + (t.accent_color ? ' style="border-left:5px solid ' + esc(t.accent_color) + '"' : '') + '><div class="row"><div><b>' + esc(t.name) + '</b> ' +
       (t.active ? '<span class="pill approved">On sale</span>' : '<span class="pill gray">Off sale</span>') + '<div class="muted">' + esc(t.description) + '</div></div>' +
       '<div style="text-align:right"><b>' + rupees(t.price) + '</b><div class="muted">' + c.taken + ' of ' + t.capacity + ' taken</div></div></div>' +
-      '<div class="muted" style="margin-top:4px">' + c.approved + ' approved · ' + (c.taken - c.approved) + ' pending · ' + Math.max(t.capacity - c.taken, 0) + ' left</div>' +
+      '<div class="muted" style="margin-top:4px">' + c.approved + ' approved · ' + (c.taken - c.approved) + ' pending · ' + Math.max(t.capacity - c.taken, 0) + ' passes left' +
+        ((t.persons_per_unit || 1) > 1 ? ' \u00B7 ' + t.persons_per_unit + ' people per pass (' + esc((t.person_labels || []).join(' + ')) + ')' : ((t.person_labels || [])[0] ? ' \u00B7 ' + esc(t.person_labels[0]) : '')) + '</div>' +
+      '<div style="margin-top:10px"><b style="font-size:14px">Payment QR for each amount</b><div class="muted">Upload a UPI QR made for exactly this amount. Buyers see the one that matches their total.</div>' +
+        qrGrid('type', t.id, (A.settings && A.settings.max_per_order) || 5, t.price, t.payment_qrs) + '</div>' +
       '<div class="acts"><button class="b sec sm" data-act="typeUp" data-id="' + t.id + '"' + (i === 0 ? ' disabled' : '') + '>▲</button><button class="b sec sm" data-act="typeDown" data-id="' + t.id + '"' + (i === A.types.length - 1 ? ' disabled' : '') + '>▼</button>' +
       '<button class="b sec" data-act="typeEdit" data-id="' + t.id + '">Edit</button>' +
       '<button class="b sec" data-act="typeToggle" data-id="' + t.id + '">' + (t.active ? 'Turn off sale' : 'Turn on sale') + '</button>' +
@@ -526,7 +589,10 @@ function typeForm(t) {
   var hasAcc = !!t.accent_color;
   return '<div class="card" style="border:2px solid var(--brand)"><b>' + (t.id === 'new' ? 'New ticket type' : 'Edit ticket type') + '</b>' +
     '<label>Name</label><input id="tf_name" value="' + esc(t.name) + '"><label>Description</label><input id="tf_desc" value="' + esc(t.description) + '">' +
-    '<div class="grid2"><div><label>Price (₹)</label><input id="tf_price" type="number" min="0" value="' + esc(t.price) + '"></div><div><label>Total seats</label><input id="tf_cap" type="number" min="0" value="' + esc(t.capacity) + '"></div></div>' +
+    '<div class="grid2"><div><label>Price per pass (₹)</label><input id="tf_price" type="number" min="0" value="' + esc(t.price) + '"></div><div><label>Total passes (seats)</label><input id="tf_cap" type="number" min="0" value="' + esc(t.capacity) + '"></div></div>' +
+    '<div class="grid2"><div><label>People per pass</label><select id="tf_ppu">' + [1, 2, 3, 4].map(function (n) { return '<option' + ((t.persons_per_unit || 1) === n ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div>' +
+    '<div><label>Pass is called (when more than 1 person)</label><input id="tf_unit" placeholder="e.g. Couple" value="' + esc(t.unit_label || '') + '"></div></div>' +
+    '<label>Who is on each pass (comma separated)</label><input id="tf_labels" placeholder="e.g. Male, Female   or   Female" value="' + esc((t.person_labels || []).join(', ')) + '">' +
     '<label class="chk"><input type="checkbox" id="tf_hasacc"' + (hasAcc ? ' checked' : '') + '> Use an accent colour on this ticket</label><input type="color" id="tf_acc" value="' + esc(t.accent_color || '#f5cc6a') + '">' +
     '<label class="chk"><input type="checkbox" id="tf_active"' + (t.active ? ' checked' : '') + '> On sale</label><div id="tf_err" class="err"></div>' +
     '<div class="acts"><button class="b" data-act="typeSave" data-id="' + t.id + '">Save</button><button class="b sec" data-act="typeCancel">Cancel</button></div></div>';
@@ -536,7 +602,9 @@ ACT.typeEdit = function (d) { A.editType = +d.id; drawTypes(); };
 ACT.typeCancel = function () { A.editType = null; drawTypes(); };
 ACT.typeSave = async function (d, b) {
   var row = { name: val('tf_name').trim(), description: val('tf_desc').trim(), price: Math.round(+val('tf_price')), capacity: Math.round(+val('tf_cap')),
-              accent_color: $('tf_hasacc').checked ? val('tf_acc') : null, active: $('tf_active').checked };
+              accent_color: $('tf_hasacc').checked ? val('tf_acc') : null, active: $('tf_active').checked,
+              persons_per_unit: +val('tf_ppu') || 1, unit_label: val('tf_unit').trim(),
+              person_labels: val('tf_labels').split(',').map(function (x) { return x.trim(); }).filter(Boolean) };
   var e = $('tf_err');
   if (!row.name) { e.textContent = 'Enter a name.'; return; }
   if (!(row.price >= 0) || !(row.capacity >= 0)) { e.textContent = 'Price and seats must be 0 or more.'; return; }
@@ -571,6 +639,35 @@ async function typeMove(id, dir) {
 }
 ACT.typeUp = function (d) { typeMove(+d.id, -1); };
 ACT.typeDown = function (d) { typeMove(+d.id, 1); };
+
+// ───────────── payment QR grids: one UPI QR per exact amount ─────────────
+function qrGrid(kind, id, max, unit, map) {
+  var h = '<div class="qrgrid">';
+  for (var n = 1; n <= max; n++) {
+    var path = (map || {})[String(n)];
+    h += '<div class="qrtile"><b>' + rupees(unit * n) + '</b>' +
+      (path ? '<img src="' + esc(pubUrl(path)) + '" alt="QR for ' + rupees(unit * n) + '">' : '<div class="none">No QR</div>') +
+      '<label>' + (path ? 'Replace' : 'Upload') + '<input type="file" accept="image/*" onchange="qrUp(\'' + kind + '\',' + id + ',' + n + ',this)"></label></div>';
+  }
+  return h + '</div>';
+}
+async function qrUp(kind, id, n, inp) {
+  var f = inp.files && inp.files[0]; if (!f) return;
+  try {
+    var path = await uploadBranding('qr-' + kind + '-' + id + '-' + n, f, 1000, 'png'), r, old, map;
+    if (kind === 'type') {
+      var ty = A.types.filter(function (x) { return x.id === id; })[0];
+      map = Object.assign({}, ty.payment_qrs || {}); old = map[String(n)]; map[String(n)] = path;
+      r = await sb.from('ticket_types').update({ payment_qrs: map }).eq('id', id);
+    } else {
+      map = Object.assign({}, A.settings.dandiya_qrs || {}); old = map[String(n)]; map[String(n)] = path;
+      r = await sb.from('event_settings').update({ dandiya_qrs: map }).eq('id', 1);
+    }
+    if (r.error) throw r.error;
+    removeBranding(old); toast('QR saved.');
+    if (kind === 'type') T.types(); else T.event();
+  } catch (e) { toast(errText(e), true); }
+}
 
 // ───────────── ATTENDEES ─────────────
 T.attendees = async function () {
@@ -664,10 +761,18 @@ T.event = async function () {
     '<label>Terms (shown on the buy page)</label><textarea id="ev_terms">' + esc(s.terms_text) + '</textarea>' +
     (s.instructions_text !== undefined ? '<label>Instructions panel (event page + buy page, buyer must tick \u201CI agree\u201D). One point per line, e.g. \u2022 Children are not allowed.</label><textarea id="ev_instr" style="min-height:140px">' + esc(s.instructions_text) + '</textarea>' : '') + '</div>' +
     '<div class="card"><label class="chk" style="margin-top:0"><input type="checkbox" id="ev_open"' + (s.sales_open ? ' checked' : '') + '> <b>Ticket sales are open</b></label>' +
-    '<div class="grid2"><div><label>Sale starts (optional)</label><input id="ev_start" type="datetime-local" value="' + toLocalInput(s.sales_start) + '"></div><div><label>Sale ends (optional)</label><input id="ev_end" type="datetime-local" value="' + toLocalInput(s.sales_end) + '"></div></div>' +
+    '<div class="grid2"><div><label>Sale starts (optional)</label><input id="ev_start" type="datetime-local" value="' + toLocalInput(s.sales_start) + '"></div><div><label>Sale ends (optional) \u2014 shown as a countdown on the event page</label><input id="ev_end" type="datetime-local" value="' + toLocalInput(s.sales_end) + '"></div></div>' +
     '<label>Message shown when sales are closed</label><input id="ev_closed" value="' + esc(s.closed_message) + '">' +
     '<label>Max tickets per order</label><input id="ev_max" type="number" min="1" max="50" value="' + esc(s.max_per_order) + '"></div>' +
-    '<div class="card"><b>Payment QR (UPI)</b> <span class="muted">One QR for all ticket types. Buyers see it on the pay step.</span><div class="row" style="justify-content:flex-start;margin-top:8px">' +
+    (s.upi_id !== undefined ? '<div class="card"><b>UPI ID</b> <span class="muted">Shown with a Copy button on every pay step (tickets and dandiya).</span><input id="ev_upi" placeholder="e.g. schoolname@okaxis" value="' + esc(s.upi_id) + '" style="margin-top:8px"></div>' : '') +
+    (s.dandiya_enabled !== undefined ? '<div class="card"><label class="chk" style="margin-top:0"><input type="checkbox" id="ev_dk"' + (s.dandiya_enabled ? ' checked' : '') + '> <b>Offer dandiya sticks for rent</b></label>' +
+      '<div class="muted">After a ticket is approved, buyers are offered sticks: rent + refundable security per pair. You verify their payment in Orders \u2192 Dandiya pending.</div>' +
+      '<div class="grid2"><div><label>Rent per pair (\u20B9)</label><input id="ev_dk_rent" type="number" min="0" value="' + esc(s.dandiya_rent) + '"></div>' +
+      '<div><label>Refundable security per pair (\u20B9)</label><input id="ev_dk_dep" type="number" min="0" value="' + esc(s.dandiya_deposit) + '"></div></div>' +
+      '<label>Max pairs per ticket</label><input id="ev_dk_max" type="number" min="1" max="50" value="' + esc(s.dandiya_max) + '">' +
+      '<div style="margin-top:12px"><b style="font-size:14px">Dandiya payment QR for each amount</b><div class="muted">Save first if you changed the rent, security or max pairs; the amounts below update after saving.</div>' +
+      qrGrid('dandiya', 0, s.dandiya_max || 10, (s.dandiya_rent || 0) + (s.dandiya_deposit || 0), s.dandiya_qrs) + '</div></div>' : '') +
+    '<div class="card"><b>General payment QR (UPI)</b> <span class="muted">Used only when there is no QR for the exact amount.</span><div class="row" style="justify-content:flex-start;margin-top:8px">' +
     (s.payment_qr_path ? '<img class="qrimg" src="' + esc(pubUrl(s.payment_qr_path)) + '" alt="payment QR">' : '<div class="qrimg muted" style="display:flex;align-items:center;justify-content:center;font-size:12px;text-align:center">No QR yet</div>') +
     '<input type="file" accept="image/*" onchange="evImg(\'payment_qr_path\',\'payqr\',1000,\'png\',this)" style="font-size:13px"></div></div>' +
     '<div class="card"><b>Logo</b> <span class="muted">(square works best)</span><div class="row" style="justify-content:flex-start;margin-top:8px">' +
@@ -692,11 +797,16 @@ ACT.evSave = async function (d, b) {
     sales_start: val('ev_start') ? new Date(val('ev_start')).toISOString() : null, sales_end: val('ev_end') ? new Date(val('ev_end')).toISOString() : null,
     closed_message: val('ev_closed').trim(), max_per_order: Math.round(+val('ev_max')) || 5, updated_at: new Date().toISOString() };
   if ($('ev_instr')) row.instructions_text = val('ev_instr').trim();
+  if ($('ev_upi')) row.upi_id = val('ev_upi').trim();
+  if ($('ev_dk')) {
+    row.dandiya_enabled = $('ev_dk').checked; row.dandiya_rent = Math.max(0, Math.round(+val('ev_dk_rent')) || 0);
+    row.dandiya_deposit = Math.max(0, Math.round(+val('ev_dk_dep')) || 0); row.dandiya_max = Math.min(50, Math.max(1, Math.round(+val('ev_dk_max')) || 10));
+  }
   if (!row.name) return toast('Event name is required.', true);
   if (row.sales_start && row.sales_end && row.sales_start >= row.sales_end) return toast('Sale end must be after sale start.', true);
   busy(b); var r = await sb.from('event_settings').update(row).eq('id', 1); busy(b, false);
   if (r.error) return toast(errText(r.error), true);
-  toast('Saved. The public page is updated.'); loadSettings();
+  toast('Saved. The public page is updated.'); await loadSettings(); if ($('ev_dk')) T.event();
 };
 
 // ───────────── THEME ─────────────

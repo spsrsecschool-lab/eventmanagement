@@ -55,3 +55,11 @@ update public.event_settings
 • Every person on the ticket must carry their original Aadhaar card.
 • One QR code admits everyone named on the ticket. Please arrive together.$i$
  where id = 1 and instructions_text = '';
+
+-- v3: the two passes (added switched OFF; set seats and payment QRs in Admin > Ticket types, then turn them on)
+insert into public.ticket_types (name, description, price, capacity, active, sort_order, persons_per_unit, person_labels, unit_label)
+select 'Female Solo', 'One pass per woman', 300, 100, false, 10, 1, '{Female}', ''
+where not exists (select 1 from public.ticket_types where name = 'Female Solo');
+insert into public.ticket_types (name, description, price, capacity, active, sort_order, persons_per_unit, person_labels, unit_label)
+select 'Couple Pass', 'One pass admits a couple', 600, 100, false, 20, 2, '{Male,Female}', 'Couple'
+where not exists (select 1 from public.ticket_types where name = 'Couple Pass');
