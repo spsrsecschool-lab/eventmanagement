@@ -83,14 +83,66 @@ function varsFor(order, s) {
   };
 }
 function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-function htmlBody(text, s) {
-  var th = s.theme || {};
-  var accent = th.primary || '#c2185b';
-  var linked = esc(text).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:' + accent + '">$1</a>').replace(/\n/g, '<br>');
-  return '<div style="background:#f4f1f5;padding:18px 10px;font-family:Arial,Helvetica,sans-serif">' +
-    '<div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e6dfe8">' +
-    '<div style="background:' + (th.background || '#2b0a30') + ';color:' + (th.accent || '#f5cc6a') + ';padding:16px 20px;font-size:18px;font-weight:bold">' + esc(s.name) + '</div>' +
-    '<div style="padding:20px;color:#222;font-size:15px;line-height:1.55">' + linked + '</div></div></div>';
+// Themed HTML email (same art direction as the website): Dandiya Nights banner header, scalloped edge, headline per email
+// type, the admin's editable text in a card, booking summary, gold button, tile-strip footer.
+// Table layout + inline styles only (what email apps support). Dark throughout so Gmail dark mode leaves it alone.
+function htmlBody(text, s, ctx) {
+  ctx = ctx || {};
+  var base = publicUrl(), img = function (f) { return base ? base + '/assets/' + f : ''; };
+  var o = ctx.order || {}, kind = ctx.kind || 'received', link = ctx.link || base;
+  var GOLD = '#f4b63f', CREAM = '#fbeed6', SOFT = '#ecd2e4', NIGHT = '#2a0430', POSTER = '#38003a', CARD = '#3b0a44';
+  var SERIF = "Georgia,'Times New Roman',serif", SANS = 'Arial,Helvetica,sans-serif';
+  var HEAD = { received: ['Booking received', 'We are verifying your payment'], approved: ['You’re in!', 'Your pass is attached to this email'],
+               rejected: ['Payment not verified', 'Here is what happened'] }[kind] || [s.name, ''];
+  var CTA = { received: 'Track your booking', approved: 'View your pass', rejected: 'View your booking' }[kind] || 'Open';
+  var dia = '<div style="font-family:' + SANS + ';color:' + GOLD + ';font-size:11px;letter-spacing:8px;line-height:1">&#9670;&#9670;&#9670;</div>';
+  var body = esc(text).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:' + GOLD + ';word-break:break-all">$1</a>').replace(/\n/g, '<br>');
+  var people = (o.tickets || []).length;
+  var rows = [['Booking', o.order_no], ['Pass', (o.qty || '') + ' × ' + (o.type_name || '')],
+    people ? ['Admits', people + (people === 1 ? ' person' : ' people')] : null,
+    ['Amount', '₹' + Number(o.amount || 0).toLocaleString('en-IN')],
+    s.date_text ? ['When', s.date_text] : null, s.venue ? ['Where', s.venue] : null].filter(function (r) { return r && r[1]; });
+  var summary = rows.map(function (r) {
+    return '<tr><td style="padding:9px 0;border-top:1px dashed rgba(244,182,63,.35);font-family:' + SANS + ';font-size:11px;letter-spacing:2px;text-transform:uppercase;color:' + GOLD + ';white-space:nowrap;vertical-align:top">' + esc(r[0]) + '</td>' +
+      '<td align="right" style="padding:9px 0 9px 14px;border-top:1px dashed rgba(244,182,63,.35);font-family:' + SANS + ';font-size:15px;font-weight:bold;color:' + CREAM + '">' + esc(r[1]) + '</td></tr>';
+  }).join('');
+  var contact = [s.contact_phone, s.contact_email].filter(Boolean).map(esc).join(' &middot; ');
+  var html = '<div style="margin:0;padding:0;background:' + NIGHT + '">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="' + NIGHT + '" style="background:' + NIGHT + '"><tr><td align="center">' +
+    '<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px">' +
+      // poster header
+      '<tr><td bgcolor="' + POSTER + '" align="center" style="background:' + POSTER + ';padding:26px 20px 10px">' +
+        (base ? '<img src="' + img('email-banner.png') + '" width="300" alt="' + esc(s.name) + '" style="display:block;width:300px;max-width:80%;height:auto;margin:0 auto;border:0">'
+              : '<div style="font-family:' + SERIF + ';font-size:34px;font-weight:bold;color:' + CREAM + '">' + esc(s.name) + '</div>') +
+        '<div style="font-family:' + SANS + ';color:' + GOLD + ';font-size:12px;letter-spacing:2px;text-transform:uppercase;padding-top:16px;line-height:1.6">' +
+          esc([s.date_text, s.venue].filter(Boolean).join('  ·  ')) + '</div></td></tr>' +
+      (base ? '<tr><td bgcolor="' + NIGHT + '" style="line-height:0;font-size:0"><img src="' + img('email-edge.png') + '" width="600" alt="" style="display:block;width:100%;height:auto;border:0"></td></tr>' : '') +
+      // headline
+      '<tr><td align="center" bgcolor="' + NIGHT + '" style="padding:14px 20px 4px">' + dia +
+        '<div style="font-family:' + SERIF + ';font-style:italic;font-weight:bold;font-size:36px;line-height:1.15;color:' + GOLD + ';padding-top:12px">' + esc(HEAD[0]) + '</div>' +
+        (HEAD[1] ? '<div style="font-family:' + SANS + ';font-size:15px;color:' + SOFT + ';padding-top:6px">' + esc(HEAD[1]) + '</div>' : '') + '</td></tr>' +
+      // editable text
+      '<tr><td style="padding:18px 18px 6px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="' + CARD + '" style="background:' + CARD + ';border:1px solid rgba(244,182,63,.45);border-radius:14px">' +
+        '<tr><td style="padding:22px 22px;font-family:' + SANS + ';font-size:16px;line-height:1.65;color:' + CREAM + '">' + body + '</td></tr></table></td></tr>' +
+      // summary
+      (rows.length ? '<tr><td style="padding:14px 26px 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">' + summary + '</table></td></tr>' : '') +
+      // button
+      (link ? '<tr><td align="center" style="padding:26px 20px 30px"><a href="' + esc(link) + '" style="display:inline-block;background:' + GOLD + ';color:' + NIGHT + ';font-family:' + SANS +
+        ';font-weight:bold;font-size:15px;letter-spacing:1px;text-transform:uppercase;text-decoration:none;padding:15px 34px;border-radius:8px">' + esc(CTA) + ' &rarr;</a></td></tr>' : '') +
+      // footer
+      (base ? '<tr><td bgcolor="' + NIGHT + '" style="line-height:0;font-size:0"><img src="' + img('email-edge-up.png') + '" width="600" alt="" style="display:block;width:100%;height:auto;border:0"></td></tr>' : '') +
+      '<tr><td bgcolor="' + POSTER + '" align="center" style="background:' + POSTER + ';padding:14px 20px 20px;font-family:' + SANS + ';font-size:13px;line-height:1.7;color:' + SOFT + '">' + dia +
+        '<div style="font-family:' + SERIF + ';font-size:20px;font-weight:bold;color:' + CREAM + ';padding-top:10px">' + esc(s.name) + '</div>' +
+        esc([s.date_text, s.venue].filter(Boolean).join(' · ')) + (contact ? '<br>Questions? ' + contact : '') + '</td></tr>' +
+      (base ? '<tr><td bgcolor="' + POSTER + '" style="line-height:0;font-size:0"><img src="' + img('email-tiles.png') + '" width="600" alt="" style="display:block;width:100%;height:auto;border:0"></td></tr>' : '') +
+    '</table></td></tr></table></div>';
+  return asciiSafe(html);
+}
+// Write every non-ASCII character (rupee sign, quotes, Hindi names, ...) as an HTML entity so no email app garbles it.
+function asciiSafe(str) {
+  var out = '';
+  for (var ch of str) { var c = ch.codePointAt(0); out += c > 127 ? '&#' + c + ';' : ch; }
+  return out;
 }
 function template(s, kind) {
   var t = (s.email_templates || {})[kind] || {};
@@ -118,7 +170,7 @@ async function sendOrderEmail(order, s, contentKind, logKind, attachments) {
   try {
     await mailer().sendMail({
       from: '"' + String(s.name).replace(/"/g, '') + '" <' + process.env.GMAIL_USER + '>',
-      to: order.email, subject: fill(t.subject, v), text: text, html: htmlBody(text, s),
+      to: order.email, subject: fill(t.subject, v), text: text, html: htmlBody(text, s, { kind: contentKind, order: order, link: v.link }),
       attachments: attachments || []
     });
     await logEmail(order.id, logKind, order.email, 'sent', null);
@@ -130,4 +182,4 @@ async function sendOrderEmail(order, s, contentKind, logKind, attachments) {
 }
 
 module.exports = { db: db, cors: cors, json: json, body: body, requireAdmin: requireAdmin, loadSettings: loadSettings,
-  loadOrder: loadOrder, sendOrderEmail: sendOrderEmail, mailer: mailer, publicUrl: publicUrl, fill: fill, varsFor: varsFor, template: template };
+  loadOrder: loadOrder, sendOrderEmail: sendOrderEmail, mailer: mailer, htmlBody: htmlBody, publicUrl: publicUrl, fill: fill, varsFor: varsFor, template: template };
