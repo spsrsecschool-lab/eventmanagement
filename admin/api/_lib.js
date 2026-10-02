@@ -83,7 +83,7 @@ function varsFor(order, s) {
   };
 }
 function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-// Themed HTML email (same art direction as the website): poster header, scalloped edge, headline per email
+// Themed HTML email (same art direction as the website): Dandiya Nights banner header, scalloped edge, headline per email
 // type, the admin's editable text in a card, booking summary, gold button, tile-strip footer.
 // Table layout + inline styles only (what email apps support). Dark throughout so Gmail dark mode leaves it alone.
 function htmlBody(text, s, ctx) {
@@ -112,7 +112,7 @@ function htmlBody(text, s, ctx) {
     '<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px">' +
       // poster header
       '<tr><td bgcolor="' + POSTER + '" align="center" style="background:' + POSTER + ';padding:26px 20px 10px">' +
-        (base ? '<img src="' + img('hero-poster.jpg') + '" width="300" alt="' + esc(s.name) + '" style="display:block;width:300px;max-width:82%;height:auto;margin:0 auto;border:2px solid ' + GOLD + ';border-radius:14px">'
+        (base ? '<img src="' + img('email-banner.png') + '" width="300" alt="' + esc(s.name) + '" style="display:block;width:300px;max-width:80%;height:auto;margin:0 auto;border:0">'
               : '<div style="font-family:' + SERIF + ';font-size:34px;font-weight:bold;color:' + CREAM + '">' + esc(s.name) + '</div>') +
         '<div style="font-family:' + SANS + ';color:' + GOLD + ';font-size:12px;letter-spacing:2px;text-transform:uppercase;padding-top:16px;line-height:1.6">' +
           esc([s.date_text, s.venue].filter(Boolean).join('  ·  ')) + '</div></td></tr>' +
