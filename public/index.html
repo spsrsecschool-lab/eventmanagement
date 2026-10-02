@@ -96,11 +96,11 @@
   /* hero: the event poster is the hero */
   .lp-band.lp-hero{position:relative;background:var(--poster);text-align:center;padding:0 0 40px;overflow:hidden;isolation:isolate}
   .lp-hero-bg{position:absolute;inset:0;z-index:-1;background:radial-gradient(ellipse 60% 55% at 50% 38%,#6c0d66 0%,#4a0450 45%,var(--poster) 75%,#2a0430 100%)}
-  .lp-poster{display:block;width:100%;max-width:560px;height:auto;aspect-ratio:2/3;margin:0 auto;object-fit:cover;
+  .lp-poster{display:block;width:100%;max-width:620px;height:auto;margin:0 auto;
     -webkit-mask-image:linear-gradient(180deg,#000 80%,transparent 100%);mask-image:linear-gradient(180deg,#000 80%,transparent 100%)}
-  .lp-hero .lp-in{position:relative;margin-top:-12%;padding:0 16px}
+  .lp-hero .lp-in{position:relative;margin-top:-6%;padding:0 16px}
   @media (min-width:600px){
-    .lp-hero .lp-in{margin-top:-64px}
+    .lp-hero .lp-in{margin-top:4px}
     .lp-poster{-webkit-mask-image:linear-gradient(180deg,#000 80%,transparent 100%),linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);
       -webkit-mask-composite:source-in;mask-image:linear-gradient(180deg,#000 80%,transparent 100%),linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);mask-composite:intersect}
   }
@@ -418,7 +418,7 @@ async function viewHome() {
   // ── hero: the event poster (uploaded banner if set, else the bundled Dandiya Nights poster)
   var poster = s.banner_path ? pubUrl(s.banner_path) : 'assets/hero-poster.jpg';
   h += '<header class="lp-band lp-hero"><div class="lp-hero-bg" aria-hidden="true"></div>' +
-    '<img class="lp-poster" src="' + esc(poster) + '" width="1024" height="1536" fetchpriority="high" alt="' + esc(s.name) + ' poster">' +
+    '<img class="lp-poster" src="' + esc(poster) + '"' + (s.banner_path ? '' : ' width="800" height="1020"') + ' fetchpriority="high" alt="' + esc(s.name) + ' poster">' +
     '<div class="lp-in"><h1 class="lp-sr">' + esc(s.name) + '</h1>' +
     '<div class="lp-meta">' +
       (s.date_text ? '<span>' + ICON.cal + esc(s.date_text) + '</span>' : '') +
