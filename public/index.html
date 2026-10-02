@@ -87,7 +87,7 @@ var S = { settings: null, types: [], route: null };   // S.settings = public eve
 var B = null;                                          // buy-form state
 var pollTimer = null;
 var MY_KEY = 'tk_my_orders';
-var SETTINGS_COLS = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,theme,ticket_design';
+var SETTINGS_COLS = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,payment_qr_path,theme,ticket_design';
 var FONTS = {
   'Poppins': 'Poppins:wght@400;500;600;700', 'Inter': 'Inter:wght@400;500;600;700',
   'Playfair Display': 'Playfair+Display:wght@400;600;700', 'Hind': 'Hind:wght@400;500;600;700',
@@ -186,6 +186,8 @@ function applyTheme(th) {
 // ───────────── data ─────────────
 async function loadSettings() {
   var r = await sb.from('event_settings').select(SETTINGS_COLS).eq('id', 1).single();
+  if (r.error && /payment_qr_path/.test(r.error.message))   // sql/07 not run yet: keep the site working
+    r = await sb.from('event_settings').select(SETTINGS_COLS.replace(',payment_qr_path', '')).eq('id', 1).single();
   if (r.error) throw r.error;
   S.settings = r.data;
   lsSet('tk_settings_cache', r.data);
@@ -314,9 +316,9 @@ function drawBuy() {
     h += '<div id="err" class="err"></div><button class="block" onclick="toStep2()">Continue to payment</button>';
     if (s.terms_text) h += '<div class="terms">' + esc(s.terms_text) + '</div>';
   } else if (B.step === 2) {
-    var total = t.price * B.qty;
+    var total = t.price * B.qty, payQr = s.payment_qr_path || t.payment_qr_path;   // one event QR; old per-type QR as fallback
     h += '<div class="card"><div class="center sub">Pay exactly</div><div class="total">' + rupees(total) + '</div><div class="center sub">' + B.qty + ' × ' + rupees(t.price) + '</div>' +
-      (t.payment_qr_path ? '<img class="qr" src="' + esc(pubUrl(t.payment_qr_path)) + '" alt="UPI QR code">' : '<p class="center sub">Payment QR is not set up yet. Please contact the organiser.</p>') +
+      (payQr ? '<img class="qr" src="' + esc(pubUrl(payQr)) + '" alt="UPI QR code">' : '<p class="center sub">Payment QR is not set up yet. Please contact the organiser.</p>') +
       '<div class="center sub" style="margin-bottom:8px">Paying from this phone? Take a screenshot of the QR, then in your UPI app choose “Scan from gallery”.</div></div>';
     if (s.payment_instructions) h += '<div class="card instr">' + esc(s.payment_instructions) + '</div>';
     h += '<label for="f_payer">Name shown in your payment app</label><input id="f_payer" autocomplete="off" value="' + esc(B.payer) + '" placeholder="Exactly as your UPI app shows it">';
@@ -508,8 +510,13 @@ async function downloadPdf(token, no) {
   var b = $('dlBtn'); b.disabled = true; b.textContent = 'Preparing PDF…';
   try {
     if (API_BASE.indexOf('YOUR-') >= 0) throw new Error('PDF service is not configured yet');
-    var r = await fetch(API_BASE + '/api/ticket-pdf?token=' + encodeURIComponent(token));
-    if (!r.ok) throw new Error('Could not create the PDF (' + r.status + ')');
+    var r;
+    try { r = await fetch(API_BASE + '/api/ticket-pdf?token=' + encodeURIComponent(token)); }
+    catch (ne) { throw new Error('Could not reach the ticket server (' + API_BASE + '). Please try again in a minute.'); }
+    if (!r.ok) {
+      var j = await r.json().catch(function () { return {}; });
+      throw new Error('Could not create the PDF (' + r.status + (j.error ? ': ' + j.error : '') + ')');
+    }
     var blob = await r.blob(), a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = 'Ticket-' + no + '.pdf';
     document.body.appendChild(a); a.click(); a.remove();

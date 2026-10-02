@@ -18,6 +18,6 @@ module.exports = async function (req, res) {
     res.setHeader('Cache-Control', 'no-store');
     res.end(pdf);
   } catch (e) {
-    L.json(res, 500, { error: 'Could not build ticket' });
+    L.json(res, 500, { error: 'Could not build ticket: ' + String((e && e.message) || e).slice(0, 200) });
   }
 };

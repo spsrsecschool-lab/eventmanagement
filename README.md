@@ -28,6 +28,7 @@ In the SQL editor, run these files in order (each is safe to re-run):
 | 4 | `sql/04_storage.sql` | `branding` (public read, admin write) and `screenshots` (public upload only, admin read) |
 | 5 | `sql/05_seed.sql` | Dandiya Nights defaults, theme, ticket design, email wording, one **off-sale** starter ticket type |
 | 6 | `sql/06_make_admin.sql` | run once after creating your admin user (below) |
+| 7 | `sql/07_single_payment_qr.sql` | one payment QR for the whole event (run once if you set up before this file existed) |
 
 **Create the first admin:** Supabase > Authentication > Users > Add user (email + password, tick Auto Confirm). Put that email into `06_make_admin.sql` and run it (should print `UPDATE 1`). Sign in on the admin site. Scanner logins are created from the admin site (Staff tab), never by hand.
 
@@ -58,13 +59,14 @@ Admin project env vars (Settings > Environment Variables):
 Then edit one line in `public/index.html`: `API_BASE` = the **admin** project URL (the public site only calls its `/api/order-received` and `/api/ticket-pdf`). Optionally set `SCANNER_URL` in `admin/index.html` so the Staff tab shows the link. Commit and push; Vercel redeploys.
 
 Functions (all in `admin/api/`):
-`send-ticket` (admin JWT) ticket / rejected / resend emails with PDF · `preview-pdf` (admin JWT) sample PDF for the design tab · `staff` (admin JWT) create/remove scanner logins · `order-received` (public, rate limited) the "we got your order" email · `ticket-pdf` (public, needs the private order token) the Download PDF button.
+`send-ticket` (admin JWT) ticket / rejected / resend emails with PDF · `preview-pdf` (admin JWT) sample PDF for the design tab · `staff` (admin JWT) create/remove scanner logins · `health` (admin JWT) the System check · `order-received` (public, rate limited) the "we got your order" email · `ticket-pdf` (public, needs the private order token) the Download PDF button.
 
 ## 4. First-time setup in the admin site
 1. **Event**: check name/date/venue, payment instructions, then tick "Ticket sales are open".
-2. **Ticket types**: edit *General Entry* (price, seats), upload its UPI QR image, turn it on.
-3. **Staff**: create scanner logins for the gate volunteers.
-4. Place a test order on the public site, approve it, check the email.
+2. **Event**: upload the UPI **Payment QR** (one QR for all ticket types).
+3. **Ticket types**: edit *General Entry* (price, seats), turn it on.
+4. **Staff**: create scanner logins for the gate volunteers.
+5. Place a test order on the public site, approve it, check the email.
 
 ## Notes
 - The ticket artwork (`assets/ticket-bg.jpg`) is your Dandiya Nights template with the `000000` placeholder and the "SCAN QR CODE" frame text removed. The title, date and venue printed **on the artwork** are part of the image; the strip under it (name, type, date, venue, code, footer) is driven by the admin settings. For a different event, replace the image in `public/assets`, `admin/assets` and `admin/fonts` (same name, same proportions).
@@ -72,3 +74,9 @@ Functions (all in `admin/api/`):
 - PDFs embed Noto Sans + Noto Sans Devanagari (`admin/fonts`), so Hindi names render with correct conjuncts.
 - Before pushing JS changes: `tools/check-js.sh`.
 - Keep the camera working: the scanner must be served over HTTPS (Vercel does this).
+
+## If emails or PDF downloads do not work
+Admin > **Emails** > **Run system check**. It checks each part separately and shows the exact problem:
+the env vars, whether the service key is the secret one, database access, building a PDF, and the Gmail login.
+**Check + send me a test email** also sends a test message to your admin address.
+After changing any env var in Vercel, **redeploy** the admin project (Deployments > ... > Redeploy).
