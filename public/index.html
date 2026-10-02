@@ -155,6 +155,7 @@
   .lp-star{position:absolute;left:50%;top:-21px;width:34px;height:34px;transform:translateX(-50%)}
   .lp-seats{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:rgba(43,16,37,.75);margin:14px 0 12px}
   .lp-seats.low b{color:var(--red)}
+  .lp-perf + .lp-btn{margin-top:18px}
   .lp-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:50px;border:0;border-radius:8px;cursor:pointer;
     font:inherit;font-size:15px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--cream);background:var(--au);text-decoration:none;transition:background .15s ease}
   .lp-btn:hover{background:var(--au2)}
@@ -698,8 +699,7 @@ async function viewHome() {
         (t.description ? '<div class="lp-pass-desc">' + esc(t.description) + '</div>' : '') + '</div>' +
         '<div class="lp-price"><b>' + rupees(t.price) + '</b><small>per ' + unitWord(t, 1) + '</small></div></div>' +
       '<div class="lp-perf" aria-hidden="true"></div>' +
-      '<div class="lp-seats' + (!soldOut && t.remaining <= 10 ? ' low' : '') + '"><span>' + (soldOut ? 'All passes taken' : 'Passes left') + '</span>' +
-        (soldOut ? '' : '<b>' + (t.remaining <= 10 ? 'Only ' : '') + t.remaining + '</b>') + '</div>' +
+      (soldOut ? '<div class="lp-seats"><span>All passes taken</span></div>' : '') +   // the number left is not shown to buyers
       (open && !soldOut ? '<a class="lp-btn" href="#/buy/' + t.id + '">Book ' + esc(t.name) + ICON.arrow + '</a>' : '') +
     '</article>';
   });
