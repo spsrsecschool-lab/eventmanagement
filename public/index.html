@@ -825,7 +825,7 @@ function drawBuy() {
   if (B.step === 1) {
     var mq = maxQty(t), opts = '';
     for (var i = 1; i <= mq; i++) opts += '<option value="' + i + '"' + (i === B.qty ? ' selected' : '') + '>' + i + '</option>';
-    h += '<label for="f_qty">Number of ' + unitWord(t, 2) + ' (' + t.remaining + (ppu(t) > 1 ? ' passes' : ' places') + ' left)</label><select id="f_qty" onchange="onQty()">' + opts + '</select>';
+    h += '<label for="f_qty">Number of ' + unitWord(t, 2) + '</label><select id="f_qty" onchange="onQty()">' + opts + '</select>';
     h += '<label for="f_name">Your name</label><input id="f_name" autocomplete="name" value="' + esc(B.name) + '" oninput="onBuyerName()">';
     h += '<label for="f_phone">Phone number</label><input id="f_phone" type="tel" inputmode="tel" autocomplete="tel" value="' + esc(B.phone) + '">';
     h += '<label for="f_email">Email (your ticket is sent here)</label><input id="f_email" type="email" inputmode="email" autocomplete="email" value="' + esc(B.email) + '">';
@@ -987,7 +987,7 @@ var ERR_MAP = {
 };
 function friendly(e) {
   var m = String(e && e.message || e), code = m.split(':')[0], arg = m.split(':')[1];
-  if (code === 'NOT_ENOUGH_SEATS') return 'Only ' + arg + ' seat' + (arg === '1' ? '' : 's') + ' left. Please reduce the number of tickets.';
+  if (code === 'NOT_ENOUGH_SEATS') return 'Not enough passes left for this many. Please choose a smaller number.';
   if (code === 'MAX_PER_ORDER') return 'You can buy at most ' + arg + ' tickets per order.';
   if (code === 'BAD_PAIRS') return 'Choose between 1 and ' + arg + ' pairs.';
   if (code === 'BAD_IDS' && arg) return 'The Aadhaar photo for person ' + arg + ' did not upload. Please go back and add it again.';
@@ -998,7 +998,7 @@ async function submitOrder() {
   if (B.busy) return;
   if (!B.shot) return showErr('Please upload your payment screenshot.', 'f_shot');
   var btn = $('submitBtn'), t = curType();
-  B.busy = true; btn.disabled = true; btn.textContent = 'Checking seats…';
+  B.busy = true; btn.disabled = true; btn.textContent = 'Checking availability…';
   try {
     // re-check availability and sale window right before submitting
     await Promise.all([loadTypes(), loadSettings()]);
