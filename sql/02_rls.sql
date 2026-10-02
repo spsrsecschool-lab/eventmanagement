@@ -80,3 +80,17 @@ drop policy if exists email_log_admin_read on public.email_log;
 create policy email_log_admin_read on public.email_log for select to authenticated using (public.is_admin());
 drop policy if exists scan_log_admin_read on public.scan_log;
 create policy scan_log_admin_read on public.scan_log for select to authenticated using (public.is_admin());
+
+-- ===== v3 grants =====
+grant select (upi_id, dandiya_enabled, dandiya_rent, dandiya_deposit, dandiya_max, dandiya_qrs)
+  on public.event_settings to anon, authenticated;
+grant select (persons_per_unit, person_labels, unit_label, payment_qrs) on public.ticket_types to anon;
+
+alter table public.dandiya_rentals enable row level security;
+grant select on public.dandiya_rentals to authenticated;
+grant update (deposit_refunded) on public.dandiya_rentals to authenticated;
+drop policy if exists dandiya_admin_read on public.dandiya_rentals;
+create policy dandiya_admin_read on public.dandiya_rentals for select to authenticated using (public.is_admin());
+drop policy if exists dandiya_admin_upd on public.dandiya_rentals;
+create policy dandiya_admin_upd on public.dandiya_rentals for update to authenticated
+  using (public.is_admin()) with check (public.is_admin());

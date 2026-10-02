@@ -32,6 +32,7 @@
   #result.used{background:var(--warn);border-color:#f6d365;color:#2b1d00}
   #result.bad{background:var(--bad);border-color:#ff8a8a;color:#fff}
   #result.nv{background:var(--info);border-color:#b39dff;color:#fff}
+  #result .dk{margin-top:8px;padding:6px 10px;border-radius:8px;background:rgba(0,0,0,.22);font-size:15px}
   #result.idle .big{font-size:15px;color:var(--muted);font-weight:600}
   .cam{background:#000;border-radius:12px;overflow:hidden;margin:0 auto 8px;position:relative;min-height:40px;max-width:340px}
   #reader{width:100%}
@@ -196,9 +197,11 @@ function showResult(r, note) {
   if (r.result === 'ok') {
     el.className = 'ok'; buzz(120);
     h = head('\u2714', 'VALID \u2014 LET IN', 'ADMIT ' + n) + '<div class="sub">' + esc(r.type_name) + ' \u00B7 check each Aadhaar</div>' + people(r);
+    if (r.dandiya_pairs) h += '<div class="dk">Dandiya paid: <b>' + r.dandiya_pairs + ' pair' + (r.dandiya_pairs === 1 ? '' : 's') + '</b> \u2014 hand over</div>';
   } else if (r.result === 'already_used') {
     el.className = 'used'; buzz([200, 100, 200]);
     h = head('\u26A0', 'ALREADY USED', n ? n + (n === 1 ? ' person' : ' people') : '') + '<div class="sub"><b>Entered at ' + esc(fmtTime(r.used_at)) + '</b> \u00B7 ' + esc(r.type_name) + '</div>' + people(r);
+    if (r.dandiya_pairs) h += '<div class="dk">Dandiya paid: <b>' + r.dandiya_pairs + ' pair' + (r.dandiya_pairs === 1 ? '' : 's') + '</b></div>';
   } else if (r.result === 'not_valid') {
     el.className = 'nv'; buzz([300, 100, 300]);
     h = head('\u26D4', 'NOT VALID', '') + '<div class="sub">Order not approved. Do not let in; send to the organiser.</div>' + people(r);
