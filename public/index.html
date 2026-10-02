@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Noto fonts are always loaded: the on-screen ticket uses them so it matches the PDF (Hindi names too) -->
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Sans+Devanagari:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Sans+Devanagari:wght@400;700&family=Yatra+One&display=swap" rel="stylesheet">
 <link id="themeFont" rel="stylesheet" href="">
 <style>
   :root{
@@ -78,6 +78,105 @@
   .notice{border-left:4px solid var(--accent)}
   .chk{display:flex;gap:10px;align-items:flex-start;font-size:15px;font-weight:500;color:var(--text);margin:14px 0}
   .chk input{width:22px;height:22px;flex:0 0 auto;margin-top:1px}
+  /* ═════════ Landing page (event page only) — festive canopy theme from the moodboard ═════════
+     Art colours are fixed (they are the décor); buttons/cards still follow the admin theme. */
+  :root{
+    --f-magenta:#e0217a; --f-orange:#ff7a1a; --f-teal:#16a9a2; --f-red:#d42a2f; --f-gold:#f7c948; --f-green:#6fbf3f; --f-blue:#2a5fd6;
+    --f-night:#13040f; --f-display:'Yatra One','Noto Sans Devanagari',serif;
+  }
+  .lp{background:var(--bg)}
+  .lp-hero{position:relative;min-height:min(92svh,780px);overflow:hidden;background:var(--f-night);isolation:isolate;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:72px 16px 96px}
+  .lp-canopy{position:absolute;inset:0;z-index:-3;
+    background:
+      repeating-conic-gradient(from -3deg at 50% 36%, rgba(0,0,0,.28) 0deg .5deg, transparent .5deg 6deg),
+      repeating-conic-gradient(from -3deg at 50% 36%, var(--f-magenta) 0 6deg, var(--f-orange) 6deg 12deg, var(--f-teal) 12deg 18deg,
+        var(--f-red) 18deg 24deg, var(--f-gold) 24deg 30deg, var(--f-green) 30deg 36deg, var(--f-blue) 36deg 42deg)}
+  .lp-canopy.photo{background-size:cover;background-position:center}
+  .lp-shade{position:absolute;inset:0;z-index:-2;
+    background:radial-gradient(ellipse 70% 52% at 50% 50%, rgba(19,4,15,.90) 0%, rgba(19,4,15,.72) 45%, rgba(19,4,15,.25) 75%, rgba(19,4,15,.55) 100%),
+               linear-gradient(180deg, rgba(19,4,15,.35), transparent 30%, transparent 70%, rgba(19,4,15,.85))}
+  .lp-lights{position:absolute;inset:0;z-index:-1;pointer-events:none}
+  .lp-lights i{position:absolute;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;border-radius:50%;background:#fff6c8;
+    box-shadow:0 0 6px 2px rgba(255,214,102,.85),0 0 14px 4px rgba(255,170,40,.35);animation:lpTwinkle 3.2s ease-in-out infinite}
+  @keyframes lpTwinkle{0%,100%{opacity:1}50%{opacity:.35}}
+  .lp-umb{position:absolute;top:0;z-index:-1;transform-origin:50% 0;animation:lpSway 5s ease-in-out infinite;filter:drop-shadow(0 6px 10px rgba(0,0,0,.45))}
+  @keyframes lpSway{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+  .lp-logo{width:84px;height:84px;border-radius:50%;object-fit:contain;background:#fff;padding:6px;margin-bottom:14px;
+    box-shadow:0 0 0 3px var(--f-gold),0 0 0 7px rgba(247,201,72,.25),0 8px 24px rgba(0,0,0,.5)}
+  .lp-eyebrow{font-size:13px;letter-spacing:.32em;text-transform:uppercase;color:#ffe7a8;margin-bottom:6px;font-weight:600}
+  .lp-title{font-family:var(--f-display);font-weight:400;font-size:clamp(46px,14vw,96px);line-height:1.02;margin:0 0 14px;
+    background:linear-gradient(180deg,#fff3c4 0%,#f7c948 45%,#e89a1c 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 28px rgba(247,201,72,.25);text-wrap:balance}
+  .lp-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:22px}
+  .lp-chip{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:999px;font-size:14px;font-weight:600;color:#fff8e6;
+    background:rgba(19,4,15,.55);border:1px solid rgba(247,201,72,.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+  .lp-chip svg{width:17px;height:17px;flex:0 0 auto;color:var(--f-gold)}
+  .lp-cta{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;padding:14px 28px;border-radius:999px;border:0;cursor:pointer;
+    font:inherit;font-size:17px;font-weight:700;color:var(--btntext);text-decoration:none;
+    background:linear-gradient(135deg,var(--primary),color-mix(in srgb,var(--primary) 60%,var(--f-orange)));
+    box-shadow:0 10px 26px rgba(247,160,40,.35),inset 0 1px 0 rgba(255,255,255,.35);transition:transform .15s ease,box-shadow .15s ease}
+  .lp-cta:hover{transform:translateY(-1px);box-shadow:0 14px 30px rgba(247,160,40,.45)}
+  .lp-cta:active{transform:translateY(1px)}
+  .lp-cta:focus-visible,.lp-btn:focus-visible{outline:3px solid #fff;outline-offset:3px}
+  .lp-cta svg{width:20px;height:20px}
+  .lp-from{margin-top:10px;font-size:14px;color:#ffe7c2}
+  .lp-closed{display:inline-block;padding:10px 18px;border-radius:12px;background:rgba(19,4,15,.7);border:1px solid rgba(255,255,255,.25);color:#fff;font-weight:600}
+  .lp-toran{position:absolute;left:0;right:0;bottom:-1px;width:100%;height:46px;z-index:1;display:block}
+  .lp-wrap{max-width:680px;margin:0 auto;padding:6px 16px 120px}
+  .lp-sec{margin-top:34px}
+  .lp-h{display:flex;align-items:center;gap:12px;font-family:var(--f-display);font-weight:400;font-size:26px;margin:0 0 14px;color:var(--accent)}
+  .lp-h::before,.lp-h::after{content:"";flex:1;height:2px;background:repeating-linear-gradient(90deg,var(--accent) 0 6px,transparent 6px 12px);opacity:.55}
+  .lp-h span{display:inline-flex;align-items:center;gap:10px}
+  .lp-mirror{display:inline-block;width:12px;height:12px;border-radius:50%;flex:0 0 auto;
+    background:radial-gradient(circle at 35% 35%,#fff 0 22%,#cfd6e6 23% 46%,#8f9bb3 47% 58%,var(--f-magenta) 59% 100%)}
+  .lp-about{font-size:16px;line-height:1.65;white-space:pre-wrap;color:var(--text);text-align:center;margin:0}
+  .lp-pass{position:relative;border-radius:calc(var(--radius) + 4px);padding:20px 18px 18px;margin:0 0 16px;overflow:hidden;
+    background:linear-gradient(160deg,color-mix(in srgb,var(--card) 92%,var(--f-magenta)),var(--card));
+    border:2px solid color-mix(in srgb,var(--pass-accent,var(--accent)) 70%,transparent);box-shadow:0 12px 28px rgba(0,0,0,.28)}
+  .lp-pass::before{content:"";position:absolute;inset:7px;border:2px dashed color-mix(in srgb,var(--pass-accent,var(--accent)) 45%,transparent);border-radius:var(--radius);pointer-events:none}
+  .lp-pass::after{content:"";position:absolute;right:-26px;top:-26px;width:92px;height:92px;border-radius:50%;opacity:.2;pointer-events:none;
+    background:repeating-conic-gradient(var(--f-gold) 0 15deg,transparent 15deg 30deg)}
+  .lp-pass-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+  .lp-pass-name{font-family:var(--f-display);font-weight:400;font-size:24px;line-height:1.15;color:var(--text);margin:0}
+  .lp-pass-desc{color:var(--muted);font-size:14px;margin-top:4px}
+  .lp-price{text-align:right;flex:0 0 auto}
+  .lp-price b{display:block;font-size:30px;line-height:1;color:var(--accent);font-weight:800}
+  .lp-price small{font-size:12px;color:var(--muted)}
+  .lp-seats{margin:16px 0 14px;font-size:13px;color:var(--muted)}
+  .lp-seatbar{height:8px;border-radius:8px;background:color-mix(in srgb,var(--text) 12%,transparent);overflow:hidden;margin-top:6px}
+  .lp-seatbar i{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--f-teal),var(--f-gold),var(--f-magenta))}
+  .lp-seats.low{color:#ffd27a}
+  .lp-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:50px;border:0;border-radius:calc(var(--radius) - 2px);cursor:pointer;
+    font:inherit;font-size:16px;font-weight:700;color:var(--btntext);background:var(--primary);text-decoration:none;transition:filter .15s ease,transform .15s ease}
+  .lp-btn:hover{filter:brightness(1.06)}
+  .lp-btn:active{transform:translateY(1px)}
+  .lp-btn svg{width:19px;height:19px}
+  .lp-btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+  .lp-sold{display:inline-block;background:var(--f-red);color:#fff;font-weight:800;font-size:12px;letter-spacing:.12em;padding:4px 10px;border-radius:6px;margin-bottom:8px}
+  .lp-pass.sold{opacity:.72}
+  .lp-pass.sold .lp-price b{text-decoration:line-through;text-decoration-thickness:2px}
+  .lp-note{text-align:center;color:var(--muted);font-size:13px;margin-top:-4px}
+  .lp-sample{border-radius:var(--radius);overflow:hidden;border:1px solid var(--line);box-shadow:0 14px 30px rgba(0,0,0,.35)}
+  .lp-rules{list-style:none;margin:0;padding:16px 16px 6px;border-radius:var(--radius);background:var(--card);border:1px solid var(--line)}
+  .lp-rules li{display:flex;gap:12px;align-items:flex-start;font-size:15px;line-height:1.5;margin:0 0 12px}
+  .lp-rules .lp-mirror{margin-top:5px}
+  .lp-contact{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .lp-contact .lp-btn{font-size:15px}
+  .lp-foot{text-align:center;color:var(--muted);font-size:13px;margin-top:40px}
+  .lp-foot svg{display:block;margin:0 auto 10px;width:220px;height:46px}
+  .lp-sticky{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+    background:linear-gradient(180deg,transparent,rgba(19,4,15,.92) 30%);transform:translateY(110%);transition:transform .25s ease}
+  .lp-sticky.show{transform:none}
+  .lp-sticky .lp-cta{width:100%;max-width:640px;display:flex;margin:0 auto}
+  .lp-reveal{opacity:0;transform:translateY(16px);transition:opacity .6s ease,transform .6s ease}
+  .lp-reveal.in{opacity:1;transform:none}
+  @media (min-width:700px){ .lp-hero{padding-top:96px} .lp-h{font-size:30px} }
+  @media (prefers-reduced-motion:reduce){
+    .lp-lights i,.lp-umb{animation:none}
+    .lp-reveal{opacity:1;transform:none;transition:none}
+    .lp-sticky,.lp-cta,.lp-btn{transition:none}
+  }
 </style>
 </head>
 <body>
@@ -244,52 +343,181 @@ function fail(e) {
   $('app').innerHTML = shell('<div class="card center"><p>Something went wrong loading this page.</p><p class="sub">' + esc(e && e.message || e) + '</p><button onclick="location.reload()">Try again</button></div>');
 }
 
-// ───────────── home ─────────────
+// ───────────── home (landing page) ─────────────
+// Decorative SVG/CSS only (no images to download). Icons are inline SVG, not emoji.
+var ICON = {
+  cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+  pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
+  arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  ticket: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9a3 3 0 0 0 0 6v3a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-3a3 3 0 0 0 0-6V6a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>',
+  phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2Z"/></svg>',
+  mail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>'
+};
+var FEST = ['#e0217a', '#ff7a1a', '#16a9a2', '#d42a2f', '#f7c948', '#6fbf3f', '#2a5fd6'];
+
+// Embroidered chhatri (umbrella) like the hanging ones in the décor photos
+function umbrellaSVG(c1, c2, c3) {
+  var fringe = '', mirrors = '', i;
+  for (i = 0; i < 9; i++) fringe += '<path d="M' + (6 + i * 11) + ' 62 l5.5 9 l5.5 -9" fill="' + (i % 2 ? c2 : c3) + '"/>';
+  for (i = 0; i < 4; i++) mirrors += '<circle cx="' + (24 + i * 18) + '" cy="50" r="4" fill="#eef2ff" stroke="' + c3 + '" stroke-width="1.5"/>';
+  return '<svg width="108" height="120" viewBox="0 0 108 120" aria-hidden="true">' +
+    '<line x1="54" y1="0" x2="54" y2="26" stroke="#f7e3a3" stroke-width="1.2"/>' +
+    '<path d="M6 62 Q8 30 54 26 Q100 30 102 62 Z" fill="' + c1 + '"/>' +
+    '<path d="M54 26 L30 62 M54 26 L78 62" stroke="' + c2 + '" stroke-width="3" opacity=".8"/>' +
+    '<path d="M12 56 Q54 40 96 56" stroke="' + c3 + '" stroke-width="3" fill="none" stroke-dasharray="4 3"/>' +
+    mirrors + fringe +
+    '<line x1="54" y1="62" x2="54" y2="104" stroke="#f7e3a3" stroke-width="2"/><circle cx="54" cy="108" r="5" fill="' + c2 + '"/></svg>';
+}
+// Toran / bunting strip of festive triangles with mirror dots
+function toranSVG(fill) {
+  var w = 600, n = 20, step = w / n, p = '', i;
+  for (i = 0; i < n; i++) {
+    var x = i * step;
+    p += '<path d="M' + x.toFixed(1) + ' 8 L' + (x + step / 2).toFixed(1) + ' 40 L' + (x + step).toFixed(1) + ' 8 Z" fill="' + FEST[i % FEST.length] + '"/>' +
+         '<circle cx="' + (x + step / 2).toFixed(1) + '" cy="20" r="3" fill="#fff6d8"/>';
+  }
+  return '<svg class="lp-toran" viewBox="0 0 600 46" preserveAspectRatio="none" aria-hidden="true">' +
+    '<rect x="0" y="0" width="600" height="46" fill="' + fill + '"/>' +
+    '<path d="M0 8 H600" stroke="#f7c948" stroke-width="3"/>' + p + '</svg>';
+}
+// Fairy lights strung along the canopy seams (same apex as the conic gradient: 50% 36%)
+function lightsHTML() {
+  var h = '', a, r, k = 0;
+  for (a = -3; a < 357; a += 12) {
+    var rad = (a - 90) * Math.PI / 180;            // conic 0deg points up
+    for (r = 9; r <= 78; r += 11) {
+      var x = 50 + Math.cos(rad) * r, y = 36 + Math.sin(rad) * r * 1.15;
+      if (x < -2 || x > 102 || y < -2 || y > 102) continue;
+      if (Math.abs(x - 50) < 34 && y > 20 && y < 74) continue;   // keep the title and buttons clear
+      h += '<i style="left:' + x.toFixed(2) + '%;top:' + y.toFixed(2) + '%;animation-delay:' + ((k++ * 0.37) % 3.2).toFixed(2) + 's"></i>';
+    }
+  }
+  return '<div class="lp-lights" aria-hidden="true">' + h + '</div>';
+}
+// Admin instructions -> list (one point per line; leading •, -, * removed)
+function rulesList(text) {
+  return String(text || '').split(/\n+/).map(function (l) { return l.replace(/^\s*[•\-*·]+\s*/, '').trim(); }).filter(Boolean);
+}
+
 async function viewHome() {
   try {
     if (!S.settings) await loadSettings();
     await Promise.all([loadTypes(), loadSettings()]);
   } catch (e) { return fail(e); }
   var s = S.settings, open = salesState(s) === 'open';
-  var h = '<div class="hero" style="padding-top:0"><h1>' + esc(s.name) + '</h1>' +
-    (s.date_text ? '<div class="meta">📅 ' + esc(s.date_text) + '</div>' : '') +
-    (s.venue ? '<div class="meta">📍 ' + esc(s.venue) + '</div>' : '') + '</div>' +
-    (s.description ? '<div class="desc">' + esc(s.description) + '</div>' : '') +
-    (s.instructions_text ? '<div class="card notice"><div class="tname">Important instructions</div><div class="instr" style="margin-top:6px">' + esc(s.instructions_text) + '</div></div>' : '');
+  var avail = S.types.filter(function (t) { return t.remaining > 0; });
+  var minPrice = avail.length ? Math.min.apply(null, avail.map(function (t) { return t.price; })) : null;
+  var canBuy = open && avail.length > 0;
 
-  h += '<h2>Tickets</h2>';
-  if (!open) h += '<div class="card center">' + esc(s.closed_message || 'Ticket sales are closed.') + '</div>';
-  if (!S.types.length) h += '<div class="card center sub">No tickets available right now.</div>';
+  // ── hero
+  var h = '<section class="lp-hero" aria-label="' + esc(s.name) + '">' +
+    '<div class="lp-canopy' + (s.banner_path ? ' photo" style="background-image:url(\'' + esc(pubUrl(s.banner_path)) + '\')' : '') + '"></div>' +
+    '<div class="lp-shade"></div>' + (s.banner_path ? '' : lightsHTML()) +
+    '<div class="lp-umb" style="left:4%;animation-delay:-1s">' + umbrellaSVG('#d42a2f', '#f7c948', '#16a9a2') + '</div>' +
+    '<div class="lp-umb" style="right:3%;top:-14px;animation-delay:-3s">' + umbrellaSVG('#e0217a', '#6fbf3f', '#f7c948') + '</div>' +
+    (s.logo_path ? '<img class="lp-logo" src="' + esc(pubUrl(s.logo_path)) + '" alt="">' : '') +
+    '<div class="lp-eyebrow">' + (s.venue ? esc(s.venue.split(',')[0]) + ' presents' : 'You are invited') + '</div>' +
+    '<h1 class="lp-title">' + esc(s.name) + '</h1>' +
+    '<div class="lp-chips">' +
+      (s.date_text ? '<span class="lp-chip">' + ICON.cal + esc(s.date_text) + '</span>' : '') +
+      (s.venue ? '<span class="lp-chip">' + ICON.pin + esc(s.venue) + '</span>' : '') +
+    '</div>' +
+    (canBuy ? '<a class="lp-cta" id="heroCta" href="#tickets" onclick="return scrollToTickets()">' + ICON.ticket + 'Book your pass' + ICON.arrow + '</a>' +
+              '<div class="lp-from">from <b>' + rupees(minPrice) + '</b> per person</div>'
+            : '<div class="lp-closed">' + esc(open ? 'All passes are sold out.' : (s.closed_message || 'Ticket sales are closed.')) + '</div>') +
+    toranSVG('var(--bg)') +
+  '</section>';
+
+  h += '<div class="lp-wrap">';
+  // ── about
+  if (s.description) h += '<section class="lp-sec lp-reveal"><h2 class="lp-h"><span><i class="lp-mirror"></i>About the night<i class="lp-mirror"></i></span></h2><p class="lp-about">' + esc(s.description) + '</p></section>';
+
+  // ── passes
+  h += '<section class="lp-sec" id="tickets"><h2 class="lp-h"><span>Passes</span></h2>';
+  if (!open) h += '<p class="lp-note" style="margin:0 0 14px">' + esc(s.closed_message || 'Ticket sales are closed.') + '</p>';
+  if (!S.types.length) h += '<p class="lp-note">No passes are available right now.</p>';
   S.types.forEach(function (t) {
-    var soldOut = t.remaining <= 0;
-    h += '<div class="card"' + (t.accent_color ? ' style="border-left:4px solid ' + esc(t.accent_color) + '"' : '') + '><div class="row"><div>' +
-      '<div class="tname">' + esc(t.name) + '</div>' + (t.description ? '<div class="sub">' + esc(t.description) + '</div>' : '') +
-      '<div style="margin-top:6px">' + (soldOut ? '<span class="pill bad">Sold out</span>' : '<span class="pill ' + (t.remaining <= 10 ? 'warn' : 'ok') + '">' + t.remaining + ' left</span>') + '</div>' +
-      '</div><div class="price">' + rupees(t.price) + '</div></div>' +
-      (open && !soldOut ? '<button class="block" style="margin-top:12px" onclick="go(\'#/buy/' + t.id + '\')">Buy ticket</button>' : '') + '</div>';
+    var soldOut = t.remaining <= 0, pct = t.capacity ? Math.max(4, Math.round(100 * t.remaining / t.capacity)) : 0;
+    h += '<article class="lp-pass lp-reveal' + (soldOut ? ' sold' : '') + '"' + (t.accent_color ? ' style="--pass-accent:' + esc(t.accent_color) + '"' : '') + '>' +
+      '<div class="lp-pass-top"><div>' + (soldOut ? '<span class="lp-sold">SOLD OUT</span>' : '') + '<h3 class="lp-pass-name">' + esc(t.name) + '</h3>' + (t.description ? '<div class="lp-pass-desc">' + esc(t.description) + '</div>' : '') + '</div>' +
+      '<div class="lp-price"><b>' + rupees(t.price) + '</b><small>per person</small></div></div>' +
+      (soldOut ? '<div class="lp-seats">All places taken</div>'
+               : '<div class="lp-seats' + (t.remaining <= 10 ? ' low' : '') + '">' + (t.remaining <= 10 ? 'Only ' : '') + t.remaining + ' place' + (t.remaining === 1 ? '' : 's') + ' left' +
+                 '<div class="lp-seatbar" role="presentation"><i style="width:' + pct + '%"></i></div></div>') +
+      (open && !soldOut ? '<a class="lp-btn" href="#/buy/' + t.id + '">Book ' + esc(t.name) + ICON.arrow + '</a>' : '') +
+    '</article>';
   });
+  if (canBuy) h += '<p class="lp-note">One QR pass admits your whole group. Your pass is emailed after we verify the payment.</p>';
+  h += '</section>';
 
-  var mine = lsGet(MY_KEY, []);
-  h += '<div id="mine"></div>';
-  if (s.contact_phone || s.contact_email) {
-    h += '<h2>Contact</h2><div class="card">' +
-      (s.contact_phone ? '<div>📞 <a href="tel:' + esc(s.contact_phone) + '">' + esc(s.contact_phone) + '</a></div>' : '') +
-      (s.contact_email ? '<div>✉️ <a href="mailto:' + esc(s.contact_email) + '">' + esc(s.contact_email) + '</a></div>' : '') + '</div>';
+  // ── what the pass looks like
+  if (canBuy) {
+    var tdx = S.types[0] || {};
+    h += '<section class="lp-sec lp-reveal"><h2 class="lp-h"><span>Your pass</span></h2><div class="lp-sample">' +
+      renderTicketSVG({ code: 'TKT-SAMPLEPASS', attendee_name: 'Your name, your friends', count: 2 },
+        { s: s, typeName: tdx.name || '', accent: tdx.accent_color, bgUrl: 'assets/ticket-bg.jpg', logoUrl: pubUrl((s.ticket_design || {}).logo_path || s.logo_path) }) +
+      '</div><p class="lp-note" style="margin-top:8px">Sample. Your real pass has your names and a unique QR code.</p></section>';
   }
-  $('app').innerHTML = shell(h, { home: true });
+
+  // ── instructions
+  var rules = rulesList(s.instructions_text);
+  if (rules.length) h += '<section class="lp-sec lp-reveal"><h2 class="lp-h"><span>Before you come</span></h2><ul class="lp-rules">' +
+    rules.map(function (r) { return '<li><i class="lp-mirror"></i><span>' + esc(r) + '</span></li>'; }).join('') + '</ul></section>';
+
+  h += '<div id="mine"></div>';
+
+  // ── contact
+  if (s.contact_phone || s.contact_email) {
+    h += '<section class="lp-sec lp-reveal"><h2 class="lp-h"><span>Need help?</span></h2><div class="lp-contact"' + (s.contact_phone && s.contact_email ? '' : ' style="grid-template-columns:1fr"') + '>' +
+      (s.contact_phone ? '<a class="lp-btn ghost" href="tel:' + esc(s.contact_phone) + '">' + ICON.phone + 'Call ' + esc(s.contact_phone) + '</a>' : '') +
+      (s.contact_email ? '<a class="lp-btn ghost" href="mailto:' + esc(s.contact_email) + '">' + ICON.mail + 'Email us</a>' : '') + '</div></section>';
+  }
+  h += '<footer class="lp-foot"><svg viewBox="0 0 220 46" aria-hidden="true">' + [0, 1, 2, 3, 4, 5, 6].map(function (i) {
+      var x = 20 + i * 30, c = FEST[i];
+      return '<line x1="' + x + '" y1="0" x2="' + x + '" y2="18" stroke="#f7c948" stroke-width="1.5"/><circle cx="' + x + '" cy="20" r="4" fill="' + c + '"/><path d="M' + (x - 5) + ' 24 h10 l-2 20 h-6 Z" fill="' + c + '"/>';
+    }).join('') + '</svg>' + esc(s.name) + (s.date_text ? ' · ' + esc(s.date_text) : '') + '</footer>';
+  h += '</div>';
+
+  if (canBuy) h += '<div class="lp-sticky" id="lpSticky"><a class="lp-cta" href="#tickets" onclick="return scrollToTickets()">' + ICON.ticket + 'Book your pass · from ' + rupees(minPrice) + '</a></div>';
+
+  $('app').innerHTML = '<div class="lp">' + h + '</div>';
+  lpObserve();
+  var mine = lsGet(MY_KEY, []);
   if (mine.length) loadMine(mine);
 }
+function scrollToTickets() {
+  var el = $('tickets'); if (!el) return true;
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  return false;   // keep the #/ route; don't navigate
+}
+// Fade-in on scroll + sticky "Book" bar once the hero button is out of view
+function lpObserve() {
+  var els = document.querySelectorAll('.lp-reveal');
+  if (!('IntersectionObserver' in window)) { els.forEach(function (e) { e.classList.add('in'); }); return; }
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { rootMargin: '0px 0px -8% 0px' });
+  els.forEach(function (e) { io.observe(e); });
+  var cta = $('heroCta'), bar = $('lpSticky'), tk = $('tickets');
+  if (cta && bar) {
+    var seen = { cta: true, tickets: false };
+    var upd = function () { bar.classList.toggle('show', !seen.cta && !seen.tickets); };
+    new IntersectionObserver(function (es) { es.forEach(function (e) { seen[e.target === cta ? 'cta' : 'tickets'] = e.isIntersecting; }); upd(); }).observe(cta);
+    if (tk) new IntersectionObserver(function (es) { es.forEach(function (e) { seen.tickets = e.isIntersecting; }); upd(); }, { rootMargin: '0px 0px -40% 0px' }).observe(tk);
+  }
+}
 async function loadMine(mine) {
-  var out = '<h2>Your orders on this device</h2>';
   var res = await Promise.all(mine.slice(0, 10).map(function (m) { return sb.rpc('get_order', { p_token: m.token }); }));
+  var out = '';
   res.forEach(function (r, i) {
     var o = r.data; if (!o) return;
     var cls = o.status === 'approved' ? 'ok' : o.status === 'rejected' ? 'bad' : 'warn';
-    var label = o.status === 'approved' ? 'Ticket ready' : o.status === 'rejected' ? 'Rejected' : 'Verifying payment';
-    out += '<a class="card row" style="text-decoration:none;color:inherit" href="#/order/' + esc(mine[i].token) + '"><div><div class="tname">' + esc(o.order_no) +
+    var label = o.status === 'approved' ? 'Pass ready' : o.status === 'rejected' ? 'Rejected' : 'Verifying payment';
+    out += '<a class="card row" style="text-decoration:none;color:inherit;min-height:56px" href="#/order/' + esc(mine[i].token) + '"><div><div class="tname">' + esc(o.order_no) +
       '</div><div class="sub">' + esc(o.qty) + ' × ' + esc(o.type_name) + ' · ' + rupees(o.amount) + '</div></div><span class="pill ' + cls + '">' + label + '</span></a>';
   });
-  if ($('mine')) $('mine').innerHTML = out;
+  if (out && $('mine')) $('mine').innerHTML = '<section class="lp-sec"><h2 class="lp-h"><span>Your bookings</span></h2>' + out + '</section>';
 }
 
 // ───────────── buy ─────────────
