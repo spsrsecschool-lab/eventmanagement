@@ -30,7 +30,7 @@ In the SQL editor, run these files in order (each is safe to re-run):
 | 6 | `sql/06_make_admin.sql` | run once after creating your admin user (below) |
 | 7 | `sql/07_single_payment_qr.sql` | one payment QR for the whole event (run once if you set up before this file existed) |
 
-**Updating an existing setup:** after pulling new code, run 01 to 05 again in order (all are safe to re-run; they add new columns and move old data over). 07 is already included in 01/02.
+**Updating an existing setup:** run the newest `sql/08_upgrade_v2.sql` once (group tickets, Aadhaar, instructions). Running 01 to 05 again also works; they are safe to re-run.
 
 **Create the first admin:** Supabase > Authentication > Users > Add user (email + password, tick Auto Confirm). Put that email into `06_make_admin.sql` and run it (should print `UPDATE 1`). Sign in on the admin site. Scanner logins are created from the admin site (Staff tab), never by hand.
 
