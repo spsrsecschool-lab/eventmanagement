@@ -1,6 +1,6 @@
 # Event ticketing (Dandiya Nights)
 
-Buyers pick a ticket, pay by UPI QR, upload a screenshot. The organiser checks the payer name against his own payment history and approves. The buyer is emailed a PDF ticket (name + unique QR). A separate scanner app lets each ticket in once.
+Buyers pick a ticket, name everyone in their group and upload each person's Aadhaar photo, pay by UPI QR, upload a screenshot. One QR per order admits the whole group once. The organiser checks the payer name against his own payment history and approves. The buyer is emailed a PDF ticket (name + unique QR). A separate scanner app lets each ticket in once.
 
 ```
 public/    buyer site (no links to admin or scanner)        -> Vercel project 1
@@ -25,10 +25,12 @@ In the SQL editor, run these files in order (each is safe to re-run):
 | 1 | `sql/01_schema.sql` | tables, constraints, indexes |
 | 2 | `sql/02_rls.sql` | locks everything down, grants only what each role needs |
 | 3 | `sql/03_rpc.sql` | `create_order`, `get_order`, `check_in`, undo, admin actions |
-| 4 | `sql/04_storage.sql` | `branding` (public read, admin write) and `screenshots` (public upload only, admin read) |
+| 4 | `sql/04_storage.sql` | `branding` (public read, admin write); `screenshots` and `ids` (Aadhaar) are private: public upload only, admin read |
 | 5 | `sql/05_seed.sql` | Dandiya Nights defaults, theme, ticket design, email wording, one **off-sale** starter ticket type |
 | 6 | `sql/06_make_admin.sql` | run once after creating your admin user (below) |
 | 7 | `sql/07_single_payment_qr.sql` | one payment QR for the whole event (run once if you set up before this file existed) |
+
+**Updating an existing setup:** after pulling new code, run 01 to 05 again in order (all are safe to re-run; they add new columns and move old data over). 07 is already included in 01/02.
 
 **Create the first admin:** Supabase > Authentication > Users > Add user (email + password, tick Auto Confirm). Put that email into `06_make_admin.sql` and run it (should print `UPDATE 1`). Sign in on the admin site. Scanner logins are created from the admin site (Staff tab), never by hand.
 

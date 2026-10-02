@@ -40,6 +40,14 @@ Use a private/incognito browser that is not signed in anywhere.
 - [ ] Save. Open an approved order on the public site: on-screen ticket uses the new design. Resend the ticket email: the PDF uses it too.
 - [ ] Email text tab: edit the approved wording; preview updates; next email uses it.
 
+## 4b. Group tickets, Aadhaar, instructions
+- [ ] Buy 3 places: each person needs a name and an Aadhaar photo; you cannot continue without ticking "I agree" under the instructions.
+- [ ] Admin > Orders shows the 3 names, each with an Aadhaar thumbnail that opens full size.
+- [ ] As a stranger: `await sb.storage.from('ids').list()` -> empty / not allowed. As a scanner login: the same.
+- [ ] The approved order page and PDF show ONE ticket: "ADMIT 3" and all 3 names.
+- [ ] Scanning it shows "VALID - LET IN", "ADMIT 3" and the 3 names; scanning again shows "ALREADY USED". The counter goes up by 3.
+- [ ] Edit the instructions in Admin > Event: the event page and buy page update.
+
 ## 5. Scanner
 - [ ] Staff tab: create a scanner login. Sign in on the scanner site (camera permission allowed).
 - [ ] Scan a ticket QR -> green "VALID, ENTRY OK" with name and type; counter goes up.

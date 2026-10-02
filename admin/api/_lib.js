@@ -58,7 +58,7 @@ async function loadSettings() {
   return r.data;
 }
 async function loadOrder(filter) {
-  var q = db().from('orders').select('*, tickets(id, code, attendee_name), ticket_types(accent_color)');
+  var q = db().from('orders').select('*, tickets(id, attendee_name), ticket_types(accent_color)');
   var r = await q.match(filter).maybeSingle();
   if (r.error) throw new Error('order: ' + r.error.message);
   if (r.data && r.data.tickets) r.data.tickets.sort(function (a, b) { return a.id - b.id; });

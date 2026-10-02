@@ -95,8 +95,9 @@ function drawTicket(doc, ticket, ctx, qr, logo) {
     try { doc.image(logo, 36, y0 + 37, { fit: [96, 96], align: 'center', valign: 'center' }); tx = 154; } catch (e) { /* bad logo: skip */ }
   }
   var maxW = 964 - tx;
-  if (d.header_text) {
-    var h1 = fit(d.header_text, 15, maxW, false, 11);
+  var header = String(d.header_text || '').replace(/\{count\}/g, String(ticket.count || 1));
+  if (header) {
+    var h1 = fit(header, 15, maxW, false, 11);
     text(doc, h1.text, tx, y0 + 38, { size: h1.size, color: accent, spacing: 3 });
   }
   var nm = fit(ticket.attendee_name, 40, maxW, true, 20);
@@ -119,6 +120,12 @@ function drawTicket(doc, ticket, ctx, qr, logo) {
     text(doc, ticket.code, 964, y0 + 154, { size: 16, color: stripText, opacity: 0.7, anchor: 'end', spacing: 1 });
   }
   doc.restore();
+}
+
+// One ticket per order (v2): a single QR admits everyone; the strip lists all names.
+function orderTicket(order) {
+  var names = (order.tickets || []).map(function (t) { return t.attendee_name; });
+  return [{ code: order.ticket_code, attendee_name: names.join(', '), count: names.length || order.qty || 1 }];
 }
 
 // Returns a Buffer with one page per ticket.
@@ -152,4 +159,4 @@ function ctxFor(order, settings) {
            accent: order.ticket_types && order.ticket_types.accent_color, logoUrl: own || url };
 }
 
-module.exports = { buildPdf: buildPdf, ctxFor: ctxFor };
+module.exports = { buildPdf: buildPdf, ctxFor: ctxFor, orderTicket: orderTicket };

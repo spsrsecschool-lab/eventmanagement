@@ -17,28 +17,30 @@
   header .who{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   header button{background:#2f2540;color:var(--text);border:0;border-radius:8px;padding:7px 12px;font:inherit;font-size:13px}
   main{max-width:560px;margin:0 auto;padding:12px}
-  .count{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 16px;text-align:center;margin-bottom:12px}
-  .count b{font-size:30px}
-  .bar{height:8px;border-radius:8px;background:var(--line);margin-top:8px;overflow:hidden}
+  .count{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 12px;margin-bottom:8px;font-size:14px}
+  .count b{font-size:18px;white-space:nowrap}
+  .bar{flex:1;height:6px;border-radius:6px;background:var(--line);overflow:hidden}
   .bar i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s}
-  #result{border-radius:18px;padding:22px 16px;text-align:center;margin-bottom:12px;background:var(--card);border:2px solid var(--line);min-height:170px;display:flex;flex-direction:column;justify-content:center}
-  #result .big{font-size:34px;font-weight:800;line-height:1.1}
-  #result .ico{font-size:46px;line-height:1}
-  #result .name{font-size:26px;font-weight:700;margin-top:10px;word-break:break-word}
-  #result .sub{font-size:16px;opacity:.92;margin-top:4px}
+  #result{border-radius:12px;padding:10px 12px;margin-bottom:8px;background:var(--card);border:2px solid var(--line)}
+  #result .rhead{display:flex;align-items:center;gap:8px}
+  #result .ico{font-size:22px;line-height:1}
+  #result .big{font-size:20px;font-weight:800;line-height:1.15;flex:1}
+  #result .admit{font-size:15px;font-weight:800;background:rgba(0,0,0,.22);border-radius:8px;padding:3px 9px;white-space:nowrap}
+  #result .sub{font-size:14px;opacity:.92;margin-top:2px}
+  #result .who{margin:6px 0 0;padding-left:22px;font-size:16px;font-weight:600;line-height:1.35}
   #result.ok{background:var(--ok);border-color:#57d68d;color:#fff}
   #result.used{background:var(--warn);border-color:#f6d365;color:#2b1d00}
   #result.bad{background:var(--bad);border-color:#ff8a8a;color:#fff}
   #result.nv{background:var(--info);border-color:#b39dff;color:#fff}
-  #result.idle .big{font-size:20px;color:var(--muted);font-weight:600}
-  .cam{background:#000;border-radius:14px;overflow:hidden;margin-bottom:10px;position:relative;min-height:60px}
+  #result.idle .big{font-size:15px;color:var(--muted);font-weight:600}
+  .cam{background:#000;border-radius:12px;overflow:hidden;margin:0 auto 8px;position:relative;min-height:40px;max-width:340px}
   #reader{width:100%}
   .row{display:flex;gap:8px}
-  button.b{font:inherit;font-weight:700;border:0;border-radius:12px;padding:13px 16px;background:#6a4bd6;color:#fff;cursor:pointer;flex:1}
+  button.b{font:inherit;font-weight:700;font-size:15px;border:0;border-radius:10px;padding:10px 14px;background:#6a4bd6;color:#fff;cursor:pointer;flex:1}
   button.b.sec{background:#2f2540}
   button.b.bad{background:#7a2d2d}
   button:disabled{opacity:.5}
-  input[type=text],input[type=email],input[type=password]{width:100%;font:inherit;font-size:18px;color:var(--text);background:#2a2135;border:1px solid var(--line);border-radius:12px;padding:13px;outline:none;letter-spacing:.5px}
+  input[type=text],input[type=email],input[type=password]{width:100%;font:inherit;font-size:16px;color:var(--text);background:#2a2135;border:1px solid var(--line);border-radius:10px;padding:10px;outline:none;letter-spacing:.5px}
   label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
   h3{margin:18px 0 8px;font-size:15px;color:var(--muted);font-weight:600}
@@ -67,9 +69,9 @@
 <div id="app" class="hide">
   <header><span class="who" id="who"></span><button onclick="doLogout()">Sign out</button></header>
   <main>
-    <div class="count"><b id="cnt">– of –</b> <span style="color:var(--muted)">checked in</span><div class="bar"><i id="cntBar"></i></div></div>
+    <div class="count"><b id="cnt">– of –</b> <span style="color:var(--muted)">people in</span><div class="bar"><i id="cntBar"></i></div></div>
 
-    <div id="result" class="idle"><div class="big">Ready to scan</div></div>
+    <div id="result" class="idle"><div class="rhead"><div class="big">Ready to scan</div></div></div>
 
     <div class="cam"><div id="reader"></div></div>
     <div class="row" style="margin-bottom:10px">
@@ -181,32 +183,39 @@ async function checkCode(code) {
   busy = false; refreshStats(); refreshRecent();
 }
 function buzz(pattern) { try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) {} }
+// One QR admits everyone on the order: show the head count and every name.
+function people(r) {
+  var n = r.names || [];
+  return n.length ? '<ol class="who">' + n.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' : '';
+}
+function head(ico, title, admit) {
+  return '<div class="rhead"><span class="ico">' + ico + '</span><span class="big">' + title + '</span>' + (admit ? '<span class="admit">' + admit + '</span>' : '') + '</div>';
+}
 function showResult(r, note) {
-  var el = $('result'), h = '';
-  el.className = '';
+  var el = $('result'), h = '', n = r.count || (r.names || []).length;
   if (r.result === 'ok') {
     el.className = 'ok'; buzz(120);
-    h = '<div class="ico">✔</div><div class="big">VALID — ENTRY OK</div><div class="name">' + esc(r.attendee_name) + '</div><div class="sub">' + esc(r.type_name) + '</div>';
+    h = head('\u2714', 'VALID \u2014 LET IN', 'ADMIT ' + n) + '<div class="sub">' + esc(r.type_name) + ' \u00B7 check each Aadhaar</div>' + people(r);
   } else if (r.result === 'already_used') {
     el.className = 'used'; buzz([200, 100, 200]);
-    h = '<div class="ico">⚠</div><div class="big">ALREADY USED</div><div class="name">' + esc(r.attendee_name) + '</div><div class="sub">' + esc(r.type_name) + '</div><div class="sub"><b>Used at ' + esc(fmtTime(r.used_at)) + '</b></div>';
+    h = head('\u26A0', 'ALREADY USED', n ? n + (n === 1 ? ' person' : ' people') : '') + '<div class="sub"><b>Entered at ' + esc(fmtTime(r.used_at)) + '</b> \u00B7 ' + esc(r.type_name) + '</div>' + people(r);
   } else if (r.result === 'not_valid') {
     el.className = 'nv'; buzz([300, 100, 300]);
-    h = '<div class="ico">⛔</div><div class="big">NOT VALID</div><div class="sub">This order is not approved.</div><div class="name">' + esc(r.attendee_name || '') + '</div>';
+    h = head('\u26D4', 'NOT VALID', '') + '<div class="sub">Order not approved. Do not let in; send to the organiser.</div>' + people(r);
   } else {
     el.className = 'bad'; buzz([400]);
-    h = '<div class="ico">✖</div><div class="big">INVALID TICKET</div><div class="sub">' + esc(note || 'This code is not a ticket for this event.') + '</div>';
+    h = head('\u2716', 'INVALID TICKET', '') + '<div class="sub">' + esc(note || 'This code is not a ticket for this event.') + '</div>';
   }
   el.innerHTML = h;
 }
-function showMsg(m) { var el = $('result'); el.className = 'idle'; el.innerHTML = '<div class="big">' + esc(m) + '</div>'; }
+function showMsg(m) { var el = $('result'); el.className = 'idle'; el.innerHTML = '<div class="rhead"><div class="big">' + esc(m) + '</div></div>'; }
 
 async function undoLast() {
-  if (!confirm('Undo your last successful check-in?')) return;
+  if (!confirm('Undo your last successful check-in? Everyone on that ticket can then be scanned in again.')) return;
   var r = await sb.rpc('undo_check_in');
   if (r.error) { if (/FORBIDDEN/.test(r.error.message)) return revoked(); return showMsg('Undo failed: ' + r.error.message); }
   if (r.data.result === 'undone') {
-    var el = $('result'); el.className = 'idle'; el.innerHTML = '<div class="ico">↩</div><div class="big">Check-in undone</div><div class="sub">' + esc(r.data.attendee_name || r.data.code) + ' can be scanned again.</div>';
+    var el = $('result'); el.className = 'idle'; el.innerHTML = head('\u21A9', 'Check-in undone', '') + '<div class="sub">This ticket can be scanned again:</div>' + people(r.data);
     lastCode = '';
   } else showMsg('Nothing to undo.');
   refreshStats(); refreshRecent();
@@ -222,7 +231,7 @@ var LABEL = { ok: 'Valid', already_used: 'Already used', invalid: 'Invalid', not
 async function refreshRecent() {
   var r = await sb.rpc('recent_scans', { p_limit: 15 }); if (r.error || !r.data) return;
   $('recent').innerHTML = r.data.length ? r.data.map(function (x) {
-    return '<div class="rs"><div style="min-width:0"><div style="font-weight:600;overflow:hidden;text-overflow:ellipsis">' + esc(x.attendee_name || x.code || '?') + (x.undone ? ' <span class="msg">(undone)</span>' : '') +
+    return '<div class="rs"><div style="min-width:0"><div style="font-weight:600;overflow:hidden;text-overflow:ellipsis">' + esc(x.names || x.code || '?') + (x.people > 1 ? ' <span class="msg">(' + x.people + ')</span>' : '') + (x.undone ? ' <span class="msg">(undone)</span>' : '') +
       '</div><div class="msg" style="margin:0">' + esc(x.type_name || '') + ' · ' + esc(fmtTime(x.created_at)) + '</div></div><span class="tag ' + esc(x.result) + '">' + esc(LABEL[x.result] || x.result) + '</span></div>';
   }).join('') : '<div class="msg" style="padding:12px">No scans yet.</div>';
 }

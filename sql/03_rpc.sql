@@ -17,10 +17,18 @@ begin
     for i in 0..9 loop
       c := c || substr(alphabet, (get_byte(b, i) % 32) + 1, 1);
     end loop;
-    exit when not exists (select 1 from public.tickets where code = c);
+    exit when not exists (select 1 from public.orders where ticket_code = c)
+          and not exists (select 1 from public.tickets where code = c);
   end loop;
   return c;
 end $$;
+
+-- QR code -> order id. Orders made before v2 also match by an old per-person code.
+create or replace function public._order_for_code(p_code text) returns bigint
+language sql stable set search_path = public, pg_temp as $$
+  select coalesce((select id from public.orders where ticket_code = p_code),
+                  (select order_id from public.tickets where code = p_code));
+$$;
 
 create or replace function public._seats_taken(p_type_id bigint) returns int
 language sql stable set search_path = public, pg_temp as $$
@@ -31,6 +39,7 @@ $$;
 revoke all on function public._rand_token()        from public, anon, authenticated;
 revoke all on function public._new_ticket_code()   from public, anon, authenticated;
 revoke all on function public._seats_taken(bigint) from public, anon, authenticated;
+revoke all on function public._order_for_code(text)  from public, anon, authenticated;
 
 -- ---------- public: ticket types with seats left ----------
 create or replace function public.public_ticket_types()
@@ -48,9 +57,11 @@ grant execute on function public.public_ticket_types() to anon, authenticated;
 
 -- ---------- public: create_order ----------
 -- Price comes from ticket_types, never the client. Errors are plain codes the page maps to messages.
+-- One QR code per order (admits everyone on it); one Aadhaar image per person.
+drop function if exists public.create_order(bigint,int,text,text,text,text,text,text[]);   -- pre-v2 signature (no Aadhaar)
 create or replace function public.create_order(
   p_type_id bigint, p_qty int, p_buyer_name text, p_email text, p_phone text,
-  p_payer_name text, p_screenshot_path text, p_names text[]
+  p_payer_name text, p_screenshot_path text, p_names text[], p_id_paths text[]
 ) returns text
 language plpgsql security definer set search_path = public, extensions, pg_temp as $$
 declare
@@ -81,6 +92,19 @@ begin
     if length(btrim(coalesce(nm, ''))) < 2 or length(nm) > 80 then raise exception 'BAD_ATTENDEES'; end if;
   end loop;
 
+  -- one Aadhaar image per person: uploaded through the public uploader, all different, never used before
+  if p_id_paths is null or coalesce(array_length(p_id_paths, 1), 0) <> p_qty
+     or (select count(distinct x) from unnest(p_id_paths) x) <> p_qty then
+    raise exception 'BAD_IDS';
+  end if;
+  for i in 1..p_qty loop
+    if p_id_paths[i] is null or p_id_paths[i] !~ '^[0-9a-f-]{36}\.jpg$'
+       or not exists (select 1 from storage.objects o where o.bucket_id = 'ids' and o.name = p_id_paths[i])
+       or exists (select 1 from public.tickets where id_path = p_id_paths[i]) then
+      raise exception 'BAD_IDS:%', i;
+    end if;
+  end loop;
+
   -- screenshot must be a path uploaded through the public uploader and not used by another order
   if p_screenshot_path is null or p_screenshot_path !~ '^[0-9a-f-]{36}\.jpg$'
      or not exists (select 1 from storage.objects o where o.bucket_id = 'screenshots' and o.name = p_screenshot_path)
@@ -100,40 +124,39 @@ begin
     raise exception 'TOO_MANY_PENDING';
   end if;
 
-  insert into public.orders (order_no, token, type_id, type_name, unit_price, qty, amount,
+  insert into public.orders (order_no, token, ticket_code, type_id, type_name, unit_price, qty, amount,
                              buyer_name, email, phone, payer_name, screenshot_path, status, source)
-  values ('ORD-' || nextval('public.order_no_seq'), public._rand_token(), t.id, t.name, t.price, p_qty,
+  values ('ORD-' || nextval('public.order_no_seq'), public._rand_token(), public._new_ticket_code(), t.id, t.name, t.price, p_qty,
           t.price * p_qty, v_name, v_email, v_phone, v_payer, p_screenshot_path, 'pending', 'online')
   returning * into v_order;
 
   for i in 1..p_qty loop
-    insert into public.tickets (order_id, code, attendee_name)
-    values (v_order.id, public._new_ticket_code(), btrim(p_names[i]));
+    insert into public.tickets (order_id, attendee_name, id_path)
+    values (v_order.id, btrim(p_names[i]), p_id_paths[i]);
   end loop;
 
   return v_order.token;
 end $$;
-revoke all on function public.create_order(bigint,int,text,text,text,text,text,text[]) from public, anon, authenticated;
-grant execute on function public.create_order(bigint,int,text,text,text,text,text,text[]) to anon, authenticated;
+revoke all on function public.create_order(bigint,int,text,text,text,text,text,text[],text[]) from public, anon, authenticated;
+grant execute on function public.create_order(bigint,int,text,text,text,text,text,text[],text[]) to anon, authenticated;
 
 -- ---------- public: get_order (by unguessable token) ----------
+-- Returns the people's names, and the QR code only once the order is approved. Never IDs or screenshots.
 create or replace function public.get_order(p_token text) returns jsonb
 language plpgsql stable security definer set search_path = public, pg_temp as $$
-declare o public.orders%rowtype; tk jsonb := '[]'::jsonb;
+declare o public.orders%rowtype;
 begin
   if p_token is null or length(p_token) <> 24 then return null; end if;
   select * into o from public.orders where token = p_token;
   if not found then return null; end if;
-  if o.status = 'approved' then
-    select coalesce(jsonb_agg(jsonb_build_object('code', code, 'attendee_name', attendee_name) order by id), '[]'::jsonb)
-      into tk from public.tickets where order_id = o.id;
-  end if;
   return jsonb_build_object(
     'order_no', o.order_no, 'status', o.status, 'reject_reason', o.reject_reason,
     'type_id', o.type_id, 'type_name', o.type_name, 'qty', o.qty, 'amount', o.amount,
     'buyer_name', o.buyer_name, 'email', o.email, 'created_at', o.created_at,
     'accent_color', (select accent_color from public.ticket_types where id = o.type_id),
-    'tickets', tk);
+    'people', (select coalesce(jsonb_agg(attendee_name order by id), '[]'::jsonb) from public.tickets where order_id = o.id),
+    'code', case when o.status = 'approved' then o.ticket_code end,
+    'checked_in', o.checked_in);
 end $$;
 revoke all on function public.get_order(text) from public, anon, authenticated;
 grant execute on function public.get_order(text) to anon, authenticated;
@@ -196,15 +219,14 @@ begin
     raise exception 'NOT_ENOUGH_SEATS:%', greatest(t.capacity - public._seats_taken(t.id), 0);
   end if;
 
-  insert into public.orders (order_no, token, type_id, type_name, unit_price, qty, amount, buyer_name, email,
+  insert into public.orders (order_no, token, ticket_code, type_id, type_name, unit_price, qty, amount, buyer_name, email,
                              phone, payer_name, status, source, approved_at)
-  values ('ORD-' || nextval('public.order_no_seq'), public._rand_token(), t.id, t.name, t.price, p_qty,
+  values ('ORD-' || nextval('public.order_no_seq'), public._rand_token(), public._new_ticket_code(), t.id, t.name, t.price, p_qty,
           coalesce(p_amount, t.price * p_qty), btrim(p_buyer_name), v_email, btrim(coalesce(p_phone, '')),
           'manual', 'approved', 'manual', now())
   returning * into o;
   for i in 1..p_qty loop
-    insert into public.tickets (order_id, code, attendee_name)
-    values (o.id, public._new_ticket_code(), btrim(p_names[i]));
+    insert into public.tickets (order_id, attendee_name) values (o.id, btrim(p_names[i]));
   end loop;
   return jsonb_build_object('order_id', o.id, 'order_no', o.order_no, 'token', o.token);
 end $$;
@@ -235,56 +257,63 @@ revoke all on function public.admin_type_counts() from public, anon, authenticat
 grant execute on function public.admin_type_counts() to authenticated;
 
 -- ---------- scanner: check_in / undo / stats / recent ----------
+-- One QR per order: a valid scan admits everyone on the order at once.
+-- Returns result + names (array) + count + type_name (+ used_at when already used).
 create or replace function public.check_in(p_code text) returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
-  v_code text := upper(btrim(coalesce(p_code, '')));
-  v_who  text := coalesce(auth.jwt() ->> 'email', 'unknown');
-  tk public.tickets%rowtype; o public.orders%rowtype; r jsonb;
+  v_code  text := upper(btrim(coalesce(p_code, '')));
+  v_who   text := coalesce(auth.jwt() ->> 'email', 'unknown');
+  v_id    bigint; o public.orders%rowtype; v_names jsonb;
 begin
   if not public.is_staff() then raise exception 'FORBIDDEN'; end if;
-  select * into tk from public.tickets where code = v_code;
-  if not found then
+  v_id := public._order_for_code(v_code);
+  if v_id is null then
     insert into public.scan_log (code, result, scanned_by) values (left(v_code, 40), 'invalid', v_who);
     return jsonb_build_object('result', 'invalid');
   end if;
-  select * into o from public.orders where id = tk.order_id;
+  select * into o from public.orders where id = v_id;
+  select coalesce(jsonb_agg(attendee_name order by id), '[]'::jsonb) into v_names from public.tickets where order_id = o.id;
+
   if o.status <> 'approved' then
     insert into public.scan_log (code, result, scanned_by) values (v_code, 'not_valid', v_who);
-    return jsonb_build_object('result', 'not_valid', 'attendee_name', tk.attendee_name, 'type_name', o.type_name);
+    return jsonb_build_object('result', 'not_valid', 'names', v_names, 'count', jsonb_array_length(v_names), 'type_name', o.type_name);
   end if;
 
-  update public.tickets set used = true, used_at = now(), used_by = v_who
-   where id = tk.id and used = false
-   returning * into tk;
+  update public.orders set checked_in = true, checked_in_at = now(), checked_in_by = v_who
+   where id = o.id and checked_in = false
+   returning * into o;
   if found then
+    update public.tickets set used = true, used_at = o.checked_in_at, used_by = v_who where order_id = o.id;
     insert into public.scan_log (code, result, scanned_by) values (v_code, 'ok', v_who);
-    return jsonb_build_object('result', 'ok', 'attendee_name', tk.attendee_name, 'type_name', o.type_name,
-                              'code', v_code, 'used_at', tk.used_at);
+    return jsonb_build_object('result', 'ok', 'names', v_names, 'count', jsonb_array_length(v_names),
+                              'type_name', o.type_name, 'order_no', o.order_no, 'code', v_code, 'used_at', o.checked_in_at);
   end if;
-  select * into tk from public.tickets where code = v_code;
+  select * into o from public.orders where id = v_id;
   insert into public.scan_log (code, result, scanned_by) values (v_code, 'already_used', v_who);
-  return jsonb_build_object('result', 'already_used', 'attendee_name', tk.attendee_name, 'type_name', o.type_name,
-                            'code', v_code, 'used_at', tk.used_at);
+  return jsonb_build_object('result', 'already_used', 'names', v_names, 'count', jsonb_array_length(v_names),
+                            'type_name', o.type_name, 'order_no', o.order_no, 'code', v_code, 'used_at', o.checked_in_at);
 end $$;
 revoke all on function public.check_in(text) from public, anon, authenticated;
 grant execute on function public.check_in(text) to authenticated;
 
--- Undo the calling user's most recent successful check-in.
+-- Undo the calling user's most recent successful check-in (the whole group becomes un-checked).
 create or replace function public.undo_check_in() returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
-declare v_who text := coalesce(auth.jwt() ->> 'email', 'unknown'); l public.scan_log%rowtype; tk public.tickets%rowtype;
+declare v_who text := coalesce(auth.jwt() ->> 'email', 'unknown'); l public.scan_log%rowtype; v_id bigint; v_names jsonb;
 begin
   if not public.is_staff() then raise exception 'FORBIDDEN'; end if;
   select * into l from public.scan_log
    where result = 'ok' and undone = false and scanned_by = v_who
    order by id desc limit 1 for update;
   if not found then return jsonb_build_object('result', 'nothing_to_undo'); end if;
-  update public.tickets set used = false, used_at = null, used_by = null
-   where code = l.code and used = true returning * into tk;
+  v_id := public._order_for_code(l.code);
+  update public.orders set checked_in = false, checked_in_at = null, checked_in_by = null where id = v_id;
+  update public.tickets set used = false, used_at = null, used_by = null where order_id = v_id;
   update public.scan_log set undone = true where id = l.id;
   insert into public.scan_log (code, result, scanned_by) values (l.code, 'undone', v_who);
-  return jsonb_build_object('result', 'undone', 'code', l.code, 'attendee_name', tk.attendee_name);
+  select coalesce(jsonb_agg(attendee_name order by id), '[]'::jsonb) into v_names from public.tickets where order_id = v_id;
+  return jsonb_build_object('result', 'undone', 'code', l.code, 'names', v_names, 'count', jsonb_array_length(v_names));
 end $$;
 revoke all on function public.undo_check_in() from public, anon, authenticated;
 grant execute on function public.undo_check_in() to authenticated;
@@ -302,16 +331,20 @@ end $$;
 revoke all on function public.scan_stats() from public, anon, authenticated;
 grant execute on function public.scan_stats() to authenticated;
 
+drop function if exists public.recent_scans(int);   -- return columns changed in v2
 create or replace function public.recent_scans(p_limit int default 20)
-returns table (code text, result text, attendee_name text, type_name text, created_at timestamptz, undone boolean)
+returns table (code text, result text, names text, people int, type_name text, created_at timestamptz, undone boolean)
 language plpgsql stable security definer set search_path = public, pg_temp as $$
 begin
   if not public.is_staff() then raise exception 'FORBIDDEN'; end if;
   return query
-    select l.code, l.result, t.attendee_name, o.type_name, l.created_at, l.undone
+    select l.code, l.result,
+           (select string_agg(t.attendee_name, ', ' order by t.id) from public.tickets t where t.order_id = x.oid),
+           (select count(*)::int from public.tickets t where t.order_id = x.oid),
+           o.type_name, l.created_at, l.undone
     from public.scan_log l
-    left join public.tickets t on t.code = l.code
-    left join public.orders  o on o.id = t.order_id
+    left join lateral (select public._order_for_code(l.code) as oid) x on true
+    left join public.orders o on o.id = x.oid
     order by l.id desc limit least(greatest(coalesce(p_limit, 20), 1), 100);
 end $$;
 revoke all on function public.recent_scans(int) from public, anon, authenticated;
