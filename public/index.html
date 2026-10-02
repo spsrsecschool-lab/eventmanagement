@@ -496,7 +496,8 @@ async function viewOrder(token) {
     var ctx = { s: s, typeName: o.type_name, accent: o.accent_color, bgUrl: 'assets/ticket-bg.jpg',
                 logoUrl: pubUrl((s.ticket_design || {}).logo_path || s.logo_path) };
     (o.tickets || []).forEach(function (t) { h += '<div class="tick">' + renderTicketSVG(t, ctx) + '</div>'; });
-    h += '<button class="block" id="dlBtn" onclick="downloadPdf(\'' + esc(token) + '\',\'' + esc(o.order_no) + '\')">Download PDF</button><div id="err" class="err"></div>' +
+    // plain link (not fetch): a normal page visit needs no CORS and also works on iPhone
+    h += '<a class="btn block" id="dlBtn" href="' + esc(API_BASE + '/api/ticket-pdf?token=' + encodeURIComponent(token)) + '" target="_blank" rel="noopener">Download PDF</a>' +
          '<p class="sub center">Show the QR code at the gate. Each ticket works once.</p>';
   }
   $('app').innerHTML = shell(h);
@@ -505,23 +506,6 @@ async function viewOrder(token) {
 async function viewOrderQuiet(token) {
   var r = await sb.rpc('get_order', { p_token: token });
   if (r.data && r.data.status !== 'pending') viewOrder(token);
-}
-async function downloadPdf(token, no) {
-  var b = $('dlBtn'); b.disabled = true; b.textContent = 'Preparing PDF…';
-  try {
-    if (API_BASE.indexOf('YOUR-') >= 0) throw new Error('PDF service is not configured yet');
-    var r;
-    try { r = await fetch(API_BASE + '/api/ticket-pdf?token=' + encodeURIComponent(token)); }
-    catch (ne) { throw new Error('Could not reach the ticket server (' + API_BASE + '). Please try again in a minute.'); }
-    if (!r.ok) {
-      var j = await r.json().catch(function () { return {}; });
-      throw new Error('Could not create the PDF (' + r.status + (j.error ? ': ' + j.error : '') + ')');
-    }
-    var blob = await r.blob(), a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = 'Ticket-' + no + '.pdf';
-    document.body.appendChild(a); a.click(); a.remove();
-  } catch (e) { showErr(e.message); }
-  b.disabled = false; b.textContent = 'Download PDF';
 }
 
 // ───────────── boot ─────────────
