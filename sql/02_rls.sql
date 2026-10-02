@@ -43,7 +43,7 @@ alter table public.scan_log       enable row level security;
 -- (admin reads it through admin_get_email_templates(); functions use the service role).
 grant select (id, name, date_text, venue, description, contact_phone, contact_email,
               payment_instructions, terms_text, sales_open, sales_start, sales_end,
-              closed_message, max_per_order, logo_path, banner_path, payment_qr_path, theme, ticket_design, updated_at)
+              closed_message, max_per_order, logo_path, banner_path, payment_qr_path, instructions_text, theme, ticket_design, updated_at)
   on public.event_settings to anon, authenticated;
 grant update on public.event_settings to authenticated;
 

@@ -1,11 +1,35 @@
--- 03_rpc.sql : all business rules live here (security definer). Safe to re-run.
+-- 08_upgrade_v2.sql : ONE file to upgrade an existing setup (paste & run once in the Supabase SQL editor).
+-- Adds: one QR per order (admits the whole group), Aadhaar photo per person, instructions panel.
+-- Safe to re-run. Existing orders are converted; QR codes already emailed keep working.
 
--- ---------- internal helpers (not callable by API roles) ----------
-create or replace function public._rand_token() returns text
-language sql volatile set search_path = public, extensions, pg_temp as $$
-  select translate(encode(gen_random_bytes(18), 'base64'), '+/', 'ab');   -- 24 chars
-$$;
+-- 1) new columns + convert existing orders
+alter table public.event_settings add column if not exists instructions_text text not null default '';
+alter table public.orders  add column if not exists ticket_code   text;
+alter table public.orders  add column if not exists checked_in    boolean not null default false;
+alter table public.orders  add column if not exists checked_in_at timestamptz;
+alter table public.orders  add column if not exists checked_in_by text;
+create unique index if not exists orders_ticket_code_key on public.orders (ticket_code);
+alter table public.tickets add column if not exists id_path text;        -- Aadhaar image, private bucket "ids"
+alter table public.tickets alter column code drop not null;              -- per-person codes are no longer used
 
+-- carry over orders made before v2: the first person's code becomes the order's QR code,
+-- and an order counts as checked in if any of its people were already scanned
+update public.orders o
+   set ticket_code = (select t.code from public.tickets t where t.order_id = o.id and t.code is not null order by t.id limit 1)
+ where o.ticket_code is null;
+update public.orders o
+   set checked_in = true,
+       checked_in_at = (select max(t.used_at) from public.tickets t where t.order_id = o.id and t.used)
+ where not o.checked_in and exists (select 1 from public.tickets t where t.order_id = o.id and t.used);
+update public.tickets t
+   set used = true, used_at = coalesce(t.used_at, o.checked_in_at), used_by = coalesce(t.used_by, o.checked_in_by)
+  from public.orders o
+ where o.id = t.order_id and o.checked_in and not t.used;
+
+-- 2) public site may read the instructions
+grant select (instructions_text) on public.event_settings to anon, authenticated;
+
+-- 3) updated functions
 create or replace function public._new_ticket_code() returns text
 language plpgsql volatile set search_path = public, extensions, pg_temp as $$
 declare
@@ -30,30 +54,7 @@ language sql stable set search_path = public, pg_temp as $$
                   (select order_id from public.tickets where code = p_code));
 $$;
 
-create or replace function public._seats_taken(p_type_id bigint) returns int
-language sql stable set search_path = public, pg_temp as $$
-  select coalesce(sum(qty), 0)::int from public.orders
-  where type_id = p_type_id and status in ('pending','approved');
-$$;
-
-revoke all on function public._rand_token()        from public, anon, authenticated;
-revoke all on function public._new_ticket_code()   from public, anon, authenticated;
-revoke all on function public._seats_taken(bigint) from public, anon, authenticated;
-revoke all on function public._order_for_code(text)  from public, anon, authenticated;
-
--- ---------- public: ticket types with seats left ----------
-create or replace function public.public_ticket_types()
-returns table (id bigint, name text, description text, price int, capacity int,
-               payment_qr_path text, accent_color text, sort_order int, remaining int)
-language sql stable security definer set search_path = public, pg_temp as $$
-  select t.id, t.name, t.description, t.price, t.capacity, t.payment_qr_path, t.accent_color,
-         t.sort_order, greatest(t.capacity - public._seats_taken(t.id), 0)
-  from public.ticket_types t
-  where t.active
-  order by t.sort_order, t.id;
-$$;
-revoke all on function public.public_ticket_types() from public, anon, authenticated;
-grant execute on function public.public_ticket_types() to anon, authenticated;
+revoke all on function public._order_for_code(text) from public, anon, authenticated;
 
 -- ---------- public: create_order ----------
 -- Price comes from ticket_types, never the client. Errors are plain codes the page maps to messages.
@@ -161,40 +162,6 @@ end $$;
 revoke all on function public.get_order(text) from public, anon, authenticated;
 grant execute on function public.get_order(text) to anon, authenticated;
 
--- ---------- admin: change order status ----------
--- pending -> approved | rejected ; rejected -> pending | approved (seat check) ; approved -> rejected
-create or replace function public.admin_set_order_status(p_order_id bigint, p_status text, p_reason text default null)
-returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
-declare o public.orders%rowtype; t public.ticket_types%rowtype;
-begin
-  if not public.is_admin() then raise exception 'FORBIDDEN'; end if;
-  if p_status not in ('pending','approved','rejected') then raise exception 'BAD_STATUS'; end if;
-
-  select * into o from public.orders where id = p_order_id for update;
-  if not found then raise exception 'NOT_FOUND'; end if;
-  if o.status = p_status then return to_jsonb(o) - 'screenshot_path'; end if;
-
-  if not ((o.status = 'pending'  and p_status in ('approved','rejected'))
-       or (o.status = 'rejected' and p_status in ('pending','approved'))
-       or (o.status = 'approved' and p_status = 'rejected')) then
-    raise exception 'BAD_TRANSITION:% -> %', o.status, p_status;
-  end if;
-
-  if o.status = 'rejected' then      -- seats were released on rejection: take them again, if still free
-    select * into t from public.ticket_types where id = o.type_id for update;
-    if o.qty > t.capacity - public._seats_taken(t.id) then raise exception 'NO_SEATS_LEFT'; end if;
-  end if;
-
-  update public.orders set
-    status = p_status,
-    reject_reason = case when p_status = 'rejected' then nullif(btrim(coalesce(p_reason, '')), '') else null end,
-    approved_at   = case when p_status = 'approved' then now() else null end
-  where id = o.id returning * into o;
-  return to_jsonb(o) - 'screenshot_path';
-end $$;
-revoke all on function public.admin_set_order_status(bigint,text,text) from public, anon, authenticated;
-grant execute on function public.admin_set_order_status(bigint,text,text) to authenticated;
-
 -- ---------- admin: manual order (cash / complimentary). Issued as approved. ----------
 create or replace function public.admin_create_manual_order(
   p_type_id bigint, p_qty int, p_buyer_name text, p_email text, p_phone text,
@@ -232,29 +199,6 @@ begin
 end $$;
 revoke all on function public.admin_create_manual_order(bigint,int,text,text,text,text[],int) from public, anon, authenticated;
 grant execute on function public.admin_create_manual_order(bigint,int,text,text,text,text[],int) to authenticated;
-
--- ---------- admin: read email templates (column is not directly readable) ----------
-create or replace function public.admin_get_email_templates() returns jsonb
-language plpgsql stable security definer set search_path = public, pg_temp as $$
-begin
-  if not public.is_admin() then raise exception 'FORBIDDEN'; end if;
-  return (select email_templates from public.event_settings where id = 1);
-end $$;
-revoke all on function public.admin_get_email_templates() from public, anon, authenticated;
-grant execute on function public.admin_get_email_templates() to authenticated;
-
--- ---------- admin: seats taken per type (for the Ticket types tab) ----------
-create or replace function public.admin_type_counts() returns table (type_id bigint, taken int, approved int)
-language plpgsql stable security definer set search_path = public, pg_temp as $$
-begin
-  if not public.is_admin() then raise exception 'FORBIDDEN'; end if;
-  return query
-    select t.id, public._seats_taken(t.id),
-           coalesce((select sum(o.qty)::int from public.orders o where o.type_id = t.id and o.status = 'approved'), 0)
-    from public.ticket_types t;
-end $$;
-revoke all on function public.admin_type_counts() from public, anon, authenticated;
-grant execute on function public.admin_type_counts() to authenticated;
 
 -- ---------- scanner: check_in / undo / stats / recent ----------
 -- One QR per order: a valid scan admits everyone on the order at once.
@@ -318,19 +262,6 @@ end $$;
 revoke all on function public.undo_check_in() from public, anon, authenticated;
 grant execute on function public.undo_check_in() to authenticated;
 
-create or replace function public.scan_stats() returns jsonb
-language plpgsql stable security definer set search_path = public, pg_temp as $$
-begin
-  if not public.is_staff() then raise exception 'FORBIDDEN'; end if;
-  return (select jsonb_build_object(
-            'checked_in', count(*) filter (where t.used),
-            'total', count(*))
-          from public.tickets t join public.orders o on o.id = t.order_id
-          where o.status = 'approved');
-end $$;
-revoke all on function public.scan_stats() from public, anon, authenticated;
-grant execute on function public.scan_stats() to authenticated;
-
 drop function if exists public.recent_scans(int);   -- return columns changed in v2
 create or replace function public.recent_scans(p_limit int default 20)
 returns table (code text, result text, names text, people int, type_name text, created_at timestamptz, undone boolean)
@@ -349,3 +280,30 @@ begin
 end $$;
 revoke all on function public.recent_scans(int) from public, anon, authenticated;
 grant execute on function public.recent_scans(int) to authenticated;
+
+-- 4) private bucket for Aadhaar photos (public upload only, admin read)
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('ids', 'ids', false, 3145728, array['image/jpeg'])
+on conflict (id) do update set public = false, file_size_limit = 3145728, allowed_mime_types = array['image/jpeg'];
+
+drop policy if exists "ids public upload" on storage.objects;
+create policy "ids public upload" on storage.objects for insert to anon, authenticated
+  with check (bucket_id = 'ids' and name ~ '^[0-9a-f-]{36}\.jpg$');
+drop policy if exists "ids admin read" on storage.objects;
+create policy "ids admin read" on storage.objects for select to authenticated
+  using (bucket_id = 'ids' and public.is_admin());
+drop policy if exists "ids admin delete" on storage.objects;
+create policy "ids admin delete" on storage.objects for delete to authenticated
+  using (bucket_id = 'ids' and public.is_admin());
+
+-- 5) defaults: ticket header shows the head count; starter instructions
+update public.event_settings
+   set ticket_design = jsonb_set(ticket_design, '{header_text}', '"ADMIT {count}"')
+ where id = 1 and ticket_design ->> 'header_text' = 'ADMIT ONE';
+
+-- v2: starter instructions panel (only if still empty; edit in Admin > Event)
+update public.event_settings
+   set instructions_text = $i$• Children are not allowed.
+• Every person on the ticket must carry their original Aadhaar card.
+• One QR code admits everyone named on the ticket. Please arrive together.$i$
+ where id = 1 and instructions_text = '';

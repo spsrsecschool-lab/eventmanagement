@@ -10,7 +10,7 @@ function tkFit(text, size, maxW, bold, min) {
   if (text.length * s * k > maxW) text = text.slice(0, Math.max(1, Math.floor(maxW / (s * k)) - 1)) + '…';
   return { text: text, size: s };
 }
-// t: {code, attendee_name}; c: {s: event settings, typeName, accent, logoUrl, bgUrl}
+// t: {code, attendee_name (all names, comma separated), count}; c: {s: event settings, typeName, accent, logoUrl, bgUrl}
 function renderTicketSVG(t, c) {
   var s = c.s || {}, d = s.ticket_design || {};
   var stripBg = tkHex(d.strip_bg, '#2b0a30'), stripText = tkHex(d.strip_text, '#fff4e0');
@@ -36,8 +36,9 @@ function renderTicketSVG(t, c) {
     tx = 154;
   }
   var maxW = 964 - tx, f;
-  if (d.header_text) {
-    f = tkFit(d.header_text, 15, maxW, false, 11);
+  var header = String(d.header_text || '').replace(/\{count\}/g, String(t.count || 1));   // "ADMIT {count}" -> "ADMIT 3"
+  if (header) {
+    f = tkFit(header, 15, maxW, false, 11);
     o += '<text x="' + tx + '" y="' + (y0 + 38).toFixed(2) + '" font-size="' + f.size + '" letter-spacing="3" fill="' + accent + '" ' + FF + '>' + tkEsc(f.text) + '</text>';
   }
   f = tkFit(t.attendee_name || '', 40, maxW, true, 20);

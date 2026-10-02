@@ -39,7 +39,7 @@ module.exports = async function (req, res) {
 
     if (s) {
       try {
-        var pdf = await P.buildPdf([{ code: 'TKT-TEST234567', attendee_name: 'टेस्ट Test' }], P.ctxFor({ type_name: 'Test', ticket_types: null }, s));
+        var pdf = await P.buildPdf([{ code: 'TKT-TEST234567', attendee_name: 'टेस्ट Test, Asha', count: 2 }], P.ctxFor({ type_name: 'Test', ticket_types: null }, s));
         add('Build a PDF ticket', pdf.length > 1000, Math.round(pdf.length / 1024) + ' KB');
       } catch (e) { add('Build a PDF ticket', false, e.message); }
     }

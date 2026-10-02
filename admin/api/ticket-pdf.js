@@ -20,9 +20,9 @@ module.exports = async function (req, res) {
     var token = String((req.query && req.query.token) || '');
     if (token.length !== 24) return page(res, 400, 'This ticket link is not valid.');
     var order = await L.loadOrder({ token: token });
-    if (!order || order.status !== 'approved') return page(res, 404, 'This ticket is not available. It may not be approved yet.');
+    if (!order || order.status !== 'approved' || !order.ticket_code) return page(res, 404, 'This ticket is not available. It may not be approved yet.');
     var s = await L.loadSettings();
-    var pdf = await P.buildPdf(order.tickets, P.ctxFor(order, s));
+    var pdf = await P.buildPdf(P.orderTicket(order), P.ctxFor(order, s));
     res.statusCode = 200;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="Ticket-' + order.order_no + '.pdf"');

@@ -105,3 +105,28 @@ create table if not exists public.scan_log (
   created_at timestamptz not null default now()
 );
 create index if not exists scan_log_time_idx on public.scan_log (created_at desc);
+
+-- ===== v2: one QR per order (admits the whole group), Aadhaar image per person, instructions panel =====
+-- From v2 the QR code lives on the order (orders.ticket_code). tickets = one row per PERSON on the order.
+alter table public.event_settings add column if not exists instructions_text text not null default '';
+alter table public.orders  add column if not exists ticket_code   text;
+alter table public.orders  add column if not exists checked_in    boolean not null default false;
+alter table public.orders  add column if not exists checked_in_at timestamptz;
+alter table public.orders  add column if not exists checked_in_by text;
+create unique index if not exists orders_ticket_code_key on public.orders (ticket_code);
+alter table public.tickets add column if not exists id_path text;        -- Aadhaar image, private bucket "ids"
+alter table public.tickets alter column code drop not null;              -- per-person codes are no longer used
+
+-- carry over orders made before v2: the first person's code becomes the order's QR code,
+-- and an order counts as checked in if any of its people were already scanned
+update public.orders o
+   set ticket_code = (select t.code from public.tickets t where t.order_id = o.id and t.code is not null order by t.id limit 1)
+ where o.ticket_code is null;
+update public.orders o
+   set checked_in = true,
+       checked_in_at = (select max(t.used_at) from public.tickets t where t.order_id = o.id and t.used)
+ where not o.checked_in and exists (select 1 from public.tickets t where t.order_id = o.id and t.used);
+update public.tickets t
+   set used = true, used_at = coalesce(t.used_at, o.checked_in_at), used_by = coalesce(t.used_by, o.checked_in_by)
+  from public.orders o
+ where o.id = t.order_id and o.checked_in and not t.used;

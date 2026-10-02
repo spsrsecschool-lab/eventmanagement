@@ -48,6 +48,9 @@
   .payer{display:inline-block;background:#fff176;color:#3b2f00;font-weight:800;padding:3px 9px;border-radius:7px;font-size:15px;border:2px solid #f2c200}
   .thumb{width:92px;height:92px;object-fit:cover;border-radius:10px;border:1px solid var(--line);cursor:zoom-in;background:#eee}
   .names{margin:6px 0;padding-left:18px}
+  .names li.person{margin:4px 0}
+  .names li.person > *{vertical-align:middle}
+  .idthumb{width:54px;height:38px;object-fit:cover;border-radius:6px;border:1px solid var(--line);margin-left:8px;cursor:zoom-in;background:#eee}
   .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
   .toast{position:fixed;left:12px;right:12px;bottom:14px;z-index:99;background:#231a29;color:#fff;padding:12px 14px;border-radius:10px;text-align:center;font-size:14px}
   .toast.err{background:var(--bad)}
@@ -111,7 +114,7 @@ var A = { settings: null, types: [], counts: {}, orders: null, tickets: null, em
           tab: 'orders', ordFilter: 'pending', ordQ: '', ordLimit: 40, shots: {}, editType: null, atFilter: 'approved', atQ: '', atLimit: 100 };
 var T = {};      // tab renderers
 var ACT = {};    // click actions  (data-act="...")
-var SETTINGS_COLS = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,payment_qr_path,theme,ticket_design';
+var SETTINGS_COLS = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,payment_qr_path,instructions_text,theme,ticket_design';
 var TABS = [['orders', 'Orders'], ['manual', 'Add order'], ['types', 'Ticket types'], ['attendees', 'Attendees'], ['emails', 'Emails'],
             ['event', 'Event'], ['theme', 'Theme'], ['ticket', 'Ticket design'], ['templates', 'Email text'], ['staff', 'Staff']];
 var FONTS = { 'Poppins': 'Poppins:wght@400;600;700', 'Inter': 'Inter:wght@400;600;700', 'Playfair Display': 'Playfair+Display:wght@400;600;700',
@@ -120,7 +123,7 @@ var FONT_LABEL = { 'Hind': 'Hind (supports Hindi)', 'Noto Sans Devanagari': 'Not
 var DARK = { mode: 'dark', primary: '#f5b83d', background: '#1f0823', card: '#321037', text: '#fdf3e3', accent: '#f5cc6a', button_text: '#2b0a30', radius: 14, font: 'Poppins' };
 var LIGHT = { mode: 'light', primary: '#8e1b5a', background: '#fbf7f2', card: '#ffffff', text: '#2a1a2e', accent: '#8e1b5a', button_text: '#ffffff', radius: 14, font: 'Poppins' };
 var DEFAULT_TICKET = { strip_bg: '#2b0a30', strip_text: '#fff4e0', accent: '#f5cc6a', number_color: '#f9d77a', qr_color: '#2b0a30',
-  header_text: 'ADMIT ONE', footer_note: 'Bring your school ID', show_type: true, show_date: true, show_venue: true, show_number: true, show_logo: false };
+  header_text: 'ADMIT {count}', footer_note: 'Bring your school ID', show_type: true, show_date: true, show_venue: true, show_number: true, show_logo: false };
 var DEFAULT_TEMPLATES = {
   received: { subject: 'We received your order {order_no} - {event}', body: 'Hi {name},\n\nThank you! We received your order {order_no} for {event} ({qty} x {type}, Rs {amount}).\n\nWe are verifying your payment. Once it is approved, your ticket will be emailed to you.\n\nTrack your order here: {link}\n\n{event}\n{date}\n{venue}' },
   approved: { subject: 'Your ticket for {event} ({order_no})', body: 'Hi {name},\n\nYour payment is verified. Your ticket(s) for {event} are attached to this email as a PDF.\n\nDate: {date}\nVenue: {venue}\n\nPlease keep the QR code ready at the gate. Each ticket can be used only once.\n\nBackup link to your tickets: {link}' },
@@ -140,7 +143,7 @@ function tkFit(text, size, maxW, bold, min) {
   if (text.length * s * k > maxW) text = text.slice(0, Math.max(1, Math.floor(maxW / (s * k)) - 1)) + '…';
   return { text: text, size: s };
 }
-// t: {code, attendee_name}; c: {s: event settings, typeName, accent, logoUrl, bgUrl}
+// t: {code, attendee_name (all names, comma separated), count}; c: {s: event settings, typeName, accent, logoUrl, bgUrl}
 function renderTicketSVG(t, c) {
   var s = c.s || {}, d = s.ticket_design || {};
   var stripBg = tkHex(d.strip_bg, '#2b0a30'), stripText = tkHex(d.strip_text, '#fff4e0');
@@ -166,8 +169,9 @@ function renderTicketSVG(t, c) {
     tx = 154;
   }
   var maxW = 964 - tx, f;
-  if (d.header_text) {
-    f = tkFit(d.header_text, 15, maxW, false, 11);
+  var header = String(d.header_text || '').replace(/\{count\}/g, String(t.count || 1));   // "ADMIT {count}" -> "ADMIT 3"
+  if (header) {
+    f = tkFit(header, 15, maxW, false, 11);
     o += '<text x="' + tx + '" y="' + (y0 + 38).toFixed(2) + '" font-size="' + f.size + '" letter-spacing="3" fill="' + accent + '" ' + FF + '>' + tkEsc(f.text) + '</text>';
   }
   f = tkFit(t.attendee_name || '', 40, maxW, true, 20);
@@ -278,9 +282,9 @@ async function startApp() {
 }
 async function loadSettings() {
   var r = await sb.from('event_settings').select(SETTINGS_COLS).eq('id', 1).single();
-  if (r.error && /payment_qr_path/.test(r.error.message)) {   // sql/07 not run yet
-    r = await sb.from('event_settings').select(SETTINGS_COLS.replace(',payment_qr_path', '')).eq('id', 1).single();
-    if (!r.error) toast('Run sql/07_single_payment_qr.sql in Supabase to enable the event payment QR.', true);
+  if (r.error && /payment_qr_path|instructions_text/.test(r.error.message)) {   // newer SQL not run yet
+    r = await sb.from('event_settings').select(SETTINGS_COLS.replace(',payment_qr_path,instructions_text', '')).eq('id', 1).single();
+    if (!r.error) toast('Database is out of date: run the SQL files 01 to 05 again in Supabase.', true);
   }
   if (r.error) throw r.error;
   A.settings = r.data; $('hdrTitle').textContent = r.data.name + ' · Admin';
@@ -294,7 +298,7 @@ async function loadTypes() {
 }
 async function loadOrders(force) {
   if (A.orders && !force) return;
-  var r = await sb.from('orders').select('*, tickets(id,code,attendee_name,used)').order('created_at', { ascending: false }).limit(3000);
+  var r = await sb.from('orders').select('*, tickets(id,attendee_name,id_path,used)').order('created_at', { ascending: false }).limit(3000);
   if (r.error) throw r.error;
   A.orders = r.data;
 }
@@ -341,7 +345,11 @@ function drawOrderList() {
   loadShots(show);
 }
 function orderCard(o) {
-  var names = (o.tickets || []).map(function (t) { return '<li>' + esc(t.attendee_name) + (t.used ? ' <span class="pill gray">checked in</span>' : '') + '</li>'; }).join('');
+  var names = (o.tickets || []).slice().sort(function (a, b) { return a.id - b.id; }).map(function (t) {
+    return '<li class="person"><span>' + esc(t.attendee_name) + '</span>' +
+      (t.id_path ? '<img class="idthumb" data-shot="' + esc(t.id_path) + '" data-bucket="ids" data-act="lightbox" alt="Aadhaar of ' + esc(t.attendee_name) + '">'
+                 : (o.source === 'online' ? '<span class="pill rejected">no Aadhaar</span>' : '')) + '</li>';
+  }).join('');
   var h = '<div class="card" id="o' + o.id + '"><div class="row"><div><b>' + esc(o.order_no) + '</b> <span class="pill ' + o.status + '">' + o.status + '</span>' +
     (o.source === 'manual' ? ' <span class="pill gray">manual</span>' : '') + '</div><span class="muted">' + fmt(o.created_at) + '</span></div>' +
     '<div style="margin-top:6px"><b>' + esc(o.qty) + ' × ' + esc(o.type_name) + '</b> = <b>' + rupees(o.amount) + '</b></div>';
@@ -349,7 +357,8 @@ function orderCard(o) {
     '<div>' + esc(o.buyer_name) + '</div>' +
     '<div class="muted"><a href="tel:' + esc(o.phone) + '">' + esc(o.phone) + '</a> · ' + esc(o.email) + '</div>' +
     (o.source === 'online' ? '<div style="margin-top:8px" class="muted">Payer name in payment app</div><span class="payer">' + esc(o.payer_name) + '</span>' : '') +
-    '<div class="muted" style="margin-top:8px">Names on tickets</div><ol class="names">' + names + '</ol>' +
+    '<div class="muted" style="margin-top:8px">People on this ticket (admits ' + (o.tickets || []).length + ') \u00B7 tap an Aadhaar to enlarge</div><ol class="names">' + names + '</ol>' +
+    (o.checked_in ? '<div><span class="pill approved">Checked in ' + esc(fmt(o.checked_in_at)) + '</span></div>' : '') +
     (o.status === 'rejected' && o.reject_reason ? '<div class="muted">Reason: ' + esc(o.reject_reason) + '</div>' : '') +
     '</div>' + (o.screenshot_path ? '<img class="thumb" data-shot="' + esc(o.screenshot_path) + '" data-act="lightbox" alt="payment screenshot">' : '') + '</div>';
   h += '<div class="acts">';
@@ -359,11 +368,16 @@ function orderCard(o) {
   h += '<button class="b sec" data-act="editEmail" data-id="' + o.id + '">Edit email</button></div></div>';
   return h;
 }
+// Private images (payment screenshots, Aadhaar photos) are shown through short-lived signed URLs.
 async function loadShots(list) {
-  var need = [];
-  list.forEach(function (o) { if (o.screenshot_path && !A.shots[o.screenshot_path]) need.push(o.screenshot_path); });
-  if (need.length) {
-    var r = await sb.storage.from('screenshots').createSignedUrls(need, 3600);
+  var need = { screenshots: [], ids: [] };
+  list.forEach(function (o) {
+    if (o.screenshot_path && !A.shots[o.screenshot_path]) need.screenshots.push(o.screenshot_path);
+    (o.tickets || []).forEach(function (t) { if (t.id_path && !A.shots[t.id_path]) need.ids.push(t.id_path); });
+  });
+  for (var bucket in need) {
+    if (!need[bucket].length) continue;
+    var r = await sb.storage.from(bucket).createSignedUrls(need[bucket], 3600);
     (r.data || []).forEach(function (x) { if (x.signedUrl) A.shots[x.path] = x.signedUrl; });
   }
   document.querySelectorAll('img[data-shot]').forEach(function (im) { var u = A.shots[im.dataset.shot]; if (u && im.src !== u) im.src = u; });
@@ -560,7 +574,7 @@ ACT.typeDown = function (d) { typeMove(+d.id, 1); };
 
 // ───────────── ATTENDEES ─────────────
 T.attendees = async function () {
-  var r = await sb.from('tickets').select('id,code,attendee_name,used,used_at,used_by,orders(order_no,type_name,status,buyer_name,email,phone)').order('id', { ascending: false }).limit(5000);
+  var r = await sb.from('tickets').select('id,attendee_name,used,used_at,used_by,orders(order_no,ticket_code,type_name,status,buyer_name,email,phone)').order('id', { ascending: false }).limit(5000);
   if (r.error) throw r.error;
   A.tickets = r.data;
   $('content').innerHTML = '<div class="row"><h2>Attendees</h2><button class="b" data-act="csv">Export CSV</button></div><div id="atStat" class="card"></div>' +
@@ -573,7 +587,7 @@ function atRows() {
   return (A.tickets || []).filter(function (t) {
     var o = t.orders || {};
     if (A.atFilter === 'approved' && o.status !== 'approved') return false;
-    return !q || (t.attendee_name + ' ' + t.code + ' ' + o.order_no + ' ' + o.buyer_name).toLowerCase().indexOf(q) >= 0;
+    return !q || (t.attendee_name + ' ' + o.ticket_code + ' ' + o.order_no + ' ' + o.buyer_name).toLowerCase().indexOf(q) >= 0;
   });
 }
 function drawAttendees() {
@@ -584,7 +598,7 @@ function drawAttendees() {
   var rows = atRows(), show = rows.slice(0, A.atLimit);
   $('atList').innerHTML = show.map(function (t) {
     var o = t.orders || {};
-    return '<div class="card row" style="padding:10px 14px"><div style="min-width:0"><b>' + esc(t.attendee_name) + '</b><div class="muted">' + esc(o.type_name) + ' · ' + esc(o.order_no) + ' · ' + esc(t.code) +
+    return '<div class="card row" style="padding:10px 14px"><div style="min-width:0"><b>' + esc(t.attendee_name) + '</b><div class="muted">' + esc(o.type_name) + ' · ' + esc(o.order_no) + ' · ' + esc(o.ticket_code || '') +
       (o.status !== 'approved' ? ' · <span class="pill ' + o.status + '">' + o.status + '</span>' : '') + '</div></div>' +
       '<div style="text-align:right">' + (t.used ? '<span class="pill approved">Checked in</span><div class="muted">' + fmt(t.used_at) + '</div>' : '<span class="pill gray">Not yet</span>') + '</div></div>';
   }).join('') || '<div class="card muted" style="text-align:center">No attendees.</div>';
@@ -594,10 +608,10 @@ ACT.atF = function (d) { A.atFilter = d.s; A.atLimit = 100; drawAttendees(); };
 ACT.atMore = function () { A.atLimit += 100; drawAttendees(); };
 ACT.csv = function () {
   function q(v) { v = v == null ? '' : String(v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
-  var head = ['Ticket code', 'Attendee', 'Ticket type', 'Order no', 'Order status', 'Buyer', 'Email', 'Phone', 'Checked in', 'Checked in at'];
+  var head = ['Ticket code (whole order)', 'Attendee', 'Ticket type', 'Order no', 'Order status', 'Buyer', 'Email', 'Phone', 'Checked in', 'Checked in at'];
   var lines = [head.join(',')].concat(atRows().map(function (t) {
     var o = t.orders || {};
-    return [t.code, t.attendee_name, o.type_name, o.order_no, o.status, o.buyer_name, o.email, o.phone, t.used ? 'Yes' : 'No', t.used_at ? new Date(t.used_at).toLocaleString('en-IN') : ''].map(q).join(',');
+    return [o.ticket_code, t.attendee_name, o.type_name, o.order_no, o.status, o.buyer_name, o.email, o.phone, t.used ? 'Yes' : 'No', t.used_at ? new Date(t.used_at).toLocaleString('en-IN') : ''].map(q).join(',');
   }));
   dlBlob('attendees.csv', new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }));   // BOM so Excel shows Hindi names
 };
@@ -647,7 +661,8 @@ T.event = async function () {
     '<label>Description</label><textarea id="ev_desc">' + esc(s.description) + '</textarea>' +
     '<div class="grid2"><div><label>Contact phone</label><input id="ev_phone" value="' + esc(s.contact_phone) + '"></div><div><label>Contact email</label><input id="ev_email" value="' + esc(s.contact_email) + '"></div></div>' +
     '<label>Payment instructions (shown on the pay step)</label><textarea id="ev_pay">' + esc(s.payment_instructions) + '</textarea>' +
-    '<label>Terms (shown on the buy page)</label><textarea id="ev_terms">' + esc(s.terms_text) + '</textarea></div>' +
+    '<label>Terms (shown on the buy page)</label><textarea id="ev_terms">' + esc(s.terms_text) + '</textarea>' +
+    (s.instructions_text !== undefined ? '<label>Instructions panel (event page + buy page, buyer must tick \u201CI agree\u201D). One point per line, e.g. \u2022 Children are not allowed.</label><textarea id="ev_instr" style="min-height:140px">' + esc(s.instructions_text) + '</textarea>' : '') + '</div>' +
     '<div class="card"><label class="chk" style="margin-top:0"><input type="checkbox" id="ev_open"' + (s.sales_open ? ' checked' : '') + '> <b>Ticket sales are open</b></label>' +
     '<div class="grid2"><div><label>Sale starts (optional)</label><input id="ev_start" type="datetime-local" value="' + toLocalInput(s.sales_start) + '"></div><div><label>Sale ends (optional)</label><input id="ev_end" type="datetime-local" value="' + toLocalInput(s.sales_end) + '"></div></div>' +
     '<label>Message shown when sales are closed</label><input id="ev_closed" value="' + esc(s.closed_message) + '">' +
@@ -676,6 +691,7 @@ ACT.evSave = async function (d, b) {
     contact_email: val('ev_email').trim(), payment_instructions: val('ev_pay'), terms_text: val('ev_terms'), sales_open: $('ev_open').checked,
     sales_start: val('ev_start') ? new Date(val('ev_start')).toISOString() : null, sales_end: val('ev_end') ? new Date(val('ev_end')).toISOString() : null,
     closed_message: val('ev_closed').trim(), max_per_order: Math.round(+val('ev_max')) || 5, updated_at: new Date().toISOString() };
+  if ($('ev_instr')) row.instructions_text = val('ev_instr').trim();
   if (!row.name) return toast('Event name is required.', true);
   if (row.sales_start && row.sales_end && row.sales_start >= row.sales_end) return toast('Sale end must be after sale start.', true);
   busy(b); var r = await sb.from('event_settings').update(row).eq('id', 1); busy(b, false);
@@ -721,15 +737,15 @@ ACT.thSave = async function (d, b) {
 };
 
 // ───────────── TICKET DESIGN ─────────────
-var TD = null, TDNAME = 'राहुल शर्मा';
+var TD = null, TDNAME = 'राहुल शर्मा, Asha Sharma, Bhavna';
 T.ticket = async function () {
   await Promise.all([loadSettings(), loadTypes()]);
   TD = Object.assign({}, DEFAULT_TICKET, A.settings.ticket_design || {});
   var cf = [['strip_bg', 'Strip background'], ['strip_text', 'Strip text'], ['accent', 'Accent (lines, header)'], ['number_color', 'Ticket no. colour'], ['qr_color', 'QR colour']];
   var tg = [['show_type', 'Ticket type'], ['show_date', 'Date'], ['show_venue', 'Venue'], ['show_number', 'Ticket number'], ['show_logo', 'Logo']];
-  $('content').innerHTML = '<h2>Ticket design</h2><div class="card muted">The artwork is your Dandiya Nights template. Edit the strip below it: colours, text and which details appear. The PDF follows the same settings.</div>' +
+  $('content').innerHTML = '<h2>Ticket design</h2><div class="card muted">The artwork is your Dandiya Nights template. Edit the strip below it: colours, text and which details appear. The PDF follows the same settings. One ticket admits the whole group: write <b>{count}</b> in the header to show the number of people (ADMIT {count} \u2192 ADMIT 3).</div>' +
     '<h3>Preview</h3><div class="tkprev" id="tkPrev"></div>' +
-    '<div class="row" style="margin:10px 0"><input id="td_name" style="flex:1;min-width:160px" value="' + esc(TDNAME) + '" oninput="TDNAME=this.value;tdDraw()" aria-label="Sample attendee name"><button class="b sec" data-act="tdPdf">Preview as PDF</button></div>' +
+    '<div class="row" style="margin:10px 0"><input id="td_name" style="flex:1;min-width:160px" value="' + esc(TDNAME) + '" oninput="TDNAME=this.value;tdDraw()" aria-label="Sample names, comma separated" placeholder="Sample names, comma separated"><button class="b sec" data-act="tdPdf">Preview as PDF</button></div>' +
     '<div class="card"><div class="colors">' + cf.map(function (c) { return '<div><label>' + c[1] + '</label><input type="color" id="td_' + c[0] + '" value="' + esc(TD[c[0]]) + '" oninput="tdRead()"></div>'; }).join('') + '</div>' +
     '<label>Header text</label><input id="td_header_text" value="' + esc(TD.header_text) + '" oninput="tdRead()">' +
     '<label>Footer note</label><input id="td_footer_note" value="' + esc(TD.footer_note) + '" oninput="tdRead()">' +
@@ -748,7 +764,8 @@ function tdCtx() {
   var t = A.types[0] || {};
   return { s: Object.assign({}, A.settings, { ticket_design: TD }), typeName: t.name || 'General Entry', accent: t.accent_color || null, bgUrl: 'assets/ticket-bg.jpg', logoUrl: pubUrl(TD.logo_path || A.settings.logo_path) };
 }
-function tdDraw() { $('tkPrev').innerHTML = renderTicketSVG({ code: 'TKT-ABCD234XYZ', attendee_name: TDNAME }, tdCtx()); }
+function tdCount() { return TDNAME.split(',').filter(function (x) { return x.trim(); }).length || 1; }
+function tdDraw() { $('tkPrev').innerHTML = renderTicketSVG({ code: 'TKT-ABCD234XYZ', attendee_name: TDNAME, count: tdCount() }, tdCtx()); }
 async function tdLogo(inp) {
   var f = inp.files && inp.files[0]; if (!f) return;
   try { TD.logo_path = await uploadBranding('ticket-logo', f, 500, 'png'); TD.show_logo = true; $('td_show_logo').checked = true; tdDraw(); toast('Logo added. Press Save to keep it.'); }
@@ -764,7 +781,7 @@ ACT.tdPdf = async function (d, b) {
   try {
     var t = A.types[0] || {}, ses = (await sb.auth.getSession()).data.session;
     var r = await fetch('/api/preview-pdf', { method: 'POST', headers: { 'Authorization': 'Bearer ' + ses.access_token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: TDNAME, type_name: t.name || 'General Entry', accent: t.accent_color || null, design: TD }) });
+      body: JSON.stringify({ name: TDNAME, count: tdCount(), type_name: t.name || 'General Entry', accent: t.accent_color || null, design: TD }) });
     if (!r.ok) { var j = await r.json().catch(function () { return {}; }); throw new Error(j.error || 'PDF failed (' + r.status + ')'); }
     dlBlob('ticket-preview.pdf', await r.blob());
   } catch (e) { toast(errText(e), true); }

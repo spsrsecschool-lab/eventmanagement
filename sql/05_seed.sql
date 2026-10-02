@@ -19,7 +19,7 @@ Your ticket will be emailed after we verify the payment.$p$ else payment_instruc
   }$th$::jsonb else theme end,
   ticket_design = case when ticket_design = '{}'::jsonb then $td${
     "strip_bg":"#2b0a30","strip_text":"#fff4e0","accent":"#f5cc6a","number_color":"#f9d77a","qr_color":"#2b0a30",
-    "header_text":"ADMIT ONE","footer_note":"Bring your school ID",
+    "header_text":"ADMIT {count}","footer_note":"Bring your school ID",
     "show_type":true,"show_date":true,"show_venue":true,"show_number":true,"show_logo":false
   }$td$::jsonb else ticket_design end,
   email_templates = case when email_templates = '{}'::jsonb then $et${
@@ -43,3 +43,15 @@ where id = 1;
 insert into public.ticket_types (name, description, price, capacity, active, sort_order)
 select 'General Entry', 'Admits one person', 100, 200, false, 1
 where not exists (select 1 from public.ticket_types);
+
+-- v2: one ticket admits the whole group, so the default header shows the head count ({count} -> 3)
+update public.event_settings
+   set ticket_design = jsonb_set(ticket_design, '{header_text}', '"ADMIT {count}"')
+ where id = 1 and ticket_design ->> 'header_text' = 'ADMIT ONE';
+
+-- v2: starter instructions panel (only if still empty; edit in Admin > Event)
+update public.event_settings
+   set instructions_text = $i$• Children are not allowed.
+• Every person on the ticket must carry their original Aadhaar card.
+• One QR code admits everyone named on the ticket. Please arrive together.$i$
+ where id = 1 and instructions_text = '';

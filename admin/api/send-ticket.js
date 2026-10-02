@@ -21,11 +21,12 @@ module.exports = async function (req, res) {
 
     var content = kind === 'resent' ? (order.status === 'approved' ? 'approved' : order.status === 'rejected' ? 'rejected' : 'received') : kind;
     if (content === 'approved' && order.status !== 'approved') return L.json(res, 409, { error: 'Order is not approved' });
+    if (content === 'approved' && !order.ticket_code) return L.json(res, 409, { error: 'Order has no ticket code. Re-run the SQL files 01-05.' });
     if (content === 'rejected' && order.status !== 'rejected') return L.json(res, 409, { error: 'Order is not rejected' });
 
     var attachments = [];
     if (content === 'approved') {
-      var pdf = await P.buildPdf(order.tickets, P.ctxFor(order, s));
+      var pdf = await P.buildPdf(P.orderTicket(order), P.ctxFor(order, s));
       attachments.push({ filename: 'Ticket-' + order.order_no + '.pdf', content: pdf, contentType: 'application/pdf' });
     }
     var r = await L.sendOrderEmail(order, s, content, kind === 'resent' ? 'resent' : kind, attachments);

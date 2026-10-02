@@ -68,6 +68,16 @@
   .footer{margin-top:34px;text-align:center;color:var(--muted);font-size:13px}
   .nameRow{display:flex;gap:8px;align-items:center}
   .nameRow span{min-width:22px;color:var(--muted);font-size:13px}
+  .person{border:1px solid var(--line);border-radius:calc(var(--radius) - 4px);padding:10px;margin-bottom:10px}
+  .idUp{display:flex;align-items:center;gap:10px;margin:8px 0 0;padding:10px;border:1px dashed var(--line);border-radius:calc(var(--radius) - 6px);
+        color:var(--text);font-weight:600;font-size:14px;cursor:pointer}
+  .idUp img{width:46px;height:46px;object-fit:cover;border-radius:6px}
+  .idUp.ok{border-style:solid;border-color:#2fb36a}
+  .idUp.bad{border-color:#ff6b6b}
+  .hidden{display:none}
+  .notice{border-left:4px solid var(--accent)}
+  .chk{display:flex;gap:10px;align-items:flex-start;font-size:15px;font-weight:500;color:var(--text);margin:14px 0}
+  .chk input{width:22px;height:22px;flex:0 0 auto;margin-top:1px}
 </style>
 </head>
 <body>
@@ -87,7 +97,7 @@ var S = { settings: null, types: [], route: null };   // S.settings = public eve
 var B = null;                                          // buy-form state
 var pollTimer = null;
 var MY_KEY = 'tk_my_orders';
-var SETTINGS_COLS = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,payment_qr_path,theme,ticket_design';
+var SETTINGS_COLS = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,payment_qr_path,instructions_text,theme,ticket_design';
 var FONTS = {
   'Poppins': 'Poppins:wght@400;500;600;700', 'Inter': 'Inter:wght@400;500;600;700',
   'Playfair Display': 'Playfair+Display:wght@400;600;700', 'Hind': 'Hind:wght@400;500;600;700',
@@ -107,7 +117,7 @@ function tkFit(text, size, maxW, bold, min) {
   if (text.length * s * k > maxW) text = text.slice(0, Math.max(1, Math.floor(maxW / (s * k)) - 1)) + '…';
   return { text: text, size: s };
 }
-// t: {code, attendee_name}; c: {s: event settings, typeName, accent, logoUrl, bgUrl}
+// t: {code, attendee_name (all names, comma separated), count}; c: {s: event settings, typeName, accent, logoUrl, bgUrl}
 function renderTicketSVG(t, c) {
   var s = c.s || {}, d = s.ticket_design || {};
   var stripBg = tkHex(d.strip_bg, '#2b0a30'), stripText = tkHex(d.strip_text, '#fff4e0');
@@ -133,8 +143,9 @@ function renderTicketSVG(t, c) {
     tx = 154;
   }
   var maxW = 964 - tx, f;
-  if (d.header_text) {
-    f = tkFit(d.header_text, 15, maxW, false, 11);
+  var header = String(d.header_text || '').replace(/\{count\}/g, String(t.count || 1));   // "ADMIT {count}" -> "ADMIT 3"
+  if (header) {
+    f = tkFit(header, 15, maxW, false, 11);
     o += '<text x="' + tx + '" y="' + (y0 + 38).toFixed(2) + '" font-size="' + f.size + '" letter-spacing="3" fill="' + accent + '" ' + FF + '>' + tkEsc(f.text) + '</text>';
   }
   f = tkFit(t.attendee_name || '', 40, maxW, true, 20);
@@ -186,8 +197,8 @@ function applyTheme(th) {
 // ───────────── data ─────────────
 async function loadSettings() {
   var r = await sb.from('event_settings').select(SETTINGS_COLS).eq('id', 1).single();
-  if (r.error && /payment_qr_path/.test(r.error.message))   // sql/07 not run yet: keep the site working
-    r = await sb.from('event_settings').select(SETTINGS_COLS.replace(',payment_qr_path', '')).eq('id', 1).single();
+  if (r.error && /payment_qr_path|instructions_text/.test(r.error.message))   // newer SQL not run yet: keep the site working
+    r = await sb.from('event_settings').select(SETTINGS_COLS.replace(',payment_qr_path,instructions_text', '')).eq('id', 1).single();
   if (r.error) throw r.error;
   S.settings = r.data;
   lsSet('tk_settings_cache', r.data);
@@ -243,7 +254,8 @@ async function viewHome() {
   var h = '<div class="hero" style="padding-top:0"><h1>' + esc(s.name) + '</h1>' +
     (s.date_text ? '<div class="meta">📅 ' + esc(s.date_text) + '</div>' : '') +
     (s.venue ? '<div class="meta">📍 ' + esc(s.venue) + '</div>' : '') + '</div>' +
-    (s.description ? '<div class="desc">' + esc(s.description) + '</div>' : '');
+    (s.description ? '<div class="desc">' + esc(s.description) + '</div>' : '') +
+    (s.instructions_text ? '<div class="card notice"><div class="tname">Important instructions</div><div class="instr" style="margin-top:6px">' + esc(s.instructions_text) + '</div></div>' : '');
 
   h += '<h2>Tickets</h2>';
   if (!open) h += '<div class="card center">' + esc(s.closed_message || 'Ticket sales are closed.') + '</div>';
@@ -290,7 +302,7 @@ async function viewBuy(typeId) {
   if (!t) { $('app').innerHTML = shell('<div class="card center">This ticket type is not available.<br><br><a class="btn" href="#/">Back to event</a></div>'); return; }
   if (salesState(S.settings) !== 'open') { $('app').innerHTML = shell('<div class="card center">' + esc(S.settings.closed_message || 'Ticket sales are closed.') + '<br><br><a class="btn ghost" href="#/">Back to event</a></div>'); return; }
   if (t.remaining <= 0) { $('app').innerHTML = shell('<div class="card center">Sorry, <b>' + esc(t.name) + '</b> is sold out.<br><br><a class="btn ghost" href="#/">Back to event</a></div>'); return; }
-  if (!B || B.typeId !== t.id) B = { typeId: t.id, step: 1, qty: 1, name: '', phone: '', email: '', email2: '', names: [''], firstEdited: false, payer: '', shot: null, shotUrl: '', busy: false };
+  if (!B || B.typeId !== t.id) B = { typeId: t.id, step: 1, qty: 1, name: '', phone: '', email: '', email2: '', names: [''], ids: [], idUrls: [], agree: false, firstEdited: false, payer: '', shot: null, shotUrl: '', busy: false };
   drawBuy();
 }
 function maxQty(t) { return Math.max(1, Math.min(S.settings.max_per_order, t.remaining)); }
@@ -307,12 +319,16 @@ function drawBuy() {
   if (B.step === 1) {
     var mq = maxQty(t), opts = '';
     for (var i = 1; i <= mq; i++) opts += '<option value="' + i + '"' + (i === B.qty ? ' selected' : '') + '>' + i + '</option>';
-    h += '<label for="f_qty">Number of tickets (' + t.remaining + ' left)</label><select id="f_qty" onchange="onQty()">' + opts + '</select>';
+    h += '<label for="f_qty">Number of people (' + t.remaining + ' places left)</label><select id="f_qty" onchange="onQty()">' + opts + '</select>';
     h += '<label for="f_name">Your name</label><input id="f_name" autocomplete="name" value="' + esc(B.name) + '" oninput="onBuyerName()">';
     h += '<label for="f_phone">Phone number</label><input id="f_phone" type="tel" inputmode="tel" autocomplete="tel" value="' + esc(B.phone) + '">';
     h += '<label for="f_email">Email (your ticket is sent here)</label><input id="f_email" type="email" inputmode="email" autocomplete="email" value="' + esc(B.email) + '">';
     h += '<label for="f_email2">Confirm email</label><input id="f_email2" type="email" inputmode="email" autocomplete="off" value="' + esc(B.email2) + '">';
     h += '<div id="namesBox"></div>';
+    if (s.instructions_text) {
+      h += '<div class="card notice"><div class="tname">Please read</div><div class="instr" style="margin-top:6px">' + esc(s.instructions_text) + '</div></div>' +
+           '<label class="chk" id="f_agree_l"><input type="checkbox" id="f_agree"' + (B.agree ? ' checked' : '') + '> I have read and agree to the instructions</label>';
+    }
     h += '<div id="err" class="err"></div><button class="block" onclick="toStep2()">Continue to payment</button>';
     if (s.terms_text) h += '<div class="terms">' + esc(s.terms_text) + '</div>';
   } else if (B.step === 2) {
@@ -335,17 +351,30 @@ function drawBuy() {
 }
 
 function drawNames() {
-  var h = '<label>Name on each ticket</label>';
+  var h = '<label>Everyone on this ticket</label><div class="sub" style="margin-bottom:8px">One ticket admits all these people together. Enter each name as on the Aadhaar card and add a photo of that person\'s Aadhaar. Only the organiser can see it; a masked Aadhaar is fine.</div>';
   for (var i = 0; i < B.qty; i++) {
-    h += '<div class="nameRow" style="margin-bottom:8px"><span>' + (i + 1) + '.</span><input id="f_n' + i + '" placeholder="Attendee ' + (i + 1) + ' name" value="' + esc(B.names[i] || '') + '" oninput="onAttName(' + i + ')"></div>';
+    h += '<div class="person"><div class="nameRow"><span>' + (i + 1) + '.</span><input id="f_n' + i + '" placeholder="Person ' + (i + 1) + ' full name" value="' + esc(B.names[i] || '') + '" oninput="onAttName(' + i + ')"></div>' +
+      '<label class="idUp' + (B.ids[i] ? ' ok' : '') + '" id="f_idl' + i + '" for="f_id' + i + '">' +
+      (B.idUrls[i] ? '<img src="' + B.idUrls[i] + '" alt="">\u2714 Aadhaar added \u00B7 tap to change' : '\uD83D\uDCCE Add Aadhaar photo') + '</label>' +
+      '<input type="file" accept="image/*" id="f_id' + i + '" class="hidden" onchange="onId(' + i + ',this)"></div>';
   }
   $('namesBox').innerHTML = h;
 }
 function onQty() {
   B.qty = Number($('f_qty').value);
   while (B.names.length < B.qty) B.names.push('');
-  B.names.length = B.qty;
+  B.names.length = B.qty; B.ids.length = B.qty; B.idUrls.length = B.qty;
   drawNames();
+}
+async function onId(i, inp) {
+  var f = inp.files && inp.files[0]; if (!f) return;
+  try {
+    B.ids[i] = await compress(f, 1400);          // larger than the screenshot so the card stays readable
+    if (B.idUrls[i]) URL.revokeObjectURL(B.idUrls[i]);
+    B.idUrls[i] = URL.createObjectURL(B.ids[i]);
+    drawNames();
+    if ($('err')) $('err').className = 'err';
+  } catch (e) { showErr(e.message, 'f_idl' + i); }
 }
 function onBuyerName() {
   B.name = $('f_name').value;
@@ -358,7 +387,7 @@ function onAttName(i) {
 function showErr(msg, fieldId) {
   var e = $('err'); if (!e) return;
   e.textContent = msg; e.className = 'err show';
-  document.querySelectorAll('input.bad').forEach(function (x) { x.classList.remove('bad'); });
+  document.querySelectorAll('.bad').forEach(function (x) { x.classList.remove('bad'); });
   var f = fieldId && $(fieldId);
   if (f) { f.classList.add('bad'); f.focus(); }
   e.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -369,6 +398,7 @@ function readStep() {
     B.qty = Number($('f_qty').value); B.name = $('f_name').value; B.phone = $('f_phone').value;
     B.email = $('f_email').value; B.email2 = $('f_email2').value;
     for (var i = 0; i < B.qty; i++) { var el = $('f_n' + i); if (el) B.names[i] = el.value; }
+    B.agree = !!($('f_agree') && $('f_agree').checked);
   } else if (B.step === 2) { B.payer = $('f_payer').value; }
 }
 function validEmail(e) { return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e); }
@@ -381,7 +411,11 @@ function toStep2() {
   if (B.phone.replace(/\D/g, '').length < 10) return showErr('Enter a phone number with at least 10 digits.', 'f_phone');
   if (!validEmail(B.email.trim())) return showErr('Enter a valid email address.', 'f_email');
   if (B.email.trim().toLowerCase() !== B.email2.trim().toLowerCase()) return showErr('The two email addresses do not match.', 'f_email2');
-  for (var i = 0; i < B.qty; i++) if ((B.names[i] || '').trim().length < 2) return showErr('Enter the name for ticket ' + (i + 1) + '.', 'f_n' + i);
+  for (var i = 0; i < B.qty; i++) {
+    if ((B.names[i] || '').trim().length < 2) return showErr('Enter the full name of person ' + (i + 1) + '.', 'f_n' + i);
+    if (!B.ids[i]) return showErr('Add the Aadhaar photo for person ' + (i + 1) + ' (' + B.names[i].trim() + ').', 'f_idl' + i);
+  }
+  if (S.settings.instructions_text && !B.agree) return showErr('Please tick that you have read and agree to the instructions.', 'f_agree_l');
   B.step = 2; drawBuy(); window.scrollTo(0, 0);
 }
 function toStep3() {
@@ -390,12 +424,13 @@ function toStep3() {
   B.step = 3; drawBuy(); window.scrollTo(0, 0);
 }
 
-// Resize to ~900px wide JPEG before upload
-function compress(file) {
+// Resize to ~900px (screenshots) / ~1400px (Aadhaar) JPEG before upload
+function compress(file, maxDim) {
+  maxDim = maxDim || 900;
   return new Promise(function (resolve, reject) {
     var img = new Image(), url = URL.createObjectURL(file);
     img.onload = function () {
-      var sc = Math.min(1, 900 / Math.max(img.width, img.height));
+      var sc = Math.min(1, maxDim / Math.max(img.width, img.height));
       var c = document.createElement('canvas');
       c.width = Math.max(1, Math.round(img.width * sc)); c.height = Math.max(1, Math.round(img.height * sc));
       var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height);
@@ -427,12 +462,14 @@ var ERR_MAP = {
   TYPE_UNAVAILABLE: 'This ticket type is no longer available.', TOO_MANY_PENDING: 'You already have several orders waiting for verification with this email. Please wait for them to be approved.',
   BAD_NAME: 'Please check your name.', BAD_PHONE: 'Please check your phone number.', BAD_EMAIL: 'Please check your email address.',
   BAD_PAYER: 'Please check the name shown in your payment app.', BAD_ATTENDEES: 'Please check the names on the tickets.',
-  BAD_SCREENSHOT: 'The screenshot upload did not work. Please choose the image again.', BAD_QTY: 'Please check the number of tickets.'
+  BAD_SCREENSHOT: 'The screenshot upload did not work. Please choose the image again.',
+  BAD_IDS: 'An Aadhaar photo did not upload. Please go back and add it again.', BAD_QTY: 'Please check the number of tickets.'
 };
 function friendly(e) {
   var m = String(e && e.message || e), code = m.split(':')[0], arg = m.split(':')[1];
   if (code === 'NOT_ENOUGH_SEATS') return 'Only ' + arg + ' seat' + (arg === '1' ? '' : 's') + ' left. Please reduce the number of tickets.';
   if (code === 'MAX_PER_ORDER') return 'You can buy at most ' + arg + ' tickets per order.';
+  if (code === 'BAD_IDS' && arg) return 'The Aadhaar photo for person ' + arg + ' did not upload. Please go back and add it again.';
   return ERR_MAP[code] || 'Could not place your order: ' + m;
 }
 
@@ -454,10 +491,20 @@ async function submitOrder() {
     var up = await sb.storage.from('screenshots').upload(path, B.shot, { contentType: 'image/jpeg', upsert: false });
     if (up.error) throw new Error('BAD_SCREENSHOT');
 
+    var idPaths = [];
+    for (var i = 0; i < B.qty; i++) {
+      btn.textContent = 'Uploading Aadhaar ' + (i + 1) + ' of ' + B.qty + '…';
+      var ip = uuid() + '.jpg';
+      var iu = await sb.storage.from('ids').upload(ip, B.ids[i], { contentType: 'image/jpeg', upsert: false });
+      if (iu.error) throw new Error('BAD_IDS:' + (i + 1));
+      idPaths.push(ip);
+    }
+
     btn.textContent = 'Placing order…';
     var r = await sb.rpc('create_order', {
       p_type_id: t.id, p_qty: B.qty, p_buyer_name: B.name.trim(), p_email: B.email.trim(), p_phone: B.phone.trim(),
-      p_payer_name: B.payer.trim(), p_screenshot_path: path, p_names: B.names.slice(0, B.qty).map(function (n) { return n.trim(); })
+      p_payer_name: B.payer.trim(), p_screenshot_path: path, p_names: B.names.slice(0, B.qty).map(function (n) { return n.trim(); }),
+      p_id_paths: idPaths
     });
     if (r.error) throw r.error;
     var token = r.data;
@@ -495,10 +542,13 @@ async function viewOrder(token) {
     h += '<div class="center" style="margin:14px 0"><span class="pill ok">Approved</span></div>';
     var ctx = { s: s, typeName: o.type_name, accent: o.accent_color, bgUrl: 'assets/ticket-bg.jpg',
                 logoUrl: pubUrl((s.ticket_design || {}).logo_path || s.logo_path) };
-    (o.tickets || []).forEach(function (t) { h += '<div class="tick">' + renderTicketSVG(t, ctx) + '</div>'; });
+    var people = o.people || [];
+    if (o.code) h += '<div class="tick">' + renderTicketSVG({ code: o.code, attendee_name: people.join(', '), count: people.length }, ctx) + '</div>';
+    h += '<div class="card"><b>This ticket admits ' + people.length + (people.length === 1 ? ' person' : ' people') + '</b><ol style="margin:6px 0 0;padding-left:20px">' +
+         people.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ol></div>';
     // plain link (not fetch): a normal page visit needs no CORS and also works on iPhone
     h += '<a class="btn block" id="dlBtn" href="' + esc(API_BASE + '/api/ticket-pdf?token=' + encodeURIComponent(token)) + '" target="_blank" rel="noopener">Download PDF</a>' +
-         '<p class="sub center">Show the QR code at the gate. Each ticket works once.</p>';
+         '<p class="sub center">Show this QR code at the gate. It lets everyone on the ticket in together, once. Bring every person\'s original Aadhaar card.</p>';
   }
   $('app').innerHTML = shell(h);
   if (o.status === 'pending') pollTimer = setInterval(function () { viewOrderQuiet(token); }, 30000);
