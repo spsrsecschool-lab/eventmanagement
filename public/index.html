@@ -294,6 +294,18 @@
   .bk .loading{color:rgba(251,238,214,.7)}
   @media (prefers-reduced-motion:reduce){ .bk-main > *{animation:none} .bk-ico.wait{animation:none} .bk button.block::after,.bk .btn.block::after{animation:none;display:none} }
 
+  /* sale countdown strip (top of the landing page) */
+  .lp-count{position:relative;z-index:3;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 14px;padding:10px 12px 11px;
+    background:linear-gradient(90deg,#3d0444,#7d0f5c 50%,#3d0444);border-bottom:1px solid rgba(255,213,106,.35);color:var(--cream);text-align:center}
+  .lp-count-l{font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
+  .lp-count.hurry .lp-count-l{color:#fff}
+  .lp-cd{display:flex;gap:6px}
+  .lp-cd span{min-width:50px;padding:4px 6px 3px;border-radius:8px;background:rgba(0,0,0,.28);border:1px solid rgba(255,213,106,.35);line-height:1}
+  .lp-cd b{display:block;font-family:var(--f-display);font-weight:700;font-size:22px;color:var(--cream);font-variant-numeric:tabular-nums}
+  .lp-cd small{display:block;margin-top:3px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#ecd2e4}
+  .lp-count-d{width:100%;font-size:12px;color:#ecd2e4;margin-top:-2px}
+  @media (min-width:600px){ .lp-count-d{width:auto;margin:0} }
+
   /* living hero: bokeh, sparkles, rising gold dust, breathing poster, diyas, button sheen */
   .lp-fx{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:hidden}
   .lp-bokeh{position:absolute;border-radius:50%;opacity:0;filter:blur(5px);mix-blend-mode:screen;will-change:transform,opacity;
@@ -356,6 +368,7 @@ var MY_KEY = 'tk_my_orders';
 var SETTINGS_BASE = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,theme,ticket_design';
 var SETTINGS_COLS = SETTINGS_BASE + ',payment_qr_path,instructions_text,upi_id,dandiya_enabled,dandiya_rent,dandiya_deposit,dandiya_max,dandiya_qrs';
 var DR = null;                                         // dandiya-rental form state
+var cdTimer = null;                                    // landing-page countdown
 var FONTS = {
   'Poppins': 'Poppins:wght@400;500;600;700', 'Inter': 'Inter:wght@400;500;600;700',
   'Playfair Display': 'Playfair+Display:wght@400;600;700', 'Hind': 'Hind:wght@400;500;600;700',
@@ -478,7 +491,7 @@ function salesState(s) {
 
 // ───────────── router ─────────────
 function route() {
-  clearInterval(pollTimer);
+  clearInterval(pollTimer); clearInterval(cdTimer);
   var h = (location.hash || '#/').replace(/^#/, '');
   var p = h.split('/').filter(Boolean);
   window.scrollTo(0, 0);
@@ -590,6 +603,37 @@ function diyaSVG(side) {
     '<path d="M4 36 C10 33 50 33 56 36 C50 40 10 40 4 36 Z" fill="#f5b83d"/>' +
     '<path d="M12 46 H48" stroke="#f5b83d" stroke-width="1.6" stroke-dasharray="2 3" opacity=".8"/></svg>';
 }
+// Countdown to the admin's "Sale ends" (or to "Sale starts" while sales have not opened yet)
+function countdownTarget(s) {
+  var now = Date.now(), st = s.sales_start ? new Date(s.sales_start).getTime() : 0, en = s.sales_end ? new Date(s.sales_end).getTime() : 0;
+  if (!s.sales_open) return null;
+  if (st && now < st) return { at: st, label: 'Booking opens in' };
+  if (en && now < en) return { at: en, label: 'Booking closes in' };
+  return null;
+}
+function countdownHTML(s) {
+  var c = countdownTarget(s); if (!c) return '';
+  var when = new Date(c.at).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  return '<div class="lp-count" id="lpCount" role="timer" aria-live="off" data-at="' + c.at + '" data-label="' + esc(c.label) + '">' +
+    '<span class="lp-count-l" id="lpCountL">' + esc(c.label) + '</span>' +
+    '<span class="lp-cd" id="lpCd"></span><span class="lp-count-d">' + esc(when) + '</span></div>';
+}
+function startCountdown() {
+  var el = $('lpCount'); if (!el) return;
+  var at = Number(el.dataset.at), base = el.dataset.label;
+  var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+  var tick = function () {
+    var ms = at - Date.now();
+    if (ms <= 0) { clearInterval(cdTimer); route(); return; }       // sale just opened / closed: redraw the page
+    var s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+    var parts = (d ? [[d, d === 1 ? 'day' : 'days']] : []).concat([[pad(h), 'hrs'], [pad(m), 'min'], [pad(x), 'sec']]);
+    $('lpCd').innerHTML = parts.map(function (p) { return '<span><b>' + p[0] + '</b><small>' + p[1] + '</small></span>'; }).join('');
+    var hurry = base === 'Booking closes in' && ms < 86400000;
+    el.classList.toggle('hurry', hurry);
+    $('lpCountL').textContent = hurry ? 'Hurry! ' + base : base;
+  };
+  tick(); clearInterval(cdTimer); cdTimer = setInterval(tick, 1000);
+}
 function rulesList(text) {
   return String(text || '').split(/\n+/).map(function (l) { return l.replace(/^\s*[•\-*·]+\s*/, '').trim(); }).filter(Boolean);
 }
@@ -607,6 +651,7 @@ async function viewHome() {
 
   // ── hero: the event poster (uploaded banner if set, else the bundled Dandiya Nights poster)
   var poster = s.banner_path ? pubUrl(s.banner_path) : 'assets/hero-poster.jpg';
+  h += countdownHTML(s);
   h += '<header class="lp-band lp-hero" id="lpHero"><div class="lp-hero-bg" aria-hidden="true"></div>' + fxHTML() +
     '<img class="lp-poster" src="' + esc(poster) + '"' + (s.banner_path ? '' : ' width="800" height="1020"') + ' fetchpriority="high" alt="' + esc(s.name) + ' poster">' +
     '<div class="lp-in">' + diyaSVG('l') + diyaSVG('r') + '<h1 class="lp-sr">' + esc(s.name) + '</h1>' +
@@ -670,6 +715,7 @@ async function viewHome() {
 
   $('app').innerHTML = '<div class="lp">' + h + '</div>';
   lpObserve();
+  startCountdown();
   var mine = lsGet(MY_KEY, []);
   if (mine.length) loadMine(mine);
 }
