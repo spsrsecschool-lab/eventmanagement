@@ -130,4 +130,4 @@ async function sendOrderEmail(order, s, contentKind, logKind, attachments) {
 }
 
 module.exports = { db: db, cors: cors, json: json, body: body, requireAdmin: requireAdmin, loadSettings: loadSettings,
-  loadOrder: loadOrder, sendOrderEmail: sendOrderEmail, publicUrl: publicUrl, fill: fill, varsFor: varsFor, template: template };
+  loadOrder: loadOrder, sendOrderEmail: sendOrderEmail, mailer: mailer, publicUrl: publicUrl, fill: fill, varsFor: varsFor, template: template };

@@ -124,7 +124,8 @@ function drawTicket(doc, ticket, ctx, qr, logo) {
 // Returns a Buffer with one page per ticket.
 async function buildPdf(tickets, ctx) {
   var logo = (ctx.settings.ticket_design || {}).show_logo ? await logoBuffer(ctx.logoUrl) : null;
-  var doc = new PDFDocument({ autoFirstPage: false, margin: 0, info: { Title: ctx.settings.name + ' ticket', Author: ctx.settings.name } });
+  // font: start on our bundled TTF so PDFKit never loads its built-in Helvetica .afm files (missing on Vercel -> ENOENT)
+  var doc = new PDFDocument({ autoFirstPage: false, margin: 0, font: path.join(FONT_DIR, 'NotoSans-Regular.ttf'), info: { Title: ctx.settings.name + ' ticket', Author: ctx.settings.name } });
   doc.registerFont('latinR', path.join(FONT_DIR, 'NotoSans-Regular.ttf'));
   doc.registerFont('latinB', path.join(FONT_DIR, 'NotoSans-Bold.ttf'));
   doc.registerFont('devaR', path.join(FONT_DIR, 'NotoSansDevanagari-Regular.ttf'));

@@ -111,7 +111,7 @@ var A = { settings: null, types: [], counts: {}, orders: null, tickets: null, em
           tab: 'orders', ordFilter: 'pending', ordQ: '', ordLimit: 40, shots: {}, editType: null, atFilter: 'approved', atQ: '', atLimit: 100 };
 var T = {};      // tab renderers
 var ACT = {};    // click actions  (data-act="...")
-var SETTINGS_COLS = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,theme,ticket_design';
+var SETTINGS_COLS = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,payment_qr_path,theme,ticket_design';
 var TABS = [['orders', 'Orders'], ['manual', 'Add order'], ['types', 'Ticket types'], ['attendees', 'Attendees'], ['emails', 'Emails'],
             ['event', 'Event'], ['theme', 'Theme'], ['ticket', 'Ticket design'], ['templates', 'Email text'], ['staff', 'Staff']];
 var FONTS = { 'Poppins': 'Poppins:wght@400;600;700', 'Inter': 'Inter:wght@400;600;700', 'Playfair Display': 'Playfair+Display:wght@400;600;700',
@@ -278,6 +278,10 @@ async function startApp() {
 }
 async function loadSettings() {
   var r = await sb.from('event_settings').select(SETTINGS_COLS).eq('id', 1).single();
+  if (r.error && /payment_qr_path/.test(r.error.message)) {   // sql/07 not run yet
+    r = await sb.from('event_settings').select(SETTINGS_COLS.replace(',payment_qr_path', '')).eq('id', 1).single();
+    if (!r.error) toast('Run sql/07_single_payment_qr.sql in Supabase to enable the event payment QR.', true);
+  }
   if (r.error) throw r.error;
   A.settings = r.data; $('hdrTitle').textContent = r.data.name + ' · Admin';
 }
@@ -496,9 +500,6 @@ function drawTypes() {
       (t.active ? '<span class="pill approved">On sale</span>' : '<span class="pill gray">Off sale</span>') + '<div class="muted">' + esc(t.description) + '</div></div>' +
       '<div style="text-align:right"><b>' + rupees(t.price) + '</b><div class="muted">' + c.taken + ' of ' + t.capacity + ' taken</div></div></div>' +
       '<div class="muted" style="margin-top:4px">' + c.approved + ' approved · ' + (c.taken - c.approved) + ' pending · ' + Math.max(t.capacity - c.taken, 0) + ' left</div>' +
-      '<div class="row" style="margin-top:10px;justify-content:flex-start"><div>' +
-      (t.payment_qr_path ? '<img class="qrimg" src="' + esc(pubUrl(t.payment_qr_path)) + '" alt="payment QR">' : '<div class="qrimg muted" style="display:flex;align-items:center;justify-content:center;font-size:12px;text-align:center">No QR yet</div>') +
-      '</div><div><label style="margin:0 0 4px">Payment QR image (UPI)</label><input type="file" accept="image/*" onchange="typeQr(' + t.id + ',this)" style="font-size:13px;padding:6px"></div></div>' +
       '<div class="acts"><button class="b sec sm" data-act="typeUp" data-id="' + t.id + '"' + (i === 0 ? ' disabled' : '') + '>▲</button><button class="b sec sm" data-act="typeDown" data-id="' + t.id + '"' + (i === A.types.length - 1 ? ' disabled' : '') + '>▼</button>' +
       '<button class="b sec" data-act="typeEdit" data-id="' + t.id + '">Edit</button>' +
       '<button class="b sec" data-act="typeToggle" data-id="' + t.id + '">' + (t.active ? 'Turn off sale' : 'Turn on sale') + '</button>' +
@@ -556,16 +557,6 @@ async function typeMove(id, dir) {
 }
 ACT.typeUp = function (d) { typeMove(+d.id, -1); };
 ACT.typeDown = function (d) { typeMove(+d.id, 1); };
-async function typeQr(id, inp) {
-  var f = inp.files && inp.files[0]; if (!f) return;
-  try {
-    var t = A.types.filter(function (x) { return x.id === id; })[0];
-    var path = await uploadBranding('qr-' + id, f, 1000, 'png');
-    var r = await sb.from('ticket_types').update({ payment_qr_path: path }).eq('id', id);
-    if (r.error) throw r.error;
-    removeBranding(t.payment_qr_path); toast('QR image saved.'); T.types();
-  } catch (e) { toast(errText(e), true); }
-}
 
 // ───────────── ATTENDEES ─────────────
 T.attendees = async function () {
@@ -616,13 +607,30 @@ T.emails = async function () {
   var r = await sb.from('email_log').select('id,order_id,kind,to_email,status,error,created_at,orders(order_no,buyer_name)').order('created_at', { ascending: false }).limit(300);
   if (r.error) throw r.error;
   var rows = r.data, fails = rows.filter(function (x) { return x.status === 'failed'; }).length;
-  $('content').innerHTML = '<h2>Emails</h2><div class="card muted">Gmail allows about 500 recipients per day. ' + (fails ? '<b style="color:var(--bad)">' + fails + ' failed in the last ' + rows.length + '.</b>' : 'No failures recently.') + '</div>' +
+  $('content').innerHTML = '<h2>Emails</h2>' +
+    '<div class="card"><b>System check</b><div class="muted">Tests the server setup: Vercel env vars, database, PDF building and the Gmail login. Run this first if emails or PDFs are not working.</div>' +
+    '<div class="acts"><button class="b" data-act="health">Run system check</button><button class="b sec" data-act="health" data-test="1">Check + send me a test email</button></div><div id="healthOut"></div></div>' +
+    '<div class="card muted">Gmail allows about 500 recipients per day. ' + (fails ? '<b style="color:var(--bad)">' + fails + ' failed in the last ' + rows.length + '.</b>' : 'No failures recently.') + '</div>' +
     (rows.map(function (x) {
       var o = x.orders || {};
       return '<div class="card"><div class="row"><div><b>' + esc(o.order_no || '') + '</b> <span class="pill gray">' + x.kind + '</span> <span class="pill ' + x.status + '">' + x.status + '</span></div><span class="muted">' + fmt(x.created_at) + '</span></div>' +
         '<div class="muted">' + esc(x.to_email) + (o.buyer_name ? ' · ' + esc(o.buyer_name) : '') + '</div>' + (x.error ? '<div class="err">' + esc(x.error) + '</div>' : '') +
         '<div class="acts"><button class="b sec sm" data-act="resendLog" data-id="' + x.order_id + '">Resend</button></div></div>';
     }).join('') || '<div class="card muted" style="text-align:center">No emails sent yet.</div>');
+};
+ACT.health = async function (d, b) {
+  var out = $('healthOut'); busy(b); out.innerHTML = '<div class="muted" style="margin-top:10px">Checking… (can take 10 seconds)</div>';
+  var r;
+  try { r = await api('/api/health', { send_test: !!d.test }); }
+  catch (e) { r = { error: errText(e) }; }
+  if (!r.checks) {
+    out.innerHTML = '<div class="err">The check itself could not run: ' + esc(r.error || 'no response') + '. This usually means the admin project has not been redeployed with the latest code, or its functions failed to build (Vercel > Deployments > latest > Logs).</div>';
+  } else {
+    out.innerHTML = '<div style="margin-top:10px">' + r.checks.map(function (c) {
+      return '<div style="padding:7px 0;border-top:1px solid var(--line)"><b style="color:' + (c.ok ? 'var(--ok)' : 'var(--bad)') + '">' + (c.ok ? '\u2714' : '\u2716') + ' ' + esc(c.name) + '</b><div class="muted">' + esc(c.detail) + '</div></div>';
+    }).join('') + '</div>';
+  }
+  busy(b, false);
 };
 ACT.resendLog = async function (d, b) {
   busy(b); var m = await api('/api/send-ticket', { order_id: +d.id, kind: 'resent' });
@@ -644,6 +652,9 @@ T.event = async function () {
     '<div class="grid2"><div><label>Sale starts (optional)</label><input id="ev_start" type="datetime-local" value="' + toLocalInput(s.sales_start) + '"></div><div><label>Sale ends (optional)</label><input id="ev_end" type="datetime-local" value="' + toLocalInput(s.sales_end) + '"></div></div>' +
     '<label>Message shown when sales are closed</label><input id="ev_closed" value="' + esc(s.closed_message) + '">' +
     '<label>Max tickets per order</label><input id="ev_max" type="number" min="1" max="50" value="' + esc(s.max_per_order) + '"></div>' +
+    '<div class="card"><b>Payment QR (UPI)</b> <span class="muted">One QR for all ticket types. Buyers see it on the pay step.</span><div class="row" style="justify-content:flex-start;margin-top:8px">' +
+    (s.payment_qr_path ? '<img class="qrimg" src="' + esc(pubUrl(s.payment_qr_path)) + '" alt="payment QR">' : '<div class="qrimg muted" style="display:flex;align-items:center;justify-content:center;font-size:12px;text-align:center">No QR yet</div>') +
+    '<input type="file" accept="image/*" onchange="evImg(\'payment_qr_path\',\'payqr\',1000,\'png\',this)" style="font-size:13px"></div></div>' +
     '<div class="card"><b>Logo</b> <span class="muted">(square works best)</span><div class="row" style="justify-content:flex-start;margin-top:8px">' +
     (s.logo_path ? '<img class="qrimg" src="' + esc(pubUrl(s.logo_path)) + '" alt="">' : '<div class="qrimg muted" style="display:flex;align-items:center;justify-content:center;font-size:12px">None</div>') +
     '<input type="file" accept="image/*" onchange="evImg(\'logo_path\',\'logo\',600,\'png\',this)" style="font-size:13px"></div>' +

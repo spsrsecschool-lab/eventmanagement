@@ -26,6 +26,8 @@ create table if not exists public.event_settings (
   email_templates      jsonb not null default '{}'::jsonb,
   updated_at           timestamptz not null default now()
 );
+-- one UPI payment QR for the whole event (shown for every ticket type)
+alter table public.event_settings add column if not exists payment_qr_path text;
 
 -- ---------- ticket_types ----------
 create table if not exists public.ticket_types (
