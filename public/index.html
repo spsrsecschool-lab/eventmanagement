@@ -273,6 +273,15 @@
   .bk-badge.wait{background:#fff1d1;color:#8a5a00}
   .bk-badge.ok{background:#e3f6ea;color:#17703d}
   .bk-badge.no{background:#fde3e6;color:#9b1c3a}
+  .bk-map{border-top:5px solid var(--mari)}
+  .bk-map h3{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-weight:700;font-size:21px;margin:0 0 4px;color:var(--ink)}
+  .bk-map h3 svg{width:22px;height:22px;color:var(--red)}
+  .bk-map .bk-map-name{margin:0;font-weight:700;color:var(--ink);line-height:1.4}
+  .bk-map .bk-map-when{display:flex;align-items:center;gap:6px;margin:2px 0 0;font-size:14px;color:rgba(42,4,48,.7)}
+  .bk-map .bk-map-when svg{width:15px;height:15px}
+  .bk-map-frame{position:relative;margin:12px 0;border-radius:10px;overflow:hidden;border:2px solid var(--mari);box-shadow:0 0 0 4px rgba(244,182,63,.18);aspect-ratio:16/11;background:#efe2c8}
+  .bk-map-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+  .bk-map .btn svg{width:18px;height:18px;vertical-align:-3px;margin-right:6px}
   .bk-people small{color:rgba(42,4,48,.6);font-size:13px}
   .bk-order{text-align:center;margin:10px 0 4px}
   .bk-order small{display:block;font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--gold)}
@@ -367,6 +376,8 @@ var pollTimer = null;
 var MY_KEY = 'tk_my_orders';
 var SETTINGS_BASE = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,theme,ticket_design';
 var SETTINGS_COLS = SETTINGS_BASE + ',payment_qr_path,instructions_text,upi_id,dandiya_enabled,dandiya_rent,dandiya_deposit,dandiya_max,dandiya_qrs';
+var SETTINGS_PRE11 = SETTINGS_COLS;                  // before sql/11 was run
+SETTINGS_COLS += ',venue_map';
 var DR = null;                                         // dandiya-rental form state
 var cdTimer = null;                                    // landing-page countdown
 var FONTS = {
@@ -469,6 +480,8 @@ function applyTheme(th) {
 async function loadSettings() {
   var r = await sb.from('event_settings').select(SETTINGS_COLS).eq('id', 1).single();
   if (r.error && /column|does not exist/i.test(r.error.message))   // newer SQL not run yet: keep the site working
+    r = await sb.from('event_settings').select(SETTINGS_PRE11).eq('id', 1).single();
+  if (r.error && /column|does not exist/i.test(r.error.message))
     r = await sb.from('event_settings').select(SETTINGS_BASE).eq('id', 1).single();
   if (r.error) throw r.error;
   S.settings = r.data;
@@ -1059,7 +1072,7 @@ async function viewOrder(token) {
     var admits = '<div class="card bk-people"><h3>Admits ' + people.length + (people.length === 1 ? ' person' : ' people') + '</h3><ol>' +
          people.map(function (n, i) { return '<li>' + esc(n) + (slots[i] ? ' <small>' + esc(slots[i]) + '</small>' : '') + '</li>'; }).join('') + '</ol></div>';
     // plain link (not fetch): a normal page visit needs no CORS and also works on iPhone
-    h += '<a class="btn block" id="dlBtn" href="' + esc(API_BASE + '/api/ticket-pdf?token=' + encodeURIComponent(token)) + '" target="_blank" rel="noopener">Download PDF</a>' + dandiyaCard(o, token) + admits +
+    h += '<a class="btn block" id="dlBtn" href="' + esc(API_BASE + '/api/ticket-pdf?token=' + encodeURIComponent(token)) + '" target="_blank" rel="noopener">Download PDF</a>' + dandiyaCard(o, token) + admits + venueCard(s) +
          '<p class="sub center">Show this QR code at the gate. It lets everyone on the ticket in together, once. Bring every person\'s original Aadhaar card.</p>';
   }
   $('app').innerHTML = shell(h, { celebrate: o.status === 'approved' });
@@ -1070,6 +1083,35 @@ function orderSig(o) { return o.status + '|' + (o.dandiya ? o.dandiya.status : '
 async function viewOrderQuiet(token, sig) {
   var r = await sb.rpc('get_order', { p_token: token });
   if (r.data && orderSig(r.data) !== sig) viewOrder(token);
+}
+
+// Venue map from settings.venue_map (a Google Maps link or a typed address). Returns null when not set.
+// q = what the embedded map pins; link = where "Open in Google Maps" goes. Short links (maps.app.goo.gl) can't be
+// read in the browser, so their pin falls back to the venue name; full links pin the exact place.
+function venueMap(s) {
+  var raw = String((s && s.venue_map) || '').trim(), q = '', link = '', m;
+  if (!raw) return null;
+  if (/^https?:\/\//i.test(raw)) {
+    link = raw;
+    m = raw.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) || raw.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) ||
+        raw.match(/[?&](?:q|query|ll|destination)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/i);
+    if (m) q = m[1] + ',' + m[2];
+    else if ((m = raw.match(/[?&](?:q|query|destination)=([^&#]+)/i) || raw.match(/\/place\/([^/@?#]+)/))) {
+      try { q = decodeURIComponent(m[1].replace(/\+/g, ' ')); } catch (e) { q = ''; }
+    }
+    if (!q) q = (s.venue || '').trim();
+  } else {
+    q = raw; link = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(raw);
+  }
+  return { q: q, link: link, embed: q ? 'https://maps.google.com/maps?q=' + encodeURIComponent(q) + '&z=16&output=embed' : '' };
+}
+function venueCard(s) {
+  var m = venueMap(s); if (!m) return '';
+  return '<div class="card bk-map"><h3>' + ICON.pin + 'Venue</h3>' +
+    (s.venue ? '<p class="bk-map-name">' + esc(s.venue) + '</p>' : '') +
+    (s.date_text ? '<p class="bk-map-when">' + ICON.cal + esc(s.date_text) + '</p>' : '') +
+    (m.embed ? '<div class="bk-map-frame"><iframe src="' + esc(m.embed) + '" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Map to ' + esc(s.venue || 'the venue') + '" allowfullscreen></iframe></div>' : '') +
+    '<a class="btn block" href="' + esc(m.link) + '" target="_blank" rel="noopener">' + ICON.pin + 'Get directions</a></div>';
 }
 
 // ───────────── dandiya rental (after the ticket is approved) ─────────────
