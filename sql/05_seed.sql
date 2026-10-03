@@ -52,7 +52,6 @@ update public.event_settings
 -- v2: starter instructions panel (only if still empty; edit in Admin > Event)
 update public.event_settings
    set instructions_text = $i$• Children are not allowed.
-• Every person on the ticket must carry their original Aadhaar card.
 • One QR code admits everyone named on the ticket. Please arrive together.$i$
  where id = 1 and instructions_text = '';
 

@@ -196,7 +196,7 @@ function showResult(r, note) {
   var el = $('result'), h = '', n = r.count || (r.names || []).length;
   if (r.result === 'ok') {
     el.className = 'ok'; buzz(120);
-    h = head('\u2714', 'VALID \u2014 LET IN', 'ADMIT ' + n) + '<div class="sub">' + esc(r.type_name) + ' \u00B7 check each Aadhaar</div>' + people(r);
+    h = head('\u2714', 'VALID \u2014 LET IN', 'ADMIT ' + n) + '<div class="sub">' + esc(r.type_name) + '</div>' + people(r);
     if (r.dandiya_pairs) h += '<div class="dk">Dandiya paid: <b>' + r.dandiya_pairs + ' pair' + (r.dandiya_pairs === 1 ? '' : 's') + '</b> \u2014 hand over</div>';
   } else if (r.result === 'already_used') {
     el.className = 'used'; buzz([200, 100, 200]);

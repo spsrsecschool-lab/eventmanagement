@@ -1,7 +1,7 @@
 -- 04_storage.sql : buckets and policies. Safe to re-run.
 --   branding    : PUBLIC read (logo, banner, payment QR images). Only admin can write.
 --   screenshots : PRIVATE. Public can only upload (to a random uuid.jpg path); only admin can read.
---   ids         : PRIVATE Aadhaar images, one per person. Same rules as screenshots: public upload only, admin read.
+--   ids         : PRIVATE Aadhaar images from older orders (no longer collected). Admin read only.
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('branding', 'branding', true, 5242880, array['image/png','image/jpeg','image/webp'])
@@ -43,9 +43,7 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values ('ids', 'ids', false, 3145728, array['image/jpeg'])
 on conflict (id) do update set public = false, file_size_limit = 3145728, allowed_mime_types = array['image/jpeg'];
 
-drop policy if exists "ids public upload" on storage.objects;
-create policy "ids public upload" on storage.objects for insert to anon, authenticated
-  with check (bucket_id = 'ids' and name ~ '^[0-9a-f-]{36}\.jpg$');
+drop policy if exists "ids public upload" on storage.objects;   -- Aadhaar photos are no longer collected (sql/12)
 drop policy if exists "ids admin read" on storage.objects;
 create policy "ids admin read" on storage.objects for select to authenticated
   using (bucket_id = 'ids' and public.is_admin());
