@@ -36,7 +36,11 @@ In the SQL editor, run these files in order (each is safe to re-run):
 
 **Venue map:** run `sql/11_venue_map.sql` once, then in Admin → Event paste the venue's Google Maps link (or type the address). Approved buyers see a map with a Get directions button on their pass page, and the ticket email gets a venue card with the same button. Use `{map}` in an email template to place the link yourself.
 
-**No Aadhaar uploads:** run `sql/12_no_aadhaar.sql` once. Buyers then only type each person's name; the Aadhaar photo step is gone from booking, admin and scanner. Running 01 to 05 again also works; they are safe to re-run.
+**No Aadhaar uploads:** run `sql/12_no_aadhaar.sql` once. Buyers then only type each person's name; the Aadhaar photo step is gone from booking, admin and scanner.
+
+**Staff booking:** run `sql/13_staff_booking.sql` once. In Admin → Event turn on **Staff booking**, copy the staff link and add it as a button on your staff portal. Staff get the discount (default 20%) on every pass and can book for at most 2 people in total (matched by mobile number or email; rejected orders don't count). Upload a staff payment QR for each amount shown. Staff orders appear in Orders with a **staff** tag and a **Staff** filter. **Make a new link** stops the old one working.
+
+Running 01 to 05 again also works; they are safe to re-run.
 
 **Create the first admin:** Supabase > Authentication > Users > Add user (email + password, tick Auto Confirm). Put that email into `06_make_admin.sql` and run it (should print `UPDATE 1`). Sign in on the admin site. Scanner logins are created from the admin site (Staff tab), never by hand.
 

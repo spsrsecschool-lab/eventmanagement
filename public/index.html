@@ -267,6 +267,19 @@
   .bk-badge.wait{background:#fff1d1;color:#8a5a00}
   .bk-badge.ok{background:#e3f6ea;color:#17703d}
   .bk-badge.no{background:#fde3e6;color:#9b1c3a}
+  .bk-staff-intro{display:flex;align-items:center;gap:14px;border-top:5px solid var(--mari)}
+  .bk-staff-intro p{margin:0;color:rgba(42,4,48,.82);line-height:1.5;font-size:15px}
+  .bk-staff-off{flex:none;display:flex;align-items:center;justify-content:center;width:84px;height:84px;border-radius:50%;background:var(--red);color:var(--mari);
+    font-family:var(--f-display);font-weight:700;font-size:22px;line-height:1;text-align:center;box-shadow:0 0 0 4px rgba(244,182,63,.35)}
+  .bk-staff-pass .row{align-items:flex-start;gap:12px}
+  .bk-staff-pass.sold{opacity:.6}
+  .bk-staff-price{text-align:right;white-space:nowrap}
+  .bk-staff-price s{display:block;font-size:14px;color:rgba(42,4,48,.5)}
+  .bk-staff-price b{display:block;font-family:var(--f-display);font-weight:700;font-size:30px;line-height:1.05;color:var(--red)}
+  .bk-staff-price small{font-size:13px;color:rgba(42,4,48,.6)}
+  .bk-staff-tag{display:inline-block;vertical-align:middle;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+    background:var(--red);color:var(--mari);padding:3px 8px;border-radius:999px;margin-left:6px}
+  .bk .card .sub s{opacity:.6}
   .bk-map{border-top:5px solid var(--mari)}
   .bk-map h3{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-weight:700;font-size:21px;margin:0 0 4px;color:var(--ink)}
   .bk-map h3 svg{width:22px;height:22px;color:var(--red)}
@@ -366,12 +379,22 @@ var API_BASE     = 'https://spseventadmin.vercel.app';            // admin proje
 var sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
 var S = { settings: null, types: [], route: null };   // S.settings = public event_settings row
 var B = null;                                          // buy-form state
+var STAFF = null;                                      // staff link info {key, discount, max_people} once checked
 var pollTimer = null;
 var MY_KEY = 'tk_my_orders';
 var SETTINGS_BASE = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,theme,ticket_design';
 var SETTINGS_COLS = SETTINGS_BASE + ',payment_qr_path,instructions_text,upi_id,dandiya_enabled,dandiya_rent,dandiya_deposit,dandiya_max,dandiya_qrs';
-var SETTINGS_PRE11 = SETTINGS_COLS;                  // before sql/11 was run
-SETTINGS_COLS += ',venue_map';
+// Newest columns first; each later entry is what an older database has (so the site keeps working before new SQL is run).
+var SETTINGS_TRY = [[SETTINGS_COLS + ',venue_map,staff_enabled,staff_discount,staff_max_people,staff_qrs', ''],
+  [SETTINGS_COLS + ',venue_map', 'sql/13_staff_booking.sql (staff booking)'], [SETTINGS_COLS, 'sql/13_staff_booking.sql (venue map + staff booking)'],
+  [SETTINGS_BASE, 'sql/09_upgrade_v3.sql, then sql/13_staff_booking.sql']];
+async function fetchSettings() {
+  for (var i = 0, r; i < SETTINGS_TRY.length; i++) {
+    r = await sb.from('event_settings').select(SETTINGS_TRY[i][0]).eq('id', 1).single();
+    if (!(r.error && /column|does not exist/i.test(r.error.message))) { r.missing = SETTINGS_TRY[i][1]; return r; }
+  }
+  return r;
+}
 var DR = null;                                         // dandiya-rental form state
 var cdTimer = null;                                    // landing-page countdown
 var FONTS = {
@@ -472,11 +495,7 @@ function applyTheme(th) {
 
 // ───────────── data ─────────────
 async function loadSettings() {
-  var r = await sb.from('event_settings').select(SETTINGS_COLS).eq('id', 1).single();
-  if (r.error && /column|does not exist/i.test(r.error.message))   // newer SQL not run yet: keep the site working
-    r = await sb.from('event_settings').select(SETTINGS_PRE11).eq('id', 1).single();
-  if (r.error && /column|does not exist/i.test(r.error.message))
-    r = await sb.from('event_settings').select(SETTINGS_BASE).eq('id', 1).single();
+  var r = await fetchSettings();
   if (r.error) throw r.error;
   S.settings = r.data;
   lsSet('tk_settings_cache', r.data);
@@ -503,6 +522,8 @@ function route() {
   var p = h.split('/').filter(Boolean);
   window.scrollTo(0, 0);
   if (p[0] === 'buy' && p[1]) return viewBuy(p[1]);
+  if (p[0] === 'staff' && p[1] && p[2]) return viewBuy(p[2], p[1]);
+  if (p[0] === 'staff' && p[1]) return viewStaff(p[1]);
   if (p[0] === 'order' && p[1] && p[2] === 'dandiya') return viewDandiya(p[1]);
   if (p[0] === 'order' && p[1]) return viewOrder(p[1]);
   return viewHome();
@@ -514,7 +535,7 @@ function shell(inner, opts) {
   var s = S.settings || {};
   opts = opts || {};
   return '<div class="bk"><header class="bk-head">' + fxHTML(opts.celebrate ? 0.9 : 0.35) +
-      '<a class="bk-home" href="#/" aria-label="Back to the event page">' + ICON.back + '</a>' +
+      '<a class="bk-home" href="' + (opts.home || '#/') + '" aria-label="Back">' + ICON.back + '</a>' +
       '<div class="bk-brand"><div class="bk-name">' + titleHTML(s.name || '') + '</div>' + (s.date_text ? '<div class="bk-date">' + esc(s.date_text) + '</div>' : '') + '</div></header>' +
     edge(LP.poster, LP.au) + '<main class="bk-main">' + inner + '</main>' + tilesHTML() + '</div>';
 }
@@ -763,17 +784,61 @@ async function loadMine(mine) {
 }
 
 // ───────────── buy ─────────────
-async function viewBuy(typeId) {
+async function viewBuy(typeId, staffKey) {
   try {
     if (!S.settings) await loadSettings();
     await loadTypes();
+    if (staffKey) await staffInfo(staffKey);
   } catch (e) { return fail(e); }
+  var home = staffKey ? '#/staff/' + encodeURIComponent(staffKey) : '#/', back = '<br><br><a class="btn ghost" href="' + home + '">Back</a>';
+  if (staffKey && !STAFF) { $('app').innerHTML = shell(staffInvalidHTML()); return; }
   var t = S.types.filter(function (x) { return String(x.id) === String(typeId); })[0];
-  if (!t) { $('app').innerHTML = shell('<div class="card center">This ticket type is not available.<br><br><a class="btn" href="#/">Back to event</a></div>'); return; }
-  if (salesState(S.settings) !== 'open') { $('app').innerHTML = shell('<div class="card center">' + esc(S.settings.closed_message || 'Ticket sales are closed.') + '<br><br><a class="btn ghost" href="#/">Back to event</a></div>'); return; }
-  if (t.remaining <= 0) { $('app').innerHTML = shell('<div class="card center">Sorry, <b>' + esc(t.name) + '</b> is sold out.<br><br><a class="btn ghost" href="#/">Back to event</a></div>'); return; }
-  if (!B || B.typeId !== t.id) B = { typeId: t.id, step: 1, qty: 1, name: '', phone: '', email: '', email2: '', names: new Array(ppu(t)).fill(''), agree: false, firstEdited: false, payer: '', shot: null, shotUrl: '', busy: false };
+  if (!t || (staffKey && ppu(t) > STAFF.max_people)) { $('app').innerHTML = shell('<div class="card center">This ticket type is not available.' + back + '</div>', { home: home }); return; }
+  if (salesState(S.settings) !== 'open') { $('app').innerHTML = shell('<div class="card center">' + esc(S.settings.closed_message || 'Ticket sales are closed.') + back + '</div>', { home: home }); return; }
+  if (t.remaining <= 0) { $('app').innerHTML = shell('<div class="card center">Sorry, <b>' + esc(t.name) + '</b> is sold out.' + back + '</div>', { home: home }); return; }
+  if (!B || B.typeId !== t.id || B.staff !== (staffKey || '')) B = { typeId: t.id, staff: staffKey || '', step: 1, qty: 1, name: '', phone: '', email: '', email2: '', names: new Array(ppu(t)).fill(''), agree: false, firstEdited: false, payer: '', shot: null, shotUrl: '', busy: false };
   drawBuy();
+}
+
+// ───────────── staff booking (secret link from the school's staff portal) ─────────────
+async function staffInfo(key) {
+  if (STAFF && STAFF.key === key) return STAFF;
+  var r = await sb.rpc('staff_check', { p_key: key });
+  STAFF = r.data ? { key: key, discount: r.data.discount || 0, max_people: r.data.max_people || 2 } : null;
+  return STAFF;
+}
+function staffPrice(t) { return Math.round(t.price * (100 - STAFF.discount) / 100); }
+function unitPrice(t) { return B && B.staff && STAFF ? staffPrice(t) : t.price; }
+function staffInvalidHTML() {
+  return '<div class="card bk-status"><div class="bk-ico no">' + ICON.x + '</div><h2>Staff link not active</h2><p>This staff booking link is not working right now. Please open it again from the staff portal, or contact the school office.</p></div>';
+}
+function staffRuleHTML() {
+  return 'Each staff member can book for up to <b>' + STAFF.max_people + ' ' + (STAFF.max_people === 1 ? 'person' : 'people') + '</b> in total. We check this by your mobile number and email, so please use your own.';
+}
+async function viewStaff(key) {
+  try {
+    if (!S.settings) await loadSettings();
+    await loadTypes();
+    await staffInfo(key);
+  } catch (e) { return fail(e); }
+  if (!STAFF) { $('app').innerHTML = shell(staffInvalidHTML()); return; }
+  var s = S.settings, home = '#/staff/' + encodeURIComponent(key);
+  var h = '<div class="bk-order"><small>For school staff</small><h1>Staff booking</h1></div>' +
+    '<div class="card bk-staff-intro"><div class="bk-staff-off">' + STAFF.discount + '% off</div><p>' + staffRuleHTML() + '</p></div>';
+  if (salesState(s) !== 'open') {
+    h += '<div class="card center">' + esc(s.closed_message || 'Ticket sales are closed.') + '</div>';
+  } else {
+    var list = S.types.filter(function (t) { return ppu(t) <= STAFF.max_people; });
+    if (!list.length) h += '<div class="card center">No passes are on sale right now.</div>';
+    list.forEach(function (t) {
+      var sold = t.remaining <= 0;
+      h += '<div class="card bk-staff-pass' + (sold ? ' sold' : '') + '"><div class="row"><div><div class="tname">' + esc(t.name) + '</div>' +
+        (t.description ? '<div class="sub">' + esc(t.description) + '</div>' : '') + '</div>' +
+        '<div class="bk-staff-price"><s>' + rupees(t.price) + '</s><b>' + rupees(staffPrice(t)) + '</b><small>per ' + unitWord(t, 1) + '</small></div></div>' +
+        (sold ? '<p class="sub">All passes taken</p>' : '<a class="btn block" href="' + home + '/' + t.id + '">Book ' + esc(t.name) + '</a>') + '</div>';
+    });
+  }
+  $('app').innerHTML = shell(h);
 }
 function ppu(t) { return Math.max(1, (t && t.persons_per_unit) || 1); }
 function unitWord(t, n) {   // "couple"/"couples" for a couple pass, else "person"/"people"
@@ -802,7 +867,11 @@ function copyUpi(btn) {
   };
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(v).then(done, fallback); else fallback();
 }
-function maxQty(t) { return Math.max(1, Math.min(S.settings.max_per_order, t.remaining)); }
+function maxQty(t) {
+  var m = Math.min(S.settings.max_per_order, t.remaining);
+  if (B && B.staff && STAFF) m = Math.min(m, Math.floor(STAFF.max_people / ppu(t)));
+  return Math.max(1, m);
+}
 function curType() { return S.types.filter(function (x) { return x.id === B.typeId; })[0]; }
 
 function drawBuy() {
@@ -812,12 +881,15 @@ function drawBuy() {
   h += '<ol class="bk-steps" aria-label="Step ' + B.step + ' of 3">' + labels.map(function (l, n) {
     return '<li class="' + (n + 1 < B.step ? 'done' : n + 1 === B.step ? 'on' : '') + '"' + (n + 1 === B.step ? ' aria-current="step"' : '') + '><i></i>' + l + '</li>';
   }).join('') + '</ol>';
-  h += '<div class="card row"><div><div class="tname">' + esc(t.name) + '</div><div class="sub">' + rupees(t.price) + ' per ' + unitWord(t, 1) + '</div></div><div class="price">' + rupees(t.price * B.qty) + '</div></div>';
+  var up = unitPrice(t);
+  h += '<div class="card row"><div><div class="tname">' + esc(t.name) + (B.staff ? ' <span class="bk-staff-tag">Staff</span>' : '') + '</div><div class="sub">' +
+    (B.staff ? '<s>' + rupees(t.price) + '</s> ' : '') + rupees(up) + ' per ' + unitWord(t, 1) + '</div></div><div class="price">' + rupees(up * B.qty) + '</div></div>';
   h += '<section class="bk-sheet">';
 
   if (B.step === 1) {
     var mq = maxQty(t), opts = '';
     for (var i = 1; i <= mq; i++) opts += '<option value="' + i + '"' + (i === B.qty ? ' selected' : '') + '>' + i + '</option>';
+    if (B.staff) h += '<div class="card notice"><div class="sub" style="color:inherit">' + staffRuleHTML() + '</div></div>';
     h += '<label for="f_qty">Number of ' + unitWord(t, 2) + '</label><select id="f_qty" onchange="onQty()">' + opts + '</select>';
     h += '<label for="f_name">Your name</label><input id="f_name" autocomplete="name" value="' + esc(B.name) + '" oninput="onBuyerName()">';
     h += '<label for="f_phone">Phone number</label><input id="f_phone" type="tel" inputmode="tel" autocomplete="tel" value="' + esc(B.phone) + '">';
@@ -832,8 +904,8 @@ function drawBuy() {
     if (s.terms_text) h += '<div class="terms">' + esc(s.terms_text) + '</div>';
   } else if (B.step === 2) {
     // QR made for this exact amount (per pass type and quantity); else the general event QR
-    var total = t.price * B.qty, payQr = (t.payment_qrs || {})[String(B.qty)] || s.payment_qr_path || t.payment_qr_path;
-    h += '<div class="card"><div class="center sub">Pay exactly</div><div class="total">' + rupees(total) + '</div><div class="center sub">' + B.qty + ' ' + unitWord(t, B.qty) + ' \u00D7 ' + rupees(t.price) + '</div>' +
+    var total = up * B.qty, payQr = (B.staff ? (s.staff_qrs || {})[String(total)] : (t.payment_qrs || {})[String(B.qty)]) || s.payment_qr_path || t.payment_qr_path;
+    h += '<div class="card"><div class="center sub">Pay exactly</div><div class="total">' + rupees(total) + '</div><div class="center sub">' + B.qty + ' ' + unitWord(t, B.qty) + ' \u00D7 ' + rupees(up) + '</div>' +
       (payQr ? '<img class="qr" src="' + esc(pubUrl(payQr)) + '" alt="UPI QR code for ' + rupees(total) + '">' : (s.upi_id ? '' : '<p class="center sub">Payment QR is not set up yet. Please contact the organiser.</p>')) +
       upiHTML() +
       '<div class="center sub" style="margin:8px 0">Paying from this phone? Take a screenshot of the QR, then in your UPI app choose \u201CScan from gallery\u201D, or copy the UPI ID.</div></div>';
@@ -844,11 +916,11 @@ function drawBuy() {
     h += '<div class="card"><b>Upload your payment screenshot</b><div class="sub">Used only as a reference so we can verify your payment.</div>' +
       '<input id="f_shot" type="file" accept="image/*" style="margin-top:12px" onchange="onShot(this)">' +
       '<div id="shotPrev">' + (B.shotUrl ? '<img class="thumb" src="' + B.shotUrl + '" alt="screenshot preview">' : '') + '</div></div>';
-    h += '<div class="card sub">' + B.qty + ' \u00D7 ' + esc(t.name) + ' = <b>' + rupees(t.price * B.qty) + '</b><br>Paid by: <b>' + esc(B.payer) + '</b></div>';
+    h += '<div class="card sub">' + B.qty + ' \u00D7 ' + esc(t.name) + ' = <b>' + rupees(up * B.qty) + '</b><br>Paid by: <b>' + esc(B.payer) + '</b></div>';
     h += '<div id="err" class="err"></div><button id="submitBtn" class="block" onclick="submitOrder()">Submit order</button>';
   }
   h += '</section>';
-  $('app').innerHTML = shell(h);
+  $('app').innerHTML = shell(h, { home: B.staff ? '#/staff/' + encodeURIComponent(B.staff) : '#/' });
   if (B.step === 1) drawNames();
 }
 
@@ -868,7 +940,7 @@ function drawNames() {
 }
 function onQty() {
   B.qty = Number($('f_qty').value);
-  var pe = document.querySelector('.bk .price'), tt = curType(); if (pe && tt) pe.textContent = rupees(tt.price * B.qty);
+  var pe = document.querySelector('.bk .price'), tt = curType(); if (pe && tt) pe.textContent = rupees(unitPrice(tt) * B.qty);
   var n = peopleCount();
   while (B.names.length < n) B.names.push('');
   B.names.length = n;
@@ -966,6 +1038,9 @@ var ERR_MAP = {
 function friendly(e) {
   var m = String(e && e.message || e), code = m.split(':')[0], arg = m.split(':')[1];
   if (code === 'NOT_ENOUGH_SEATS') return 'Not enough passes left for this many. Please choose a smaller number.';
+  if (code === 'STAFF_LIMIT') return +arg > 0 ? 'Staff can book for up to ' + (STAFF ? STAFF.max_people : 2) + ' people in total, and you have ' + arg + ' left. Please choose fewer.'
+    : 'You have already used your staff booking (up to ' + (STAFF ? STAFF.max_people : 2) + ' people per staff member). Your earlier booking is in your email.';
+  if (code === 'BAD_STAFF_LINK') return 'This staff link is not active any more. Please open it again from the staff portal.';
   if (code === 'MAX_PER_ORDER') return 'You can buy at most ' + arg + ' tickets per order.';
   if (code === 'BAD_PAIRS') return 'Choose between 1 and ' + arg + ' pairs.';
   return ERR_MAP[code] || 'Could not place your order: ' + m;
@@ -990,11 +1065,13 @@ async function submitOrder() {
     if (up.error) throw new Error('BAD_SCREENSHOT');
 
     btn.textContent = 'Placing order…';
-    var r = await sb.rpc('create_order', {
+    var args = {
       p_type_id: t.id, p_qty: B.qty, p_buyer_name: B.name.trim(), p_email: B.email.trim(), p_phone: B.phone.trim(),
       p_payer_name: B.payer.trim(), p_screenshot_path: path, p_names: B.names.slice(0, peopleCount()).map(function (n) { return n.trim(); }),
       p_id_paths: []
-    });
+    };
+    if (B.staff) args.p_staff_key = B.staff;   // staff price + per-staff limit are applied by the server
+    var r = await sb.rpc('create_order', args);
     if (r.error) throw r.error;
     var token = r.data;
     var mine = lsGet(MY_KEY, []); mine.unshift({ token: token, at: Date.now() }); lsSet(MY_KEY, mine.slice(0, 20));
@@ -1006,7 +1083,9 @@ async function submitOrder() {
   } catch (e) {
     B.busy = false; btn.disabled = false; btn.textContent = 'Submit order';
     showErr(friendly(e));
-    if (/SOLD_OUT|NOT_ENOUGH|SALES_CLOSED|TYPE_UNAVAIL/.test(String(e.message))) { btn.textContent = 'Go back'; btn.onclick = function () { go('#/'); }; }
+    var em = String(e.message), home = B.staff ? '#/staff/' + encodeURIComponent(B.staff) : '#/';
+    if (/^STAFF_LIMIT:[1-9]/.test(em)) { btn.textContent = 'Change number of people'; btn.onclick = function () { buyStep(1); }; }
+    else if (/SOLD_OUT|NOT_ENOUGH|SALES_CLOSED|TYPE_UNAVAIL|STAFF_LIMIT|BAD_STAFF_LINK/.test(em)) { btn.textContent = 'Go back'; btn.onclick = function () { go(home); }; }
   }
 }
 
