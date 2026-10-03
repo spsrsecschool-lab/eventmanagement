@@ -86,6 +86,10 @@ grant select (upi_id, dandiya_enabled, dandiya_rent, dandiya_deposit, dandiya_ma
   on public.event_settings to anon, authenticated;
 grant select (persons_per_unit, person_labels, unit_label, payment_qrs) on public.ticket_types to anon;
 
+-- venue map + staff booking settings. staff_key is NOT granted: the admin reads it through admin_staff_key().
+grant select (venue_map, staff_enabled, staff_discount, staff_max_people, staff_qrs)
+  on public.event_settings to anon, authenticated;
+
 alter table public.dandiya_rentals enable row level security;
 grant select on public.dandiya_rentals to authenticated;
 grant update (deposit_refunded) on public.dandiya_rentals to authenticated;

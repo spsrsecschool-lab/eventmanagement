@@ -67,14 +67,53 @@ language sql immutable set search_path = public, pg_temp as $$
 $$;
 revoke all on function public._slot_label(public.ticket_types,int,int) from public, anon, authenticated;
 
+-- ---------- staff booking helpers ----------
+-- People already booked by one staff member (pending + approved staff orders, same email or same mobile).
+create or replace function public._staff_used(p_email text, p_phone text) returns int
+language sql stable security definer set search_path = public, pg_temp as $$
+  select count(*)::int from public.tickets tk join public.orders o on o.id = tk.order_id
+   where o.is_staff and o.status in ('pending', 'approved')
+     and (lower(o.email) = lower(btrim(coalesce(p_email, '')))
+          or (length(regexp_replace(coalesce(p_phone, ''), '\D', '', 'g')) >= 10
+              and right(regexp_replace(o.phone, '\D', '', 'g'), 10) = right(regexp_replace(p_phone, '\D', '', 'g'), 10)));
+$$;
+revoke all on function public._staff_used(text, text) from public, anon, authenticated;
+
+-- Staff page: is this link valid? Returns {discount, max_people} or null. Never returns the key.
+create or replace function public.staff_check(p_key text) returns jsonb
+language sql stable security definer set search_path = public, pg_temp as $$
+  select jsonb_build_object('discount', staff_discount, 'max_people', staff_max_people)
+    from public.event_settings
+   where id = 1 and staff_enabled and staff_key <> '' and staff_key = p_key;
+$$;
+revoke all on function public.staff_check(text) from public, anon, authenticated;
+grant execute on function public.staff_check(text) to anon, authenticated;
+
+-- Admin: the secret staff link key (made on first use). p_new = true makes a new one; the old link stops working.
+create or replace function public.admin_staff_key(p_new boolean default false) returns text
+language plpgsql volatile security definer set search_path = public, pg_temp as $$
+declare k text;
+begin
+  if not public.is_admin() then raise exception 'FORBIDDEN'; end if;
+  update public.event_settings set staff_key = public._rand_token()
+   where id = 1 and (p_new or staff_key = '');
+  select staff_key into k from public.event_settings where id = 1;
+  return k;
+end $$;
+revoke all on function public.admin_staff_key(boolean) from public, anon, authenticated;
+grant execute on function public.admin_staff_key(boolean) to authenticated;
+
 -- ---------- public: create_order ----------
 -- Price comes from ticket_types, never the client. Errors are plain codes the page maps to messages.
 -- One QR code per order (admits everyone on it); qty = passes; people = qty x persons_per_unit,
 -- each with a name (Aadhaar images optional, no longer asked for).
-drop function if exists public.create_order(bigint,int,text,text,text,text,text,text[]);   -- pre-v2 signature (no Aadhaar)
+-- p_staff_key (from the secret staff link): staff discount, and at most staff_max_people people per staff member,
+-- counted over their pending + approved staff orders by the same mobile number or email.
+drop function if exists public.create_order(bigint,int,text,text,text,text,text,text[]);          -- pre-v2 signature (no Aadhaar)
+drop function if exists public.create_order(bigint,int,text,text,text,text,text,text[],text[]);   -- pre-staff signature
 create or replace function public.create_order(
   p_type_id bigint, p_qty int, p_buyer_name text, p_email text, p_phone text,
-  p_payer_name text, p_screenshot_path text, p_names text[], p_id_paths text[]
+  p_payer_name text, p_screenshot_path text, p_names text[], p_id_paths text[], p_staff_key text default null
 ) returns text
 language plpgsql security definer set search_path = public, extensions, pg_temp as $$
 declare
@@ -86,6 +125,7 @@ declare
   v_phone text := btrim(coalesce(p_phone, ''));
   v_order public.orders%rowtype;
   v_left  int; v_people int; i int; nm text;
+  v_staff boolean := p_staff_key is not null; v_price int; v_used int;
 begin
   select * into s from public.event_settings where id = 1;
   if not found or not s.sales_open
@@ -110,6 +150,19 @@ begin
   foreach nm in array p_names loop
     if length(btrim(coalesce(nm, ''))) < 2 or length(nm) > 80 then raise exception 'BAD_ATTENDEES'; end if;
   end loop;
+
+  v_price := t.price;
+  if v_staff then
+    if not s.staff_enabled or s.staff_key = '' or p_staff_key is distinct from s.staff_key then raise exception 'BAD_STAFF_LINK'; end if;
+    v_price := round(t.price * (100 - s.staff_discount) / 100.0);
+    -- one staff member = same mobile (last 10 digits) or same email. Lock both so two tabs cannot pass the check together.
+    perform pg_advisory_xact_lock(hashtext('staff-phone:' || right(regexp_replace(v_phone, '\D', '', 'g'), 10)));
+    perform pg_advisory_xact_lock(hashtext('staff-email:' || v_email));
+    v_used := public._staff_used(v_email, v_phone);
+    if v_used + v_people > s.staff_max_people then
+      raise exception 'STAFF_LIMIT:%', greatest(s.staff_max_people - v_used, 0);
+    end if;
+  end if;
 
   -- Aadhaar images are no longer collected (the page sends an empty list). If a list is sent, it must still be
   -- one image per person: uploaded through the public uploader, all different, never used before.
@@ -143,9 +196,9 @@ begin
   end if;
 
   insert into public.orders (order_no, token, ticket_code, type_id, type_name, unit_price, qty, amount,
-                             buyer_name, email, phone, payer_name, screenshot_path, status, source)
-  values ('ORD-' || nextval('public.order_no_seq'), public._rand_token(), public._new_ticket_code(), t.id, t.name, t.price, p_qty,
-          t.price * p_qty, v_name, v_email, v_phone, v_payer, p_screenshot_path, 'pending', 'online')
+                             buyer_name, email, phone, payer_name, screenshot_path, status, source, is_staff)
+  values ('ORD-' || nextval('public.order_no_seq'), public._rand_token(), public._new_ticket_code(), t.id, t.name, v_price, p_qty,
+          v_price * p_qty, v_name, v_email, v_phone, v_payer, p_screenshot_path, 'pending', 'online', v_staff)
   returning * into v_order;
 
   for i in 1..v_people loop
@@ -156,8 +209,8 @@ begin
 
   return v_order.token;
 end $$;
-revoke all on function public.create_order(bigint,int,text,text,text,text,text,text[],text[]) from public, anon, authenticated;
-grant execute on function public.create_order(bigint,int,text,text,text,text,text,text[],text[]) to anon, authenticated;
+revoke all on function public.create_order(bigint,int,text,text,text,text,text,text[],text[],text) from public, anon, authenticated;
+grant execute on function public.create_order(bigint,int,text,text,text,text,text,text[],text[],text) to anon, authenticated;
 
 -- ---------- public: get_order (by unguessable token) ----------
 -- Names (+ slot labels), the QR code only once approved, and the latest dandiya rental. Never IDs or screenshots.

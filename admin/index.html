@@ -32,7 +32,7 @@
   .muted{color:var(--muted);font-size:13px}
   .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700}
   .pill.pending{background:#fff3d6;color:#8a5a00}.pill.approved{background:#d9f4e3;color:#16663a}.pill.rejected{background:#fde0e0;color:#9b2222}
-  .pill.sent{background:#d9f4e3;color:#16663a}.pill.failed{background:#fde0e0;color:#9b2222}.pill.gray{background:#ece7f0;color:#554b5e}
+  .pill.sent{background:#d9f4e3;color:#16663a}.pill.failed{background:#fde0e0;color:#9b2222}.pill.gray{background:#ece7f0;color:#554b5e}.pill.staff{background:#e6e0ff;color:#3d2a8f}
   button.b,a.b{font:inherit;font-weight:600;font-size:14px;border:0;border-radius:9px;padding:9px 14px;background:var(--brand);color:#fff;cursor:pointer;text-decoration:none;display:inline-block}
   button.b.sec{background:#ece7f0;color:var(--text)} button.b.ok{background:var(--ok)} button.b.bad{background:var(--bad)}
   button.b.sm{padding:6px 10px;font-size:13px} button.b:disabled{opacity:.5}
@@ -121,6 +121,7 @@
 // ───────────── CONFIG ─────────────
 var SUPABASE_URL = 'https://iuvxavsuoiekrjnylxpy.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_RAac6qm2v3UEhQx4H4DJ-Q_xxuPy9mv';   // publishable key. The service-role key is NEVER used in the browser.
+var PUBLIC_SITE  = 'https://spsevent.vercel.app';   // buyer site (used for the staff booking link)
 var SCANNER_URL  = '';    // optional: shown on the Staff tab, e.g. https://your-scanner.vercel.app
 // ──────────────────────────────────
 
@@ -131,8 +132,17 @@ var T = {};      // tab renderers
 var ACT = {};    // click actions  (data-act="...")
 var SETTINGS_BASE = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,theme,ticket_design';
 var SETTINGS_COLS = SETTINGS_BASE + ',payment_qr_path,instructions_text,upi_id,dandiya_enabled,dandiya_rent,dandiya_deposit,dandiya_max,dandiya_qrs';
-var SETTINGS_PRE11 = SETTINGS_COLS;                  // before sql/11 was run
-SETTINGS_COLS += ',venue_map';
+// Newest columns first; each later entry is what an older database has (so the site keeps working before new SQL is run).
+var SETTINGS_TRY = [[SETTINGS_COLS + ',venue_map,staff_enabled,staff_discount,staff_max_people,staff_qrs', ''],
+  [SETTINGS_COLS + ',venue_map', 'sql/13_staff_booking.sql (staff booking)'], [SETTINGS_COLS, 'sql/13_staff_booking.sql (venue map + staff booking)'],
+  [SETTINGS_BASE, 'sql/09_upgrade_v3.sql, then sql/13_staff_booking.sql']];
+async function fetchSettings() {
+  for (var i = 0, r; i < SETTINGS_TRY.length; i++) {
+    r = await sb.from('event_settings').select(SETTINGS_TRY[i][0]).eq('id', 1).single();
+    if (!(r.error && /column|does not exist/i.test(r.error.message))) { r.missing = SETTINGS_TRY[i][1]; return r; }
+  }
+  return r;
+}
 var TABS = [['orders', 'Orders'], ['manual', 'Add order'], ['types', 'Ticket types'], ['attendees', 'Attendees'], ['emails', 'Emails'],
             ['event', 'Event'], ['theme', 'Theme'], ['ticket', 'Ticket design'], ['templates', 'Email text'], ['staff', 'Staff']];
 var FONTS = { 'Poppins': 'Poppins:wght@400;600;700', 'Inter': 'Inter:wght@400;600;700', 'Playfair Display': 'Playfair+Display:wght@400;600;700',
@@ -300,15 +310,8 @@ async function startApp() {
   startLive();
 }
 async function loadSettings() {
-  var r = await sb.from('event_settings').select(SETTINGS_COLS).eq('id', 1).single();
-  if (r.error && /column|does not exist/i.test(r.error.message)) {   // sql/11 not run yet
-    r = await sb.from('event_settings').select(SETTINGS_PRE11).eq('id', 1).single();
-    if (!r.error) toast('Run sql/11_venue_map.sql in Supabase to turn on the venue map.', true);
-  }
-  if (r.error && /column|does not exist/i.test(r.error.message)) {   // newer SQL not run yet
-    r = await sb.from('event_settings').select(SETTINGS_BASE).eq('id', 1).single();
-    if (!r.error) toast('Database is out of date: run the newest sql/09_upgrade_v3.sql in Supabase.', true);
-  }
+  var r = await fetchSettings();
+  if (!r.error && r.missing && !loadSettings.warned) { loadSettings.warned = 1; toast('Database is out of date: run ' + r.missing + ' in Supabase.', true); }
   if (r.error) throw r.error;
   A.settings = r.data; $('hdrTitle').textContent = r.data.name + ' · Admin';
 }
@@ -368,15 +371,15 @@ function activityAt(o) {   // newest of: order placed, dandiya requested
 }
 function drawOrderList() {
   var all = (A.orders || []).slice().sort(function (a, b) { return activityAt(b) - activityAt(a); });
-  var cnt = { all: all.length, pending: 0, approved: 0, rejected: 0, dandiya: 0 };
-  all.forEach(function (o) { if (needsCheck(o)) cnt.pending++; if (o.status !== 'pending') cnt[o.status]++; if (dkPending(o)) cnt.dandiya++; });
-  var LBL = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected', dandiya: 'Dandiya pending', all: 'All' };
-  $('ordChips').innerHTML = ['pending', 'approved', 'rejected', 'dandiya', 'all'].map(function (s) {
+  var cnt = { all: all.length, pending: 0, approved: 0, rejected: 0, dandiya: 0, staff: 0 };
+  all.forEach(function (o) { if (needsCheck(o)) cnt.pending++; if (o.status !== 'pending') cnt[o.status]++; if (dkPending(o)) cnt.dandiya++; if (o.is_staff) cnt.staff++; });
+  var LBL = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected', dandiya: 'Dandiya pending', staff: 'Staff', all: 'All' };
+  $('ordChips').innerHTML = ['pending', 'approved', 'rejected', 'dandiya', 'staff', 'all'].filter(function (s) { return s !== 'staff' || cnt.staff; }).map(function (s) {
     return '<button class="chip' + (A.ordFilter === s ? ' on' : '') + '" data-act="ordFilter" data-s="' + s + '">' + LBL[s] + ' (' + cnt[s] + ')</button>';
   }).join('');
   var list = all.filter(function (o) {
     var f = A.ordFilter;
-    var okF = f === 'all' || (f === 'pending' ? needsCheck(o) : f === 'dandiya' ? dkPending(o) : o.status === f);
+    var okF = f === 'all' || (f === 'pending' ? needsCheck(o) : f === 'dandiya' ? dkPending(o) : f === 'staff' ? o.is_staff : o.status === f);
     return okF && ordMatches(o, A.ordQ);
   });
   var show = list.slice(0, A.ordLimit);
@@ -392,6 +395,7 @@ function orderCard(o) {
   }).join('');
   var h = '<div class="card" id="o' + o.id + '"><div class="row"><div><b>' + esc(o.order_no) + '</b> <span class="pill ' + o.status + '">' + o.status + '</span>' +
     (dkPending(o) ? ' <span class="pill pending">dandiya to verify</span>' : '') +
+    (o.is_staff ? ' <span class="pill staff">staff</span>' : '') +
     (o.source === 'manual' ? ' <span class="pill gray">manual</span>' : '') + '</div><span class="muted">' + fmt(o.created_at) + '</span></div>' +
     '<div style="margin-top:6px"><b>' + esc(o.qty) + ' × ' + esc(o.type_name) + '</b> = <b>' + rupees(o.amount) + '</b></div>';
   h += '<div class="row" style="align-items:flex-start;margin-top:8px"><div style="min-width:0;flex:1">' +
@@ -722,6 +726,9 @@ async function qrUp(kind, id, n, inp) {
       var ty = A.types.filter(function (x) { return x.id === id; })[0];
       map = Object.assign({}, ty.payment_qrs || {}); old = map[String(n)]; map[String(n)] = path;
       r = await sb.from('ticket_types').update({ payment_qrs: map }).eq('id', id);
+    } else if (kind === 'staff') {
+      map = Object.assign({}, A.settings.staff_qrs || {}); old = map[String(n)]; map[String(n)] = path;
+      r = await sb.from('event_settings').update({ staff_qrs: map }).eq('id', 1);
     } else {
       map = Object.assign({}, A.settings.dandiya_qrs || {}); old = map[String(n)]; map[String(n)] = path;
       r = await sb.from('event_settings').update({ dandiya_qrs: map }).eq('id', 1);
@@ -835,6 +842,7 @@ function venueMap(s) {
 function toLocalInput(ts) { if (!ts) return ''; var d = new Date(ts), p = function (n) { return ('0' + n).slice(-2); }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()); }
 T.event = async function () {
   await loadSettings(); var s = A.settings;
+  if (s.staff_enabled !== undefined) { try { await loadTypes(); } catch (e) {} }
   $('content').innerHTML = '<h2>Event settings</h2><div class="card">' +
     '<label>Event name</label><input id="ev_name" value="' + esc(s.name) + '">' +
     '<div class="grid2"><div><label>Date (as shown to buyers)</label><input id="ev_date" value="' + esc(s.date_text) + '"></div><div><label>Venue</label><input id="ev_venue" value="' + esc(s.venue) + '"></div></div>' +
@@ -849,6 +857,7 @@ T.event = async function () {
     '<label>Max tickets per order</label><input id="ev_max" type="number" min="1" max="50" value="' + esc(s.max_per_order) + '"></div>' +
     (s.venue_map !== undefined ? '<div class="card"><b>Venue on Google Maps</b> <span class="muted">Shown on the buyer\u2019s pass page and in the ticket email. Paste the link from Google Maps (for the exact pin, copy it from the browser address bar after opening the place), or type the full address.</span>' +
       '<input id="ev_map" placeholder="https://www.google.com/maps/place/... or full address" value="' + esc(s.venue_map) + '" oninput="evMapPreview()" style="margin-top:8px"><div id="ev_map_pv"></div></div>' : '') +
+    (s.staff_enabled !== undefined ? staffCard(s) : '') +
     (s.upi_id !== undefined ? '<div class="card"><b>UPI ID</b> <span class="muted">Shown with a Copy button on every pay step (tickets and dandiya).</span><input id="ev_upi" placeholder="e.g. schoolname@okaxis" value="' + esc(s.upi_id) + '" style="margin-top:8px"></div>' : '') +
     (s.dandiya_enabled !== undefined ? '<div class="card"><label class="chk" style="margin-top:0"><input type="checkbox" id="ev_dk"' + (s.dandiya_enabled ? ' checked' : '') + '> <b>Offer dandiya sticks for rent</b></label>' +
       '<div class="muted">After a ticket is approved, buyers are offered sticks: rent + refundable security per pair. You verify their payment in Orders \u2192 Dandiya pending.</div>' +
@@ -868,7 +877,49 @@ T.event = async function () {
     '<input type="file" accept="image/*" onchange="evImg(\'banner_path\',\'banner\',1600,\'jpeg\',this)" style="font-size:13px"></div></div>' +
     '<div class="sticky-save"><button class="b" style="width:100%" data-act="evSave">Save event settings</button></div>';
   evMapPreview();
+  if ($('ev_st_link')) staffLink(false);
 };
+// ── staff booking (secret link from the staff portal) ──
+function staffPrice(price, s) { return Math.round(price * (100 - ((s || A.settings).staff_discount || 0)) / 100); }
+function staffAmounts(s) {   // every amount a staff order can come to, for the QR grid
+  var seen = {}, out = [];
+  (A.types || []).filter(function (t) { return t.active; }).forEach(function (t) {
+    var p = Math.max(1, t.persons_per_unit || 1);
+    for (var q = 1; q * p <= (s.staff_max_people || 2) && q <= (s.max_per_order || 10); q++) {
+      var a = staffPrice(t.price, s) * q; if (!seen[a]) { seen[a] = 1; out.push(a); }
+    }
+  });
+  return out.sort(function (a, b) { return a - b; });
+}
+function staffCard(s) {
+  var amounts = staffAmounts(s), qrs = s.staff_qrs || {};
+  var ex = (A.types || []).filter(function (t) { return t.active; }).map(function (t) { return esc(t.name) + ' ' + rupees(t.price) + ' \u2192 <b>' + rupees(staffPrice(t.price, s)) + '</b>'; }).join(' \u00B7 ');
+  return '<div class="card"><label class="chk" style="margin-top:0"><input type="checkbox" id="ev_st"' + (s.staff_enabled ? ' checked' : '') + '> <b>Staff booking (discount link for school staff)</b></label>' +
+    '<div class="muted">Copy this link and add it as a button on your staff portal. Staff pay by UPI and you approve their orders in Orders \u2192 Staff. Each staff member (same mobile number or email) can book for the max people below in total; rejected orders don\u2019t count.</div>' +
+    '<div class="grid2"><div><label>Discount on every pass (%)</label><input id="ev_st_disc" type="number" min="0" max="90" value="' + esc(s.staff_discount) + '"></div>' +
+    '<div><label>Max people per staff member</label><input id="ev_st_max" type="number" min="1" max="20" value="' + esc(s.staff_max_people) + '"></div></div>' +
+    (ex ? '<div class="muted" style="margin-top:8px">Staff prices: ' + ex + '</div>' : '') +
+    '<label>Staff link</label><div class="row" style="gap:8px"><input id="ev_st_link" readonly value="Loading\u2026" style="flex:1;min-width:0" onclick="this.select()">' +
+    '<button class="b sec" data-act="stCopy">Copy</button></div>' +
+    '<div class="muted" style="margin-top:6px">Link leaked? <button type="button" class="b sec" style="padding:4px 10px;font-size:13px" data-act="stNew">Make a new link</button> (the old one stops working)</div>' +
+    '<div style="margin-top:12px"><b style="font-size:14px">Staff payment QR for each amount</b><div class="muted">Save first if you changed the discount or max people; the amounts below update after saving. Without a QR here, the general payment QR is shown.</div>' +
+    '<div class="qrgrid">' + (amounts.length ? amounts.map(function (a) {
+      var path = qrs[String(a)];
+      return '<div class="qrtile"><b>' + rupees(a) + '</b>' + (path ? '<img src="' + esc(pubUrl(path)) + '" alt="QR for ' + rupees(a) + '">' : '<div class="none">No QR</div>') +
+        '<label>' + (path ? 'Replace' : 'Upload') + '<input type="file" accept="image/*" onchange="qrUp(\'staff\',0,' + a + ',this)"></label></div>';
+    }).join('') : '<div class="muted">Turn on a ticket type first.</div>') + '</div></div></div>';
+}
+async function staffLink(fresh) {
+  var r = await sb.rpc('admin_staff_key', { p_new: !!fresh }), el = $('ev_st_link'); if (!el) return;
+  if (r.error) { el.value = 'Could not load: ' + errText(r.error); return; }
+  el.value = PUBLIC_SITE + '/#/staff/' + r.data;
+  if (fresh) toast('New staff link made. Update it on the staff portal.');
+}
+ACT.stCopy = function () {
+  var v = val('ev_st_link'); if (!/^https?:/.test(v)) return;
+  (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(function () { toast('Staff link copied.'); }, function () { $('ev_st_link').select(); document.execCommand('copy'); toast('Staff link copied.'); });
+};
+ACT.stNew = function () { if (confirm('Make a new staff link? The current link will stop working.')) staffLink(true); };
 function evMapPreview() {
   var box = $('ev_map_pv'); if (!box) return;
   var m = venueMap({ venue_map: val('ev_map'), venue: val('ev_venue') });
@@ -894,6 +945,11 @@ ACT.evSave = async function (d, b) {
   if ($('ev_instr')) row.instructions_text = val('ev_instr').trim();
   if ($('ev_upi')) row.upi_id = val('ev_upi').trim();
   if ($('ev_map')) row.venue_map = val('ev_map').trim();
+  if ($('ev_st')) {
+    row.staff_enabled = $('ev_st').checked;
+    row.staff_discount = Math.min(90, Math.max(0, Math.round(+val('ev_st_disc')) || 0));
+    row.staff_max_people = Math.min(20, Math.max(1, Math.round(+val('ev_st_max')) || 2));
+  }
   if ($('ev_dk')) {
     row.dandiya_enabled = $('ev_dk').checked; row.dandiya_rent = Math.max(0, Math.round(+val('ev_dk_rent')) || 0);
     row.dandiya_deposit = Math.max(0, Math.round(+val('ev_dk_dep')) || 0); row.dandiya_max = Math.min(50, Math.max(1, Math.round(+val('ev_dk_max')) || 10));

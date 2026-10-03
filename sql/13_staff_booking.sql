@@ -1,6 +1,5 @@
--- 12_no_aadhaar.sql : stop requiring an Aadhaar photo per person; buyers only type each person's name.
--- Paste & run once in the Supabase SQL editor. Safe to re-run. Existing orders (and their Aadhaar photos) are unchanged.
--- (Includes the same create_order as 13_staff_booking.sql, so the two files can be run in any order.)
+-- 13_staff_booking.sql : staff booking page (secret link, 20% off, max 2 people per staff member).
+-- Also adds the venue map column if sql/11 was skipped. Paste & run once in the Supabase SQL editor. Safe to re-run.
 
 -- venue map; staff booking (secret link, discount, max people per staff member matched by mobile or email)
 alter table public.event_settings add column if not exists venue_map        text not null default '';   -- Google Maps link or address
@@ -165,7 +164,3 @@ begin
 end $$;
 revoke all on function public.create_order(bigint,int,text,text,text,text,text,text[],text[],text) from public, anon, authenticated;
 grant execute on function public.create_order(bigint,int,text,text,text,text,text,text[],text[],text) to anon, authenticated;
-
--- Nobody uploads Aadhaar photos any more: close public uploads to the "ids" bucket.
--- Admins can still view (and delete) photos from older orders.
-drop policy if exists "ids public upload" on storage.objects;
