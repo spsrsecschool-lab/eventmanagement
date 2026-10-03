@@ -388,8 +388,7 @@ function drawOrderList() {
 function orderCard(o) {
   var names = (o.tickets || []).slice().sort(function (a, b) { return a.id - b.id; }).map(function (t) {
     return '<li class="person">' + (t.slot ? '<span class="slot">' + esc(t.slot) + '</span>' : '') + '<span>' + esc(t.attendee_name) + '</span>' +
-      (t.id_path ? '<img class="idthumb" data-shot="' + esc(t.id_path) + '" data-bucket="ids" data-act="lightbox" alt="Aadhaar of ' + esc(t.attendee_name) + '">'
-                 : (o.source === 'online' ? '<span class="pill rejected">no Aadhaar</span>' : '')) + '</li>';
+      (t.id_path ? '<img class="idthumb" data-shot="' + esc(t.id_path) + '" data-bucket="ids" data-act="lightbox" alt="Aadhaar of ' + esc(t.attendee_name) + '">' : '') + '</li>';   // older orders only
   }).join('');
   var h = '<div class="card" id="o' + o.id + '"><div class="row"><div><b>' + esc(o.order_no) + '</b> <span class="pill ' + o.status + '">' + o.status + '</span>' +
     (dkPending(o) ? ' <span class="pill pending">dandiya to verify</span>' : '') +
@@ -399,7 +398,7 @@ function orderCard(o) {
     '<div>' + esc(o.buyer_name) + '</div>' +
     '<div class="muted"><a href="tel:' + esc(o.phone) + '">' + esc(o.phone) + '</a> · ' + esc(o.email) + '</div>' +
     (o.source === 'online' ? '<div style="margin-top:8px" class="muted">Paid by (name on the payment)</div><span class="payer">' + esc(o.payer_name) + '</span>' : '') +
-    '<div class="muted" style="margin-top:8px">People on this ticket (admits ' + (o.tickets || []).length + ') \u00B7 tap an Aadhaar to enlarge</div><ol class="names">' + names + '</ol>' +
+    '<div class="muted" style="margin-top:8px">People on this ticket (admits ' + (o.tickets || []).length + ')' + ((o.tickets || []).some(function (t) { return t.id_path; }) ? ' \u00B7 tap an Aadhaar to enlarge' : '') + '</div><ol class="names">' + names + '</ol>' +
     (o.checked_in ? '<div><span class="pill approved">Checked in ' + esc(fmt(o.checked_in_at)) + '</span></div>' : '') +
     (o.status === 'rejected' && o.reject_reason ? '<div class="muted">Reason: ' + esc(o.reject_reason) + '</div>' : '') +
     '</div>' + (o.screenshot_path ? '<img class="thumb" data-shot="' + esc(o.screenshot_path) + '" data-act="lightbox" alt="payment screenshot">' : '') + '</div>';

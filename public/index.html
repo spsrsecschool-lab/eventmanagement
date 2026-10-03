@@ -69,11 +69,7 @@
   .nameRow{display:flex;gap:8px;align-items:center}
   .nameRow span{min-width:22px;color:var(--muted);font-size:13px}
   .person{border:1px solid var(--line);border-radius:calc(var(--radius) - 4px);padding:10px;margin-bottom:10px}
-  .idUp{display:flex;align-items:center;gap:10px;margin:8px 0 0;padding:10px;border:1px dashed var(--line);border-radius:calc(var(--radius) - 6px);
         color:var(--text);font-weight:600;font-size:14px;cursor:pointer}
-  .idUp img{width:46px;height:46px;object-fit:cover;border-radius:6px}
-  .idUp.ok{border-style:solid;border-color:#2fb36a}
-  .idUp.bad{border-color:#ff6b6b}
   .hidden{display:none}
   .notice{border-left:4px solid var(--accent)}
   .chk{display:flex;gap:10px;align-items:flex-start;font-size:15px;font-weight:500;color:var(--text);margin:14px 0}
@@ -232,9 +228,6 @@
   .bk .chk{align-items:center;min-height:44px;cursor:pointer}
   .bk .person{background:#fffaf0;border:1.5px dashed rgba(42,4,48,.2)}
   .bk .nameRow span{color:rgba(42,4,48,.6);font-weight:700}
-  .bk .idUp{color:var(--ink);background:#fff;border:1.5px dashed rgba(42,4,48,.32);min-height:48px}
-  .bk .idUp.ok{border:1.5px solid #2e9e5b;background:#f1fbf4}
-  .bk .idUp.bad{border-color:#d23a64}
   .bk .card.notice{background:#fff3d6;border-left:4px solid var(--mari)}
   .bk .instr{color:var(--ink)}
   .bk .chk{color:var(--ink)}
@@ -779,7 +772,7 @@ async function viewBuy(typeId) {
   if (!t) { $('app').innerHTML = shell('<div class="card center">This ticket type is not available.<br><br><a class="btn" href="#/">Back to event</a></div>'); return; }
   if (salesState(S.settings) !== 'open') { $('app').innerHTML = shell('<div class="card center">' + esc(S.settings.closed_message || 'Ticket sales are closed.') + '<br><br><a class="btn ghost" href="#/">Back to event</a></div>'); return; }
   if (t.remaining <= 0) { $('app').innerHTML = shell('<div class="card center">Sorry, <b>' + esc(t.name) + '</b> is sold out.<br><br><a class="btn ghost" href="#/">Back to event</a></div>'); return; }
-  if (!B || B.typeId !== t.id) B = { typeId: t.id, step: 1, qty: 1, name: '', phone: '', email: '', email2: '', names: new Array(ppu(t)).fill(''), ids: [], idUrls: [], agree: false, firstEdited: false, payer: '', shot: null, shotUrl: '', busy: false };
+  if (!B || B.typeId !== t.id) B = { typeId: t.id, step: 1, qty: 1, name: '', phone: '', email: '', email2: '', names: new Array(ppu(t)).fill(''), agree: false, firstEdited: false, payer: '', shot: null, shotUrl: '', busy: false };
   drawBuy();
 }
 function ppu(t) { return Math.max(1, (t && t.persons_per_unit) || 1); }
@@ -861,16 +854,13 @@ function drawBuy() {
 
 function drawNames() {
   var t = curType(), p = ppu(t), lb = t.person_labels || [];
-  var h = '<label>Everyone on this pass</label><div class="sub" style="margin-bottom:8px">One QR admits all these people together. Enter each name as on the Aadhaar card and add a photo of that person\'s Aadhaar. Only the organiser can see it; a masked Aadhaar is fine.</div>';
+  var h = '<label>Everyone on this pass</label><div class="sub" style="margin-bottom:8px">One QR admits all these people together. Enter the full name of each person you are booking for.</div>';
   for (var u = 0; u < B.qty; u++) {
     if (p > 1) h += '<div class="bk-unit"><div class="bk-unit-h">' + esc(t.unit_label || 'Group') + ' ' + (u + 1) + '</div>';
     for (var k = 0; k < p; k++) {
       var i = u * p + k, who = p > 1 ? (lb[k] || 'Person ' + (k + 1)) : (i + 1) + '.';
-      var ph = (p > 1 ? (lb[k] || 'Person') + ': ' : (lb[0] ? lb[0] + ': ' : '')) + 'full name as on Aadhaar';
-      h += '<div class="person"><div class="nameRow"><span>' + esc(who) + '</span><input id="f_n' + i + '" placeholder="' + esc(ph) + '" value="' + esc(B.names[i] || '') + '" oninput="onAttName(' + i + ')"></div>' +
-        '<label class="idUp' + (B.ids[i] ? ' ok' : '') + '" id="f_idl' + i + '" for="f_id' + i + '">' +
-        (B.idUrls[i] ? '<img src="' + B.idUrls[i] + '" alt="">\u2714 Aadhaar added \u00B7 tap to change' : '\uD83D\uDCCE Add Aadhaar photo') + '</label>' +
-        '<input type="file" accept="image/*" id="f_id' + i + '" class="hidden" onchange="onId(' + i + ',this)"></div>';
+      var ph = (p > 1 ? (lb[k] || 'Person') + ': ' : (lb[0] ? lb[0] + ': ' : '')) + 'full name';
+      h += '<div class="person"><div class="nameRow"><span>' + esc(who) + '</span><input id="f_n' + i + '" placeholder="' + esc(ph) + '" value="' + esc(B.names[i] || '') + '" oninput="onAttName(' + i + ')"></div></div>';
     }
     if (p > 1) h += '</div>';
   }
@@ -881,18 +871,8 @@ function onQty() {
   var pe = document.querySelector('.bk .price'), tt = curType(); if (pe && tt) pe.textContent = rupees(tt.price * B.qty);
   var n = peopleCount();
   while (B.names.length < n) B.names.push('');
-  B.names.length = n; B.ids.length = n; B.idUrls.length = n;
+  B.names.length = n;
   drawNames();
-}
-async function onId(i, inp) {
-  var f = inp.files && inp.files[0]; if (!f) return;
-  try {
-    B.ids[i] = await compress(f, 1400);          // larger than the screenshot so the card stays readable
-    if (B.idUrls[i]) URL.revokeObjectURL(B.idUrls[i]);
-    B.idUrls[i] = URL.createObjectURL(B.ids[i]);
-    drawNames();
-    if ($('err')) $('err').className = 'err';
-  } catch (e) { showErr(e.message, 'f_idl' + i); }
 }
 function onBuyerName() {
   B.name = $('f_name').value;
@@ -931,7 +911,6 @@ function toStep2() {
   if (B.email.trim().toLowerCase() !== B.email2.trim().toLowerCase()) return showErr('The two email addresses do not match.', 'f_email2');
   for (var i = 0; i < peopleCount(); i++) {
     if ((B.names[i] || '').trim().length < 2) return showErr('Enter the full name for ' + slotLabel(t, i) + '.', 'f_n' + i);
-    if (!B.ids[i]) return showErr('Add the Aadhaar photo for ' + slotLabel(t, i) + ' (' + B.names[i].trim() + ').', 'f_idl' + i);
   }
   if (S.settings.instructions_text && !B.agree) return showErr('Please tick that you have read and agree to the instructions.', 'f_agree_l');
   B.step = 2; drawBuy(); window.scrollTo(0, 0);
@@ -942,7 +921,7 @@ function toStep3() {
   B.step = 3; drawBuy(); window.scrollTo(0, 0);
 }
 
-// Resize to ~900px (screenshots) / ~1400px (Aadhaar) JPEG before upload
+// Resize the payment screenshot to ~900px JPEG before upload
 function compress(file, maxDim) {
   maxDim = maxDim || 900;
   return new Promise(function (resolve, reject) {
@@ -981,7 +960,6 @@ var ERR_MAP = {
   BAD_NAME: 'Please check your name.', BAD_PHONE: 'Please check your phone number.', BAD_EMAIL: 'Please check your email address.',
   BAD_PAYER: 'Please check the name shown in your payment app.', BAD_ATTENDEES: 'Please check the names on the tickets.',
   BAD_SCREENSHOT: 'The screenshot upload did not work. Please choose the image again.',
-  BAD_IDS: 'An Aadhaar photo did not upload. Please go back and add it again.',
   DANDIYA_OFF: 'Dandiya rental is not available right now.', ORDER_NOT_APPROVED: 'Your ticket must be approved before renting dandiya.',
   DANDIYA_EXISTS: 'You already have a dandiya request for this ticket.', NOT_FOUND: 'We could not find this order.', BAD_QTY: 'Please check the number of tickets.'
 };
@@ -990,7 +968,6 @@ function friendly(e) {
   if (code === 'NOT_ENOUGH_SEATS') return 'Not enough passes left for this many. Please choose a smaller number.';
   if (code === 'MAX_PER_ORDER') return 'You can buy at most ' + arg + ' tickets per order.';
   if (code === 'BAD_PAIRS') return 'Choose between 1 and ' + arg + ' pairs.';
-  if (code === 'BAD_IDS' && arg) return 'The Aadhaar photo for person ' + arg + ' did not upload. Please go back and add it again.';
   return ERR_MAP[code] || 'Could not place your order: ' + m;
 }
 
@@ -1012,21 +989,11 @@ async function submitOrder() {
     var up = await sb.storage.from('screenshots').upload(path, B.shot, { contentType: 'image/jpeg', upsert: false });
     if (up.error) throw new Error('BAD_SCREENSHOT');
 
-    var idPaths = [];
-    var np = peopleCount();
-    for (var i = 0; i < np; i++) {
-      btn.textContent = 'Uploading Aadhaar ' + (i + 1) + ' of ' + np + '\u2026';
-      var ip = uuid() + '.jpg';
-      var iu = await sb.storage.from('ids').upload(ip, B.ids[i], { contentType: 'image/jpeg', upsert: false });
-      if (iu.error) throw new Error('BAD_IDS:' + (i + 1));
-      idPaths.push(ip);
-    }
-
     btn.textContent = 'Placing order…';
     var r = await sb.rpc('create_order', {
       p_type_id: t.id, p_qty: B.qty, p_buyer_name: B.name.trim(), p_email: B.email.trim(), p_phone: B.phone.trim(),
       p_payer_name: B.payer.trim(), p_screenshot_path: path, p_names: B.names.slice(0, peopleCount()).map(function (n) { return n.trim(); }),
-      p_id_paths: idPaths
+      p_id_paths: []
     });
     if (r.error) throw r.error;
     var token = r.data;
@@ -1073,7 +1040,7 @@ async function viewOrder(token) {
          people.map(function (n, i) { return '<li>' + esc(n) + (slots[i] ? ' <small>' + esc(slots[i]) + '</small>' : '') + '</li>'; }).join('') + '</ol></div>';
     // plain link (not fetch): a normal page visit needs no CORS and also works on iPhone
     h += '<a class="btn block" id="dlBtn" href="' + esc(API_BASE + '/api/ticket-pdf?token=' + encodeURIComponent(token)) + '" target="_blank" rel="noopener">Download PDF</a>' + dandiyaCard(o, token) + admits + venueCard(s) +
-         '<p class="sub center">Show this QR code at the gate. It lets everyone on the ticket in together, once. Bring every person\'s original Aadhaar card.</p>';
+         '<p class="sub center">Show this QR code at the gate. It lets everyone on the ticket in together, once.</p>';
   }
   $('app').innerHTML = shell(h, { celebrate: o.status === 'approved' });
   var sig = orderSig(o);

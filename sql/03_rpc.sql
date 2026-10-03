@@ -70,7 +70,7 @@ revoke all on function public._slot_label(public.ticket_types,int,int) from publ
 -- ---------- public: create_order ----------
 -- Price comes from ticket_types, never the client. Errors are plain codes the page maps to messages.
 -- One QR code per order (admits everyone on it); qty = passes; people = qty x persons_per_unit,
--- each with a name and an Aadhaar image.
+-- each with a name (Aadhaar images optional, no longer asked for).
 drop function if exists public.create_order(bigint,int,text,text,text,text,text,text[]);   -- pre-v2 signature (no Aadhaar)
 create or replace function public.create_order(
   p_type_id bigint, p_qty int, p_buyer_name text, p_email text, p_phone text,
@@ -111,18 +111,20 @@ begin
     if length(btrim(coalesce(nm, ''))) < 2 or length(nm) > 80 then raise exception 'BAD_ATTENDEES'; end if;
   end loop;
 
-  -- one Aadhaar image per person: uploaded through the public uploader, all different, never used before
-  if p_id_paths is null or coalesce(array_length(p_id_paths, 1), 0) <> v_people
+  -- Aadhaar images are no longer collected (the page sends an empty list). If a list is sent, it must still be
+  -- one image per person: uploaded through the public uploader, all different, never used before.
+  if coalesce(array_length(p_id_paths, 1), 0) = 0 then
+    p_id_paths := array_fill(null::text, array[v_people]);
+  elsif array_length(p_id_paths, 1) <> v_people
      or (select count(distinct x) from unnest(p_id_paths) x) <> v_people then
     raise exception 'BAD_IDS';
-  end if;
-  for i in 1..v_people loop
+  else for i in 1..v_people loop
     if p_id_paths[i] is null or p_id_paths[i] !~ '^[0-9a-f-]{36}\.jpg$'
        or not exists (select 1 from storage.objects o where o.bucket_id = 'ids' and o.name = p_id_paths[i])
        or exists (select 1 from public.tickets where id_path = p_id_paths[i]) then
       raise exception 'BAD_IDS:%', i;
     end if;
-  end loop;
+  end loop; end if;
 
   -- screenshot must be a path uploaded through the public uploader and not used anywhere else
   if p_screenshot_path is null or p_screenshot_path !~ '^[0-9a-f-]{36}\.jpg$'

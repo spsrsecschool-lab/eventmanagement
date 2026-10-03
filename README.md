@@ -1,6 +1,6 @@
 # Event ticketing (Dandiya Nights)
 
-Buyers pick a ticket, name everyone in their group and upload each person's Aadhaar photo, pay by UPI QR, upload a screenshot. One QR per order admits the whole group once. The organiser checks the payer name against his own payment history and approves. The buyer is emailed a PDF ticket (name + unique QR). A separate scanner app lets each ticket in once.
+Buyers pick a ticket, type the name of everyone in their group, pay by UPI QR, upload a screenshot. One QR per order admits the whole group once. The organiser checks the payer name against his own payment history and approves. The buyer is emailed a PDF ticket (name + unique QR). A separate scanner app lets each ticket in once.
 
 ```
 public/    buyer site (no links to admin or scanner)        -> Vercel project 1
@@ -25,7 +25,7 @@ In the SQL editor, run these files in order (each is safe to re-run):
 | 1 | `sql/01_schema.sql` | tables, constraints, indexes |
 | 2 | `sql/02_rls.sql` | locks everything down, grants only what each role needs |
 | 3 | `sql/03_rpc.sql` | `create_order`, `get_order`, `check_in`, undo, admin actions |
-| 4 | `sql/04_storage.sql` | `branding` (public read, admin write); `screenshots` and `ids` (Aadhaar) are private: public upload only, admin read |
+| 4 | `sql/04_storage.sql` | `branding` (public read, admin write); `screenshots` is private: public upload only, admin read; `ids` keeps Aadhaar photos from older orders (admin read only) |
 | 5 | `sql/05_seed.sql` | Dandiya Nights defaults, theme, ticket design, email wording, one **off-sale** starter ticket type |
 | 6 | `sql/06_make_admin.sql` | run once after creating your admin user (below) |
 | 7 | `sql/07_single_payment_qr.sql` | one payment QR for the whole event (run once if you set up before this file existed) |
@@ -34,7 +34,9 @@ In the SQL editor, run these files in order (each is safe to re-run):
 
 **Live admin orders:** run `sql/10_realtime.sql` once so the admin Orders tab updates instantly (green "Live" badge). Without it the tab still checks for new orders every 20 seconds ("Auto-refresh" badge).
 
-**Venue map:** run `sql/11_venue_map.sql` once, then in Admin → Event paste the venue's Google Maps link (or type the address). Approved buyers see a map with a Get directions button on their pass page, and the ticket email gets a venue card with the same button. Use `{map}` in an email template to place the link yourself. Running 01 to 05 again also works; they are safe to re-run.
+**Venue map:** run `sql/11_venue_map.sql` once, then in Admin → Event paste the venue's Google Maps link (or type the address). Approved buyers see a map with a Get directions button on their pass page, and the ticket email gets a venue card with the same button. Use `{map}` in an email template to place the link yourself.
+
+**No Aadhaar uploads:** run `sql/12_no_aadhaar.sql` once. Buyers then only type each person's name; the Aadhaar photo step is gone from booking, admin and scanner. Running 01 to 05 again also works; they are safe to re-run.
 
 **Create the first admin:** Supabase > Authentication > Users > Add user (email + password, tick Auto Confirm). Put that email into `06_make_admin.sql` and run it (should print `UPDATE 1`). Sign in on the admin site. Scanner logins are created from the admin site (Staff tab), never by hand.
 
