@@ -438,7 +438,7 @@ function waNumber(phone) {
 }
 function waLink(o, label) {
   var n = waNumber(o.phone); if (!n || !o.token) return '';
-  var s = A.settings || {}, link = PUBLIC_SITE + '/#/order/' + o.token;
+  var s = A.settings || {}, link = PUBLIC_SITE + '/?pass=1#/order/' + o.token;   // ?pass=1: a fresh WhatsApp link preview (image card)
   var msg = 'Hi ' + o.buyer_name + ', your pass for ' + (s.name || 'the event') + ' (' + o.order_no + ') is ready:\n' + link +
     '\n\nShow the QR code at the gate.' + (s.date_text ? '\n' + s.date_text : '') + (s.venue ? '\n' + s.venue : '');
   return '<a class="b wa" href="https://wa.me/' + n + '?text=' + encodeURIComponent(msg) + '" target="_blank" rel="noopener">' + (label || 'WhatsApp pass') + '</a>';
