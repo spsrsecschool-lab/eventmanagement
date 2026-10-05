@@ -280,6 +280,15 @@
   .bk-staff-tag{display:inline-block;vertical-align:middle;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
     background:var(--red);color:var(--mari);padding:3px 8px;border-radius:999px;margin-left:6px}
   .bk .card .sub s{opacity:.6}
+  .lp-offers{margin:12px 0 2px;padding:10px 12px;border-radius:10px;background:rgba(244,182,63,.16);border:1px dashed rgba(125,15,92,.3)}
+  .lp-offers small{display:block;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--red);margin-bottom:6px}
+  .lp-offers div{display:flex;flex-wrap:wrap;gap:6px}
+  .lp-offers span{font-size:13px;color:rgba(43,16,37,.85);background:#fff8ea;border-radius:999px;padding:4px 10px;white-space:nowrap}
+  .lp-offers span b{color:var(--red)}
+  .bk-role{display:flex;gap:6px;margin-top:8px}
+  .bk-role button{flex:1;min-height:40px;padding:8px 6px;font-size:14px;font-weight:600;border-radius:8px;background:#fff;color:rgba(42,4,48,.75);border:1.5px solid rgba(42,4,48,.22)}
+  .bk-role button.on{background:var(--ink);color:var(--mari);border-color:var(--ink)}
+  .bk-consent{margin-top:4px}
   .bk-map{border-top:5px solid var(--mari)}
   .bk-map h3{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-weight:700;font-size:21px;margin:0 0 4px;color:var(--ink)}
   .bk-map h3 svg{width:22px;height:22px;color:var(--red)}
@@ -386,8 +395,8 @@ var SETTINGS_BASE = 'id,name,date_text,venue,description,contact_phone,contact_e
 var SETTINGS_COLS = SETTINGS_BASE + ',payment_qr_path,instructions_text,upi_id,dandiya_enabled,dandiya_rent,dandiya_deposit,dandiya_max,dandiya_qrs';
 // Newest columns first; each later entry is what an older database has (so the site keeps working before new SQL is run).
 var SETTINGS_TRY = [[SETTINGS_COLS + ',venue_map,staff_enabled,staff_discount,staff_max_people,staff_qrs', ''],
-  [SETTINGS_COLS + ',venue_map', 'sql/13_staff_booking.sql (staff booking)'], [SETTINGS_COLS, 'sql/13_staff_booking.sql (venue map + staff booking)'],
-  [SETTINGS_BASE, 'sql/09_upgrade_v3.sql, then sql/13_staff_booking.sql']];
+  [SETTINGS_COLS + ',venue_map', 'sql/14_upgrade_v4.sql'], [SETTINGS_COLS, 'sql/14_upgrade_v4.sql'],
+  [SETTINGS_BASE, 'sql/09_upgrade_v3.sql, then sql/14_upgrade_v4.sql']];
 async function fetchSettings() {
   for (var i = 0, r; i < SETTINGS_TRY.length; i++) {
     r = await sb.from('event_settings').select(SETTINGS_TRY[i][0]).eq('id', 1).single();
@@ -712,6 +721,8 @@ async function viewHome() {
       '<div class="lp-pass-top"><div>' + (soldOut ? '<span class="lp-sold">SOLD OUT</span>' : '') + '<h3 class="lp-pass-name">' + esc(t.name) + '</h3>' +
         (t.description ? '<div class="lp-pass-desc">' + esc(t.description) + '</div>' : '') + '</div>' +
         '<div class="lp-price"><b>' + rupees(t.price) + '</b><small>per ' + unitWord(t, 1) + '</small></div></div>' +
+      (groupOffers(t).length && !soldOut ? '<div class="lp-offers"><small>Group offer \u00B7 one QR</small><div>' + groupOffers(t).map(function (g) {
+        return '<span><b>' + g[0] + '</b> for ' + rupees(g[1]) + '</span>'; }).join('') + '</div></div>' : '') +
       '<div class="lp-perf" aria-hidden="true"></div>' +
       (soldOut ? '<div class="lp-seats"><span>All passes taken</span></div>' : '') +   // the number left is not shown to buyers
       (open && !soldOut ? '<a class="lp-btn" href="#/buy/' + t.id + '">Book ' + esc(t.name) + ICON.arrow + '</a>' : '') +
@@ -796,7 +807,7 @@ async function viewBuy(typeId, staffKey) {
   if (!t || (staffKey && ppu(t) > STAFF.max_people)) { $('app').innerHTML = shell('<div class="card center">This ticket type is not available.' + back + '</div>', { home: home }); return; }
   if (salesState(S.settings) !== 'open') { $('app').innerHTML = shell('<div class="card center">' + esc(S.settings.closed_message || 'Ticket sales are closed.') + back + '</div>', { home: home }); return; }
   if (t.remaining <= 0) { $('app').innerHTML = shell('<div class="card center">Sorry, <b>' + esc(t.name) + '</b> is sold out.' + back + '</div>', { home: home }); return; }
-  if (!B || B.typeId !== t.id || B.staff !== (staffKey || '')) B = { typeId: t.id, staff: staffKey || '', step: 1, qty: 1, name: '', phone: '', email: '', email2: '', names: new Array(ppu(t)).fill(''), agree: false, firstEdited: false, payer: '', shot: null, shotUrl: '', busy: false };
+  if (!B || B.typeId !== t.id || B.staff !== (staffKey || '')) B = { typeId: t.id, staff: staffKey || '', step: 1, qty: 1, name: '', phone: '', email: '', email2: '', names: new Array(ppu(t)).fill(''), roles: [], agree: false, firstEdited: false, payer: '', shot: null, shotUrl: '', busy: false };
   drawBuy();
 }
 
@@ -809,6 +820,18 @@ async function staffInfo(key) {
 }
 function staffPrice(t) { return Math.round(t.price * (100 - STAFF.discount) / 100); }
 function unitPrice(t) { return B && B.staff && STAFF ? staffPrice(t) : t.price; }
+// Total for q passes: staff = staff price each; otherwise the group price for q if set (e.g. 2 for ₹550), else price x q.
+function groupTotal(t, q) {
+  if (B && B.staff && STAFF) return staffPrice(t) * q;
+  var g = +((t.group_prices || {})[String(q)]);
+  return g > 0 ? g : t.price * q;
+}
+function groupOffers(t) {   // [[2, 550], [3, 807], ...] for the landing card
+  var out = [], gp = t.group_prices || {};
+  Object.keys(gp).map(Number).sort(function (a, b) { return a - b; }).forEach(function (q) { if (q > 1 && +gp[q] > 0 && +gp[q] < t.price * q) out.push([q, +gp[q]]); });
+  return out;
+}
+function rolesOn(t) { return ppu(t) === 1 && t.group_prices !== undefined; }   // Student / Parent-Guest per person (needs sql/14)
 function staffInvalidHTML() {
   return '<div class="card bk-status"><div class="bk-ico no">' + ICON.x + '</div><h2>Staff link not active</h2><p>This staff booking link is not working right now. Please open it again from the staff portal, or contact the school office.</p></div>';
 }
@@ -867,6 +890,11 @@ function copyUpi(btn) {
   };
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(v).then(done, fallback); else fallback();
 }
+function priceLine(t) {   // "₹300 per person", or "Group price ₹275 each · you save ₹50"
+  var up = unitPrice(t), tot = groupTotal(t, B.qty), full = up * B.qty;
+  if (!B.staff && tot < full) return 'Group price ' + rupees(Math.round(tot / B.qty)) + ' each \u00B7 you save ' + rupees(full - tot);
+  return (B.staff ? '<s>' + rupees(t.price) + '</s> ' : '') + rupees(up) + ' per ' + unitWord(t, 1);
+}
 function maxQty(t) {
   var m = Math.min(S.settings.max_per_order, t.remaining);
   if (B && B.staff && STAFF) m = Math.min(m, Math.floor(STAFF.max_people / ppu(t)));
@@ -881,9 +909,9 @@ function drawBuy() {
   h += '<ol class="bk-steps" aria-label="Step ' + B.step + ' of 3">' + labels.map(function (l, n) {
     return '<li class="' + (n + 1 < B.step ? 'done' : n + 1 === B.step ? 'on' : '') + '"' + (n + 1 === B.step ? ' aria-current="step"' : '') + '><i></i>' + l + '</li>';
   }).join('') + '</ol>';
-  var up = unitPrice(t);
-  h += '<div class="card row"><div><div class="tname">' + esc(t.name) + (B.staff ? ' <span class="bk-staff-tag">Staff</span>' : '') + '</div><div class="sub">' +
-    (B.staff ? '<s>' + rupees(t.price) + '</s> ' : '') + rupees(up) + ' per ' + unitWord(t, 1) + '</div></div><div class="price">' + rupees(up * B.qty) + '</div></div>';
+  var up = unitPrice(t), tot = groupTotal(t, B.qty);
+  h += '<div class="card row"><div><div class="tname">' + esc(t.name) + (B.staff ? ' <span class="bk-staff-tag">Staff</span>' : '') + '</div><div class="sub" id="bkEach">' +
+    priceLine(t) + '</div></div><div class="price">' + rupees(tot) + '</div></div>';
   h += '<section class="bk-sheet">';
 
   if (B.step === 1) {
@@ -904,8 +932,8 @@ function drawBuy() {
     if (s.terms_text) h += '<div class="terms">' + esc(s.terms_text) + '</div>';
   } else if (B.step === 2) {
     // QR made for this exact amount (per pass type and quantity); else the general event QR
-    var total = up * B.qty, payQr = (B.staff ? (s.staff_qrs || {})[String(total)] : (t.payment_qrs || {})[String(B.qty)]) || s.payment_qr_path || t.payment_qr_path;
-    h += '<div class="card"><div class="center sub">Pay exactly</div><div class="total">' + rupees(total) + '</div><div class="center sub">' + B.qty + ' ' + unitWord(t, B.qty) + ' \u00D7 ' + rupees(up) + '</div>' +
+    var total = tot, payQr = (B.staff ? (s.staff_qrs || {})[String(total)] : (t.payment_qrs || {})[String(B.qty)]) || s.payment_qr_path || t.payment_qr_path;
+    h += '<div class="card"><div class="center sub">Pay exactly</div><div class="total">' + rupees(total) + '</div><div class="center sub">' + B.qty + ' ' + unitWord(t, B.qty) + (total < up * B.qty ? ' \u00B7 group price' : ' \u00D7 ' + rupees(up)) + '</div>' +
       (payQr ? '<img class="qr" src="' + esc(pubUrl(payQr)) + '" alt="UPI QR code for ' + rupees(total) + '">' : (s.upi_id ? '' : '<p class="center sub">Payment QR is not set up yet. Please contact the organiser.</p>')) +
       upiHTML() +
       '<div class="center sub" style="margin:8px 0">Paying from this phone? Take a screenshot of the QR, then in your UPI app choose \u201CScan from gallery\u201D, or copy the UPI ID.</div></div>';
@@ -916,7 +944,7 @@ function drawBuy() {
     h += '<div class="card"><b>Upload your payment screenshot</b><div class="sub">Used only as a reference so we can verify your payment.</div>' +
       '<input id="f_shot" type="file" accept="image/*" style="margin-top:12px" onchange="onShot(this)">' +
       '<div id="shotPrev">' + (B.shotUrl ? '<img class="thumb" src="' + B.shotUrl + '" alt="screenshot preview">' : '') + '</div></div>';
-    h += '<div class="card sub">' + B.qty + ' \u00D7 ' + esc(t.name) + ' = <b>' + rupees(up * B.qty) + '</b><br>Paid by: <b>' + esc(B.payer) + '</b></div>';
+    h += '<div class="card sub">' + B.qty + ' \u00D7 ' + esc(t.name) + ' = <b>' + rupees(tot) + '</b><br>Paid by: <b>' + esc(B.payer) + '</b></div>';
     h += '<div id="err" class="err"></div><button id="submitBtn" class="block" onclick="submitOrder()">Submit order</button>';
   }
   h += '</section>';
@@ -932,19 +960,29 @@ function drawNames() {
     for (var k = 0; k < p; k++) {
       var i = u * p + k, who = p > 1 ? (lb[k] || 'Person ' + (k + 1)) : (i + 1) + '.';
       var ph = (p > 1 ? (lb[k] || 'Person') + ': ' : (lb[0] ? lb[0] + ': ' : '')) + 'full name';
-      h += '<div class="person"><div class="nameRow"><span>' + esc(who) + '</span><input id="f_n' + i + '" placeholder="' + esc(ph) + '" value="' + esc(B.names[i] || '') + '" oninput="onAttName(' + i + ')"></div></div>';
+      h += '<div class="person"><div class="nameRow"><span>' + esc(who) + '</span><input id="f_n' + i + '" placeholder="' + esc(ph) + '" value="' + esc(B.names[i] || '') + '" oninput="onAttName(' + i + ')"></div>' +
+        (rolesOn(t) ? '<div class="bk-role" role="group" aria-label="Who is person ' + (i + 1) + '">' +
+          '<button type="button" class="' + (B.roles[i] !== 'student' ? 'on' : '') + '" onclick="setRole(' + i + ',\'guest\')">Parent / Guest</button>' +
+          '<button type="button" class="' + (B.roles[i] === 'student' ? 'on' : '') + '" onclick="setRole(' + i + ',\'student\')">School student</button></div>' : '') + '</div>';
     }
     if (p > 1) h += '</div>';
   }
+  if (rolesOn(t) && B.roles.indexOf('student') >= 0)
+    h += '<div class="card notice bk-consent"><b>Students: consent form</b><div class="sub" style="color:inherit">Only girls of our school can attend as students. Each student must fill in and submit the signed consent form at school before the event. This is checked at the gate.</div></div>';
   $('namesBox').innerHTML = h;
 }
 function onQty() {
   B.qty = Number($('f_qty').value);
-  var pe = document.querySelector('.bk .price'), tt = curType(); if (pe && tt) pe.textContent = rupees(unitPrice(tt) * B.qty);
+  var pe = document.querySelector('.bk .price'), tt = curType(); if (pe && tt) pe.textContent = rupees(groupTotal(tt, B.qty));
+  if ($('bkEach') && tt) $('bkEach').innerHTML = priceLine(tt);
   var n = peopleCount();
   while (B.names.length < n) B.names.push('');
-  B.names.length = n;
+  B.names.length = n; B.roles.length = n;
   drawNames();
+}
+function setRole(i, r) {
+  for (var k = 0; k < peopleCount(); k++) { var el = $('f_n' + k); if (el) B.names[k] = el.value; }
+  B.roles[i] = r; drawNames();
 }
 function onBuyerName() {
   B.name = $('f_name').value;
@@ -1071,6 +1109,7 @@ async function submitOrder() {
       p_id_paths: []
     };
     if (B.staff) args.p_staff_key = B.staff;   // staff price + per-staff limit are applied by the server
+    if (rolesOn(t)) args.p_roles = B.names.slice(0, peopleCount()).map(function (n, i) { return B.roles[i] === 'student' ? 'student' : 'guest'; });
     var r = await sb.rpc('create_order', args);
     if (r.error) throw r.error;
     var token = r.data;
@@ -1118,7 +1157,7 @@ async function viewOrder(token) {
     var admits = '<div class="card bk-people"><h3>Admits ' + people.length + (people.length === 1 ? ' person' : ' people') + '</h3><ol>' +
          people.map(function (n, i) { return '<li>' + esc(n) + (slots[i] ? ' <small>' + esc(slots[i]) + '</small>' : '') + '</li>'; }).join('') + '</ol></div>';
     // plain link (not fetch): a normal page visit needs no CORS and also works on iPhone
-    h += '<a class="btn block" id="dlBtn" href="' + esc(API_BASE + '/api/ticket-pdf?token=' + encodeURIComponent(token)) + '" target="_blank" rel="noopener">Download PDF</a>' + dandiyaCard(o, token) + admits + venueCard(s) +
+    h += '<a class="btn block" id="dlBtn" href="' + esc(API_BASE + '/api/ticket-pdf?token=' + encodeURIComponent(token)) + '" target="_blank" rel="noopener">Download PDF</a>' + dandiyaCard(o, token) + admits + (slots.indexOf('Student') >= 0 ? '<div class="card notice bk-consent"><b>Students: consent form</b><div class="sub" style="color:inherit">Each student on this pass must submit the signed consent form at school before the event. It is checked at the gate.</div></div>' : '') + venueCard(s) +
          '<p class="sub center">Show this QR code at the gate. It lets everyone on the ticket in together, once.</p>';
   }
   $('app').innerHTML = shell(h, { celebrate: o.status === 'approved' });

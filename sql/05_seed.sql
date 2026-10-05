@@ -5,7 +5,7 @@ insert into public.event_settings (id) values (1) on conflict (id) do nothing;
 
 update public.event_settings set
   name                 = case when name = 'My Event' then 'Dandiya Nights' else name end,
-  date_text            = case when date_text = '' then '17th October | 6 PM onwards' else date_text end,
+  date_text            = case when date_text = '' then '17th October | 4 PM onwards' else date_text end,
   venue                = case when venue = '' then 'Shiv Public School, Dabua Colony' else venue end,
   description          = case when description = '' then $d$Join us for an evening of music, dance and festive joy at Shiv Public School. Dress up, bring your dandiya sticks and celebrate with us!$d$ else description end,
   payment_instructions = case when payment_instructions = '' then $p$1. Open any UPI app and scan the QR code shown.

@@ -28,6 +28,9 @@
   #result .admit{font-size:15px;font-weight:800;background:rgba(0,0,0,.22);border-radius:8px;padding:3px 9px;white-space:nowrap}
   #result .sub{font-size:14px;opacity:.92;margin-top:2px}
   #result .who{margin:6px 0 0;padding-left:22px;font-size:16px;font-weight:600;line-height:1.35}
+  #result .who .slot{font-size:12px;font-weight:700;padding:1px 7px;border-radius:999px;background:rgba(0,0,0,.08);vertical-align:1px}
+  #result .who .slot.stu{background:#ffe08a;color:#5a3a00}
+  #result .dk.stu{background:#ffe08a;color:#5a3a00}
   #result.ok{background:var(--ok);border-color:#57d68d;color:#fff}
   #result.used{background:var(--warn);border-color:#f6d365;color:#2b1d00}
   #result.bad{background:var(--bad);border-color:#ff8a8a;color:#fff}
@@ -186,8 +189,13 @@ async function checkCode(code) {
 function buzz(pattern) { try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) {} }
 // One QR admits everyone on the order: show the head count and every name.
 function people(r) {
-  var n = r.names || [];
-  return n.length ? '<ol class="who">' + n.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' : '';
+  var n = r.names || [], sl = r.slots || [];
+  return n.length ? '<ol class="who">' + n.map(function (x, i) { return '<li>' + esc(x) + (sl[i] ? ' <span class="slot' + (sl[i] === 'Student' ? ' stu' : '') + '">' + esc(sl[i]) + '</span>' : '') + '</li>'; }).join('') + '</ol>' : '';
+}
+// Students (girls of the school) need a signed consent form submitted at school.
+function consent(r) {
+  var k = r.students || 0;
+  return k ? '<div class="dk stu">\uD83C\uDF93 ' + k + ' student' + (k === 1 ? '' : 's') + ' \u2014 check the consent form list</div>' : '';
 }
 function head(ico, title, admit) {
   return '<div class="rhead"><span class="ico">' + ico + '</span><span class="big">' + title + '</span>' + (admit ? '<span class="admit">' + admit + '</span>' : '') + '</div>';
@@ -196,7 +204,7 @@ function showResult(r, note) {
   var el = $('result'), h = '', n = r.count || (r.names || []).length;
   if (r.result === 'ok') {
     el.className = 'ok'; buzz(120);
-    h = head('\u2714', 'VALID \u2014 LET IN', 'ADMIT ' + n) + '<div class="sub">' + esc(r.type_name) + '</div>' + people(r);
+    h = head('\u2714', 'VALID \u2014 LET IN', 'ADMIT ' + n) + '<div class="sub">' + esc(r.type_name) + '</div>' + consent(r) + people(r);
     if (r.dandiya_pairs) h += '<div class="dk">Dandiya paid: <b>' + r.dandiya_pairs + ' pair' + (r.dandiya_pairs === 1 ? '' : 's') + '</b> \u2014 hand over</div>';
   } else if (r.result === 'already_used') {
     el.className = 'used'; buzz([200, 100, 200]);
