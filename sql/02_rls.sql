@@ -85,6 +85,7 @@ create policy scan_log_admin_read on public.scan_log for select to authenticated
 grant select (upi_id, dandiya_enabled, dandiya_rent, dandiya_deposit, dandiya_max, dandiya_qrs)
   on public.event_settings to anon, authenticated;
 grant select (persons_per_unit, person_labels, unit_label, payment_qrs) on public.ticket_types to anon;
+grant select (group_prices) on public.ticket_types to anon;
 
 -- venue map + staff booking settings. staff_key is NOT granted: the admin reads it through admin_staff_key().
 grant select (venue_map, staff_enabled, staff_discount, staff_max_people, staff_qrs)

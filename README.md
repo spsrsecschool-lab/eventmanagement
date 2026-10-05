@@ -30,15 +30,15 @@ In the SQL editor, run these files in order (each is safe to re-run):
 | 6 | `sql/06_make_admin.sql` | run once after creating your admin user (below) |
 | 7 | `sql/07_single_payment_qr.sql` | one payment QR for the whole event (run once if you set up before this file existed) |
 
-**Updating an existing setup:** run the newest upgrade file once: `sql/09_upgrade_v3.sql` (couple pass, one payment QR per amount, UPI ID, dandiya rental). Earlier upgrades (`08`) must already have been run.
+**Updating an existing setup:** run `sql/14_upgrade_v4.sql` once. It contains everything from the earlier upgrades (it re-applies 01, 02 and 03, which are safe to re-run) and then:
 
-**Live admin orders:** run `sql/10_realtime.sql` once so the admin Orders tab updates instantly (green "Live" badge). Without it the tab still checks for new orders every 20 seconds ("Auto-refresh" badge).
+- adds a **General Pass** (₹300) with group prices 2 = ₹550, 3 = ₹807, 4 = ₹1,052, 5 = ₹1,285 on one QR, and takes Female Solo and Couple Pass off sale (change capacity and prices in Admin → Ticket types);
+- marks each person as **Student** (girls of the school; signed consent form at school) or **Parent / Guest**; students show on the pass, in admin and at the gate;
+- lets **offline (cash) orders** be issued without an email (Admin → Offline order: open or print the ticket);
+- includes the venue map, the end of Aadhaar uploads, and **staff booking** (Admin → Event → Staff booking: copy the link for your staff portal; 20% off per person, max 2 people per staff member);
+- sets the time to 4 PM and up to 5 people per order.
 
-**Venue map:** run `sql/11_venue_map.sql` once, then in Admin → Event paste the venue's Google Maps link (or type the address). Approved buyers see a map with a Get directions button on their pass page, and the ticket email gets a venue card with the same button. Use `{map}` in an email template to place the link yourself.
-
-**No Aadhaar uploads:** run `sql/12_no_aadhaar.sql` once. Buyers then only type each person's name; the Aadhaar photo step is gone from booking, admin and scanner.
-
-**Staff booking:** run `sql/13_staff_booking.sql` once. In Admin → Event turn on **Staff booking**, copy the staff link and add it as a button on your staff portal. Staff get the discount (default 20%) on every pass and can book for at most 2 people in total (matched by mobile number or email; rejected orders don't count). Upload a staff payment QR for each amount shown. Staff orders appear in Orders with a **staff** tag and a **Staff** filter. **Make a new link** stops the old one working.
+`sql/10_realtime.sql` (live admin orders) is separate; run it once if you have not.
 
 Running 01 to 05 again also works; they are safe to re-run.
 
