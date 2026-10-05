@@ -33,6 +33,7 @@
   .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700}
   .pill.pending{background:#fff3d6;color:#8a5a00}.pill.approved{background:#d9f4e3;color:#16663a}.pill.rejected{background:#fde0e0;color:#9b2222}
   .pill.sent{background:#d9f4e3;color:#16663a}.pill.failed{background:#fde0e0;color:#9b2222}.pill.gray{background:#ece7f0;color:#554b5e}.pill.staff{background:#e6e0ff;color:#3d2a8f}.pill.stu{background:#ffe08a;color:#5a3a00}
+  .ogprev{display:block;width:100%;max-width:480px;aspect-ratio:1200/630;object-fit:cover;border-radius:10px;margin-top:10px;border:1px solid var(--line)}
   .b.wa{background:#1fa855;color:#fff;text-decoration:none;display:inline-flex;align-items:center}
   .hidden{display:none!important}
   .chk.consent{display:flex;gap:10px;align-items:flex-start;margin:10px 0 0;padding:10px 12px;border-radius:10px;background:#fff6d6;border:1.5px solid #f0c74a;color:#3d2a00;font-size:14px;line-height:1.4}
@@ -139,7 +140,8 @@ var ACT = {};    // click actions  (data-act="...")
 var SETTINGS_BASE = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,theme,ticket_design';
 var SETTINGS_COLS = SETTINGS_BASE + ',payment_qr_path,instructions_text,upi_id,dandiya_enabled,dandiya_rent,dandiya_deposit,dandiya_max,dandiya_qrs';
 // Newest columns first; each later entry is what an older database has (so the site keeps working before new SQL is run).
-var SETTINGS_TRY = [[SETTINGS_COLS + ',venue_map,staff_enabled,staff_discount,staff_max_people,staff_qrs', ''],
+var SETTINGS_TRY = [[SETTINGS_COLS + ',venue_map,staff_enabled,staff_discount,staff_max_people,staff_qrs,og_image_path', ''],
+  [SETTINGS_COLS + ',venue_map,staff_enabled,staff_discount,staff_max_people,staff_qrs', 'sql/16_preview_image.sql'],
   [SETTINGS_COLS + ',venue_map', 'sql/14_upgrade_v4.sql'], [SETTINGS_COLS, 'sql/14_upgrade_v4.sql'],
   [SETTINGS_BASE, 'sql/09_upgrade_v3.sql, then sql/14_upgrade_v4.sql']];
 async function fetchSettings() {
@@ -952,6 +954,10 @@ T.event = async function () {
     (s.venue_map !== undefined ? '<div class="card"><b>Venue on Google Maps</b> <span class="muted">Shown on the buyer\u2019s pass page and in the ticket email. Paste the link from Google Maps (for the exact pin, copy it from the browser address bar after opening the place), or type the full address.</span>' +
       '<input id="ev_map" placeholder="https://www.google.com/maps/place/... or full address" value="' + esc(s.venue_map) + '" oninput="evMapPreview()" style="margin-top:8px"><div id="ev_map_pv"></div></div>' : '') +
     (s.staff_enabled !== undefined ? staffCard(s) : '') +
+    (s.og_image_path !== undefined ? '<div class="card"><b>Link preview image</b> <span class="muted">The picture shown under your site link on WhatsApp, Instagram, Facebook. Best size <b>1200 \u00D7 630</b>. Any photo works: it is cropped to 1200 \u00D7 630 from the centre and compressed under 300 KB. Keep text in the middle. WhatsApp may show the old picture for a day on links it has already seen.</span>' +
+      '<img class="ogprev" src="' + esc(s.og_image_path ? pubUrl(s.og_image_path) : PUBLIC_SITE + '/assets/og-image.jpg') + '" alt="Link preview image">' +
+      '<div class="row" style="justify-content:flex-start;gap:10px;margin-top:8px"><input type="file" accept="image/*" onchange="ogUp(this)" style="font-size:13px">' +
+      (s.og_image_path ? '<button class="b sec" data-act="ogReset">Use default image</button>' : '<span class="muted">Using the default image</span>') + '</div></div>' : '') +
     (s.upi_id !== undefined ? '<div class="card"><b>UPI ID</b> <span class="muted">Shown with a Copy button on every pay step (tickets and dandiya).</span><input id="ev_upi" placeholder="e.g. schoolname@okaxis" value="' + esc(s.upi_id) + '" style="margin-top:8px"></div>' : '') +
     (s.dandiya_enabled !== undefined ? '<div class="card"><label class="chk" style="margin-top:0"><input type="checkbox" id="ev_dk"' + (s.dandiya_enabled ? ' checked' : '') + '> <b>Offer dandiya sticks for rent</b></label>' +
       '<div class="muted">After a ticket is approved, buyers are offered sticks: rent + refundable security per pair. You verify their payment in Orders \u2192 Dandiya pending.</div>' +
@@ -1023,6 +1029,38 @@ function evMapPreview() {
       (m.embed ? '<iframe src="' + esc(m.embed) + '" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Venue map preview" style="width:100%;height:220px;border:0;border-radius:10px;margin-top:8px"></iframe>' : '');
   }, 500);
 }
+// Link preview image: crop to exactly 1200x630 (cover, centred) and compress as JPEG under 300 KB.
+function ogBlob(file) {
+  return new Promise(function (ok, bad) {
+    var img = new Image(), url = URL.createObjectURL(file);
+    img.onload = function () {
+      var W = 1200, H = 630, c = document.createElement('canvas'); c.width = W; c.height = H;
+      var sc = Math.max(W / img.naturalWidth, H / img.naturalHeight), w = img.naturalWidth * sc, h = img.naturalHeight * sc;
+      var g = c.getContext('2d'); g.fillStyle = '#2a0430'; g.fillRect(0, 0, W, H); g.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+      URL.revokeObjectURL(url);
+      (function tryQ(q) {
+        c.toBlob(function (b) { if (!b) return bad(new Error('Could not read this image.')); if (b.size <= 300 * 1024 || q <= 0.45) ok(b); else tryQ(q - 0.08); }, 'image/jpeg', q);
+      })(0.9);
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); bad(new Error('Could not read this image. Try a JPG or PNG.')); };
+    img.src = url;
+  });
+}
+async function ogUp(inp) {
+  var f = inp.files && inp.files[0]; if (!f) return;
+  try {
+    var blob = await ogBlob(f), path = 'og-' + Date.now() + '.jpg', old = A.settings.og_image_path;
+    var up = await sb.storage.from('branding').upload(path, blob, { contentType: 'image/jpeg', upsert: false }); if (up.error) throw up.error;
+    var r = await sb.from('event_settings').update({ og_image_path: path, updated_at: new Date().toISOString() }).eq('id', 1); if (r.error) throw r.error;
+    removeBranding(old); toast('Preview image saved (' + Math.round(blob.size / 1024) + ' KB).'); T.event();
+  } catch (e) { toast(errText(e), true); }
+}
+ACT.ogReset = async function () {
+  if (!confirm('Go back to the default preview image?')) return;
+  var old = A.settings.og_image_path, r = await sb.from('event_settings').update({ og_image_path: '' }).eq('id', 1);
+  if (r.error) return toast(errText(r.error), true);
+  removeBranding(old); toast('Default preview image restored.'); T.event();
+};
 async function evImg(col, prefix, maxDim, kind, inp) {
   var f = inp.files && inp.files[0]; if (!f) return;
   try {

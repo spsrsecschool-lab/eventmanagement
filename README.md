@@ -42,6 +42,8 @@ In the SQL editor, run these files in order (each is safe to re-run):
 
 **Student consent + offline dandiya:** run `sql/15_consent.sql` once (after 14). On Admin → Offline order, tick **Dandiya sticks included** to record pairs sold with the pass (shown at the gate). A pass with a student can only be approved (online) or issued (offline) after you tick **Consent form received** on it in Admin; the database refuses otherwise. Orders waiting for it show under **Consent pending**, and the buyer's page says the pass is waiting for the consent form.
 
+**Link preview image:** run `sql/16_preview_image.sql` once. In Admin → Event → **Link preview image**, upload the picture shown under your site link on WhatsApp etc. (best 1200 × 630; any photo is cropped and compressed automatically). It is served by the admin site at `/api/og-image`; without an upload, `public/assets/og-image.jpg` is used.
+
 Running 01 to 05 again also works; they are safe to re-run.
 
 **Create the first admin:** Supabase > Authentication > Users > Add user (email + password, tick Auto Confirm). Put that email into `06_make_admin.sql` and run it (should print `UPDATE 1`). Sign in on the admin site. Scanner logins are created from the admin site (Staff tab), never by hand.
