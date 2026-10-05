@@ -797,8 +797,7 @@ async function loadMine(mine) {
 // ───────────── buy ─────────────
 async function viewBuy(typeId, staffKey) {
   try {
-    if (!S.settings) await loadSettings();
-    await loadTypes();
+    await Promise.all([loadSettings(), loadTypes()]);   // always fresh: admin edits (instructions, prices) show at once
     if (staffKey) await staffInfo(staffKey);
   } catch (e) { return fail(e); }
   var home = staffKey ? '#/staff/' + encodeURIComponent(staffKey) : '#/', back = '<br><br><a class="btn ghost" href="' + home + '">Back</a>';
@@ -840,8 +839,7 @@ function staffRuleHTML() {
 }
 async function viewStaff(key) {
   try {
-    if (!S.settings) await loadSettings();
-    await loadTypes();
+    await Promise.all([loadSettings(), loadTypes()]);   // always fresh: admin edits (instructions, prices) show at once
     await staffInfo(key);
   } catch (e) { return fail(e); }
   if (!STAFF) { $('app').innerHTML = shell(staffInvalidHTML()); return; }
@@ -1130,7 +1128,7 @@ async function submitOrder() {
 
 // ───────────── private order page ─────────────
 async function viewOrder(token) {
-  try { if (!S.settings) await loadSettings(); await loadSettings(); } catch (e) { return fail(e); }
+  try { await loadSettings(); } catch (e) { return fail(e); }
   var r = await sb.rpc('get_order', { p_token: token });
   if (r.error) return fail(r.error);
   var o = r.data;
