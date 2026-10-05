@@ -593,7 +593,7 @@ ACT.emSave = async function (d, b) {
 // ───────────── ADD MANUAL ORDER ─────────────
 var M = { qty: 1, names: [''], firstEdited: false, free: false };
 T.manual = async function () {
-  await loadTypes();
+  await Promise.all([loadTypes(), A.settings ? null : loadSettings()]);
   var types = A.types;
   if (!types.length) { $('content').innerHTML = '<h2>Add order</h2><div class="card">Add a ticket type first.</div>'; return; }
   $('content').innerHTML = '<h2>Offline order</h2><div class="card muted">For cash sales at school or complimentary tickets. No payment screenshot; issued as approved. With an email the ticket is emailed; without one, open or print the ticket here after issuing.</div>' +
@@ -606,7 +606,7 @@ T.manual = async function () {
     '<label>Buyer name</label><input id="mn_name" oninput="mnBuyer()">' +
     '<div class="grid2"><div><label>Email (optional; ticket is sent here)</label><input id="mn_email" type="email" inputmode="email"></div>' +
     '<div><label>Phone (optional)</label><input id="mn_phone" type="tel"></div></div>' +
-    '<div id="mn_names"></div><label class="chk consent hidden" id="mn_consent_l"><input type="checkbox" id="mn_consent"> <span><b>Consent form received</b> for every student on this pass (required before issuing)</span></label><div id="mn_err" class="err"></div>' +
+    '<div id="mn_names"></div><label class="chk consent hidden" id="mn_consent_l"><input type="checkbox" id="mn_consent"> <span><b>Consent form received</b> for every student on this pass (required before issuing)</span></label>' + mnDkHTML() + '<div id="mn_err" class="err"></div>' +
     '<button class="b" id="mn_go" data-act="mnSave">Issue ticket</button></div>';
   M = { qty: 1, names: [''], roles: [], firstEdited: false };
   mnNames(); mnTotal();
@@ -627,6 +627,21 @@ function mnNames() {
   }
   $('mn_names').innerHTML = h;
   mnConsentShow();
+}
+// Dandiya sticks sold with an offline pass (recorded as an approved rental; shows at the gate)
+function mnDkHTML() {
+  var st = A.settings || {}; if (st.dandiya_rent === undefined) return '';
+  var per = (st.dandiya_rent || 0) + (st.dandiya_deposit || 0), opts = '';
+  for (var n = 1; n <= (st.dandiya_max || 10); n++) opts += '<option value="' + n + '">' + n + '</option>';
+  return '<label class="chk"><input type="checkbox" id="mn_dk" onchange="mnDk()"> <b>Dandiya sticks included</b></label>' +
+    '<div id="mn_dk_box" class="hidden"><div class="grid2"><div><label>Pairs</label><select id="mn_dk_pairs" onchange="mnDk()">' + opts + '</select></div>' +
+    '<div><label>Dandiya amount received (\u20B9)</label><input id="mn_dk_amt" type="number" min="0"></div></div>' +
+    '<div class="muted">' + rupees(st.dandiya_rent || 0) + ' rent + ' + rupees(st.dandiya_deposit || 0) + ' refundable security per pair = ' + rupees(per) + ' per pair. Set 0 if the sticks are free.</div></div>';
+}
+function mnDk() {
+  var on = $('mn_dk') && $('mn_dk').checked, st = A.settings || {}; if (!$('mn_dk_box')) return;
+  $('mn_dk_box').classList.toggle('hidden', !on);
+  if (on) $('mn_dk_amt').value = (+val('mn_dk_pairs') || 1) * ((st.dandiya_rent || 0) + (st.dandiya_deposit || 0));
 }
 function mnConsentShow() { var l = $('mn_consent_l'); if (l) l.classList.toggle('hidden', M.roles.indexOf('student') < 0); }
 function mnQty() {
@@ -655,13 +670,17 @@ ACT.mnSave = async function (d, b) {
     var r = await sb.rpc('admin_create_manual_order', args);
     if (r.error) throw r.error;
     A.orders = null;
-    var link = PUBLIC_SITE + '/#/order/' + r.data.token, pdf = '/api/ticket-pdf?token=' + encodeURIComponent(r.data.token), sent = '';
+    var link = PUBLIC_SITE + '/#/order/' + r.data.token, pdf = '/api/ticket-pdf?token=' + encodeURIComponent(r.data.token), sent = '', dk = '';
+    if ($('mn_dk') && $('mn_dk').checked) {
+      var pairs = +val('mn_dk_pairs') || 1, dr = await sb.rpc('admin_add_dandiya', { p_order_id: r.data.order_id, p_pairs: pairs, p_amount: Math.max(0, Math.round(+val('mn_dk_amt') || 0)) });
+      dk = dr.error ? 'Dandiya not recorded: ' + esc(errText(dr.error)) + ' (add it from Orders).' : 'Dandiya: <b>' + pairs + ' pair' + (pairs === 1 ? '' : 's') + '</b> for ' + rupees(dr.data.amount) + ' (shows at the gate).';
+    }
     if (email) {
       var m = await api('/api/send-ticket', { order_id: r.data.order_id, kind: 'approved' });
       sent = m.ok ? 'Emailed to ' + esc(email) + '.' : 'The email failed: ' + esc(m.error) + ' (Resend from Orders).';
     }
     $('content').innerHTML = '<h2>Offline order</h2><div class="card"><b>' + esc(r.data.order_no) + ' issued</b> <span class="pill approved">approved</span>' +
-      (sent ? '<div class="muted" style="margin-top:6px">' + sent + '</div>' : '') +
+      (dk ? '<div style="margin-top:6px">' + dk + '</div>' : '') + (sent ? '<div class="muted" style="margin-top:6px">' + sent + '</div>' : '') +
       '<div class="muted" style="margin-top:6px">Show the QR on the ticket page, or download the PDF to print or send on WhatsApp.</div>' +
       '<div class="acts"><a class="b" href="' + esc(link) + '" target="_blank" rel="noopener">Open ticket</a><a class="b sec" href="' + esc(pdf) + '" target="_blank" rel="noopener">Download PDF</a>' +
       '<button class="b sec" data-act="mnAgain">New offline order</button></div></div>';

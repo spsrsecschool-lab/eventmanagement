@@ -40,7 +40,7 @@ In the SQL editor, run these files in order (each is safe to re-run):
 
 `sql/10_realtime.sql` (live admin orders) is separate; run it once if you have not.
 
-**Student consent:** run `sql/15_consent.sql` once (after 14). A pass with a student can only be approved (online) or issued (offline) after you tick **Consent form received** on it in Admin; the database refuses otherwise. Orders waiting for it show under **Consent pending**, and the buyer's page says the pass is waiting for the consent form.
+**Student consent + offline dandiya:** run `sql/15_consent.sql` once (after 14). On Admin → Offline order, tick **Dandiya sticks included** to record pairs sold with the pass (shown at the gate). A pass with a student can only be approved (online) or issued (offline) after you tick **Consent form received** on it in Admin; the database refuses otherwise. Orders waiting for it show under **Consent pending**, and the buyer's page says the pass is waiting for the consent form.
 
 Running 01 to 05 again also works; they are safe to re-run.
 

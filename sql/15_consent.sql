@@ -1,5 +1,6 @@
 -- 15_consent.sql : a pass with a student is issued only after her signed consent form is received at school.
--- Adds the "Consent form received" tick in admin. Run once after 14_upgrade_v4.sql. Safe to re-run.
+-- Adds the "Consent form received" tick in admin, and dandiya sticks on offline (cash) orders.
+-- Run once after 14_upgrade_v4.sql. Safe to re-run.
 
 alter table public.orders add column if not exists consent_ok boolean not null default false;
 grant update (consent_ok) on public.orders to authenticated;   -- admin only, by RLS
@@ -116,3 +117,26 @@ begin
 end $$;
 revoke all on function public.admin_create_manual_order(bigint,int,text,text,text,text[],int,text[],boolean) from public, anon, authenticated;
 grant execute on function public.admin_create_manual_order(bigint,int,text,text,text,text[],int,text[],boolean) to authenticated;
+
+-- ---------- admin: dandiya sticks sold offline with a pass (cash). Recorded as an approved rental. ----------
+create or replace function public.admin_add_dandiya(p_order_id bigint, p_pairs int, p_amount int default null)
+returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
+declare s public.event_settings%rowtype; o public.orders%rowtype; d public.dandiya_rentals%rowtype;
+begin
+  if not public.is_admin() then raise exception 'FORBIDDEN'; end if;
+  select * into s from public.event_settings where id = 1;
+  select * into o from public.orders where id = p_order_id for update;
+  if not found then raise exception 'NOT_FOUND'; end if;
+  if o.status <> 'approved' then raise exception 'ORDER_NOT_APPROVED'; end if;
+  if p_pairs is null or p_pairs < 1 or p_pairs > greatest(s.dandiya_max, 1) then raise exception 'BAD_PAIRS:%', s.dandiya_max; end if;
+  if p_amount is not null and p_amount < 0 then raise exception 'BAD_AMOUNT'; end if;
+  if exists (select 1 from public.dandiya_rentals where order_id = o.id and status in ('pending', 'approved')) then
+    raise exception 'DANDIYA_EXISTS';
+  end if;
+  insert into public.dandiya_rentals (order_id, pairs, amount, payer_name, status, approved_at)
+  values (o.id, p_pairs, coalesce(p_amount, p_pairs * (s.dandiya_rent + s.dandiya_deposit)), 'Cash (offline)', 'approved', now())
+  returning * into d;
+  return to_jsonb(d);
+end $$;
+revoke all on function public.admin_add_dandiya(bigint,int,int) from public, anon, authenticated;
+grant execute on function public.admin_add_dandiya(bigint,int,int) to authenticated;
