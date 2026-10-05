@@ -33,6 +33,9 @@
   .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700}
   .pill.pending{background:#fff3d6;color:#8a5a00}.pill.approved{background:#d9f4e3;color:#16663a}.pill.rejected{background:#fde0e0;color:#9b2222}
   .pill.sent{background:#d9f4e3;color:#16663a}.pill.failed{background:#fde0e0;color:#9b2222}.pill.gray{background:#ece7f0;color:#554b5e}.pill.staff{background:#e6e0ff;color:#3d2a8f}.pill.stu{background:#ffe08a;color:#5a3a00}
+  .hidden{display:none!important}
+  .chk.consent{display:flex;gap:10px;align-items:flex-start;margin:10px 0 0;padding:10px 12px;border-radius:10px;background:#fff6d6;border:1.5px solid #f0c74a;color:#3d2a00;font-size:14px;line-height:1.4}
+  .chk.consent.on{background:#e3f6ea;border-color:#7cc99a;color:#14532d}.chk.consent input{margin-top:2px;width:20px;height:20px;flex:none}
   .gpgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}.gpgrid small{display:block;font-size:12px;color:var(--muted);margin-bottom:2px}.gpgrid input{margin:0}
   .qrtile small{display:block;font-size:11px;color:var(--muted)}
   button.b,a.b{font:inherit;font-weight:600;font-size:14px;border:0;border-radius:9px;padding:9px 14px;background:var(--brand);color:#fff;cursor:pointer;text-decoration:none;display:inline-block}
@@ -233,7 +236,11 @@ function val(id) { var e = $(id); return e ? e.value : ''; }
 function pubUrl(p) { return p ? SUPABASE_URL + '/storage/v1/object/public/branding/' + p : ''; }
 function rupees(n) { return '₹' + Number(n || 0).toLocaleString('en-IN'); }
 function fmt(ts) { return ts ? new Date(ts).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : ''; }
-function errText(e) { return (e && (e.message || e.error_description || e.error)) || String(e); }
+function errText(e) {
+  var m = (e && (e.message || e.error_description || e.error)) || String(e);
+  if (/CONSENT_MISSING/.test(m)) return 'This pass has a student: tick \u201CConsent form received\u201D first.';
+  return m;
+}
 function toast(msg, isErr) {
   var t = document.createElement('div'); t.className = 'toast' + (isErr ? ' err' : ''); t.textContent = msg; document.body.appendChild(t);
   setTimeout(function () { t.remove(); }, isErr ? 6000 : 3000);
@@ -366,6 +373,8 @@ function ordMatches(o, q) {
   return hay.indexOf(q) >= 0 || (q.replace(/\D/g, '') && o.phone.replace(/\D/g, '').indexOf(q.replace(/\D/g, '')) >= 0);
 }
 function dkPending(o) { var dk = (A.rentals || {})[o.id]; return !!(dk && dk.status === 'pending'); }
+function students(o) { return (o.tickets || []).filter(function (t) { return t.slot === 'Student'; }).length; }
+function consentWait(o) { return students(o) > 0 && !o.consent_ok; }   // pass cannot be issued yet
 function needsCheck(o) { return o.status === 'pending' || dkPending(o); }
 function activityAt(o) {   // newest of: order placed, dandiya requested
   var dk = (A.rentals || {})[o.id], a = new Date(o.created_at).getTime();
@@ -373,15 +382,15 @@ function activityAt(o) {   // newest of: order placed, dandiya requested
 }
 function drawOrderList() {
   var all = (A.orders || []).slice().sort(function (a, b) { return activityAt(b) - activityAt(a); });
-  var cnt = { all: all.length, pending: 0, approved: 0, rejected: 0, dandiya: 0, staff: 0 };
-  all.forEach(function (o) { if (needsCheck(o)) cnt.pending++; if (o.status !== 'pending') cnt[o.status]++; if (dkPending(o)) cnt.dandiya++; if (o.is_staff) cnt.staff++; });
-  var LBL = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected', dandiya: 'Dandiya pending', staff: 'Staff', all: 'All' };
-  $('ordChips').innerHTML = ['pending', 'approved', 'rejected', 'dandiya', 'staff', 'all'].filter(function (s) { return s !== 'staff' || cnt.staff; }).map(function (s) {
+  var cnt = { all: all.length, pending: 0, approved: 0, rejected: 0, dandiya: 0, staff: 0, consent: 0 };
+  all.forEach(function (o) { if (needsCheck(o)) cnt.pending++; if (o.status !== 'pending') cnt[o.status]++; if (dkPending(o)) cnt.dandiya++; if (o.is_staff) cnt.staff++; if (consentWait(o) && o.status === 'pending') cnt.consent++; });
+  var LBL = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected', dandiya: 'Dandiya pending', consent: 'Consent pending', staff: 'Staff', all: 'All' };
+  $('ordChips').innerHTML = ['pending', 'approved', 'rejected', 'dandiya', 'consent', 'staff', 'all'].filter(function (s) { return (s !== 'staff' && s !== 'consent') || cnt[s]; }).map(function (s) {
     return '<button class="chip' + (A.ordFilter === s ? ' on' : '') + '" data-act="ordFilter" data-s="' + s + '">' + LBL[s] + ' (' + cnt[s] + ')</button>';
   }).join('');
   var list = all.filter(function (o) {
     var f = A.ordFilter;
-    var okF = f === 'all' || (f === 'pending' ? needsCheck(o) : f === 'dandiya' ? dkPending(o) : f === 'staff' ? o.is_staff : o.status === f);
+    var okF = f === 'all' || (f === 'pending' ? needsCheck(o) : f === 'dandiya' ? dkPending(o) : f === 'staff' ? o.is_staff : f === 'consent' ? (consentWait(o) && o.status === 'pending') : o.status === f);
     return okF && ordMatches(o, A.ordQ);
   });
   var show = list.slice(0, A.ordLimit);
@@ -398,7 +407,7 @@ function orderCard(o) {
   var h = '<div class="card" id="o' + o.id + '"><div class="row"><div><b>' + esc(o.order_no) + '</b> <span class="pill ' + o.status + '">' + o.status + '</span>' +
     (dkPending(o) ? ' <span class="pill pending">dandiya to verify</span>' : '') +
     (o.is_staff ? ' <span class="pill staff">staff</span>' : '') +
-    ((o.tickets || []).some(function (t) { return t.slot === 'Student'; }) ? ' <span class="pill stu">' + (o.tickets || []).filter(function (t) { return t.slot === 'Student'; }).length + ' student(s): consent form</span>' : '') +
+    (students(o) ? (o.consent_ok ? ' <span class="pill approved">consent \u2714</span>' : ' <span class="pill stu">consent form pending</span>') : '') +
     (o.source === 'manual' ? ' <span class="pill gray">offline</span>' : '') + '</div><span class="muted">' + fmt(o.created_at) + '</span></div>' +
     '<div style="margin-top:6px"><b>' + esc(o.qty) + ' × ' + esc(o.type_name) + '</b> = <b>' + rupees(o.amount) + '</b></div>';
   h += '<div class="row" style="align-items:flex-start;margin-top:8px"><div style="min-width:0;flex:1">' +
@@ -409,8 +418,11 @@ function orderCard(o) {
     (o.checked_in ? '<div><span class="pill approved">Checked in ' + esc(fmt(o.checked_in_at)) + '</span></div>' : '') +
     (o.status === 'rejected' && o.reject_reason ? '<div class="muted">Reason: ' + esc(o.reject_reason) + '</div>' : '') +
     '</div>' + (o.screenshot_path ? '<img class="thumb" data-shot="' + esc(o.screenshot_path) + '" data-act="lightbox" alt="payment screenshot">' : '') + '</div>';
+  if (students(o)) h += '<label class="chk consent' + (o.consent_ok ? ' on' : '') + '"><input type="checkbox" data-act="consent" data-id="' + o.id + '"' + (o.consent_ok ? ' checked' : '') + '> ' +
+    '<span><b>Consent form received</b> \u2014 ' + students(o) + ' student' + (students(o) === 1 ? '' : 's') + ' on this pass. The pass is issued only after this is ticked.</span></label>';
   h += '<div class="acts">';
-  if (o.status === 'pending') h += '<button class="b ok" data-act="approve" data-id="' + o.id + '">Approve &amp; send ticket</button><button class="b bad" data-act="rejectAsk" data-id="' + o.id + '">Reject</button>';
+  if (o.status === 'pending') h += (consentWait(o) ? '<button class="b ok" disabled title="Tick Consent form received first">Approve (consent form needed)</button>'
+      : '<button class="b ok" data-act="approve" data-id="' + o.id + '">Approve &amp; send ticket</button>') + '<button class="b bad" data-act="rejectAsk" data-id="' + o.id + '">Reject</button>';
   if (o.status === 'approved') h += '<button class="b" data-act="resend" data-id="' + o.id + '">Resend email</button>';
   if (o.status === 'rejected') h += '<button class="b" data-act="resend" data-id="' + o.id + '">Resend email</button><button class="b sec" data-act="toPending" data-id="' + o.id + '">Move back to pending</button>';
   h += '<button class="b sec" data-act="editEmail" data-id="' + o.id + '">Edit email</button></div>' + dandiyaBlock(o) + '</div>';
@@ -515,6 +527,14 @@ ACT.ordFilter = function (d) { A.ordFilter = d.s; A.ordLimit = 40; drawOrderList
 ACT.ordMore = function () { A.ordLimit += 40; drawOrderList(); };
 ACT.lightbox = function (d, b) { $('lbImg').src = b.src; $('lightbox').classList.remove('hide'); };
 
+ACT.consent = async function (d, b) {
+  var on = b.checked; b.disabled = true;
+  var r = await sb.from('orders').update({ consent_ok: on }).eq('id', +d.id).select('id');
+  if (r.error || (Array.isArray(r.data) && !r.data.length)) { toast(r.error ? errText(r.error) : 'Not saved. Run sql/15_consent.sql in Supabase.', true); b.checked = !on; b.disabled = false; return; }
+  var o = orderById(d.id); if (o) o.consent_ok = on;
+  toast(on ? 'Consent form marked as received.' : 'Consent form unmarked.');
+  drawOrderList();
+};
 ACT.approve = async function (d, b) {
   var o = orderById(d.id);
   if (!confirm('Approve ' + o.order_no + ' and email the ticket to ' + o.email + '?')) return;
@@ -586,7 +606,7 @@ T.manual = async function () {
     '<label>Buyer name</label><input id="mn_name" oninput="mnBuyer()">' +
     '<div class="grid2"><div><label>Email (optional; ticket is sent here)</label><input id="mn_email" type="email" inputmode="email"></div>' +
     '<div><label>Phone (optional)</label><input id="mn_phone" type="tel"></div></div>' +
-    '<div id="mn_names"></div><div id="mn_err" class="err"></div>' +
+    '<div id="mn_names"></div><label class="chk consent hidden" id="mn_consent_l"><input type="checkbox" id="mn_consent"> <span><b>Consent form received</b> for every student on this pass (required before issuing)</span></label><div id="mn_err" class="err"></div>' +
     '<button class="b" id="mn_go" data-act="mnSave">Issue ticket</button></div>';
   M = { qty: 1, names: [''], roles: [], firstEdited: false };
   mnNames(); mnTotal();
@@ -602,11 +622,13 @@ function mnNames() {
     var tag = p > 1 ? (t.unit_label || 'Group') + ' ' + (Math.floor(i / p) + 1) + ' \u00B7 ' + (lb[i % p] || 'Person ' + (i % p + 1)) : 'Person ' + (i + 1);
     if (p === 1 && hasGroupPrices()) {
       h += '<div class="row" style="gap:6px;margin-bottom:6px"><input id="mn_n' + i + '" style="flex:1;min-width:0;margin:0" placeholder="' + esc(tag) + '" value="' + esc(M.names[i] || '') + '" oninput="mnAtt(' + i + ')">' +
-        '<select id="mn_r' + i + '" style="width:auto;margin:0" onchange="M.roles[' + i + ']=this.value"><option value="guest">Parent / Guest</option><option value="student"' + (M.roles[i] === 'student' ? ' selected' : '') + '>Student</option></select></div>';
+        '<select id="mn_r' + i + '" style="width:auto;margin:0" onchange="M.roles[' + i + ']=this.value;mnConsentShow()"><option value="guest">Parent / Guest</option><option value="student"' + (M.roles[i] === 'student' ? ' selected' : '') + '>Student</option></select></div>';
     } else h += '<input id="mn_n' + i + '" style="margin-bottom:6px" placeholder="' + esc(tag) + '" value="' + esc(M.names[i] || '') + '" oninput="mnAtt(' + i + ')">';
   }
   $('mn_names').innerHTML = h;
+  mnConsentShow();
 }
+function mnConsentShow() { var l = $('mn_consent_l'); if (l) l.classList.toggle('hidden', M.roles.indexOf('student') < 0); }
 function mnQty() {
   var q = Math.max(1, Math.min(50, +val('mn_qty') || 1)), n = q * (mnType().persons_per_unit || 1); M.qty = q;
   while (M.names.length < n) M.names.push(''); M.names.length = n; M.roles.length = n; mnNames(); mnTotal();
@@ -626,6 +648,10 @@ ACT.mnSave = async function (d, b) {
     var args = { p_type_id: +val('mn_type'), p_qty: M.qty, p_buyer_name: name, p_email: email,
       p_phone: val('mn_phone').trim(), p_names: names, p_amount: $('mn_free').checked ? 0 : (+val('mn_amt') || 0) };
     if ($('mn_r0')) args.p_roles = names.map(function (x, k) { return val('mn_r' + k) === 'student' ? 'student' : 'guest'; });
+    if (args.p_roles && args.p_roles.indexOf('student') >= 0) {
+      if (!$('mn_consent').checked) { busy(b, false); err.textContent = 'This pass has a student: tick \u201CConsent form received\u201D before issuing.'; return; }
+      args.p_consent = true;
+    }
     var r = await sb.rpc('admin_create_manual_order', args);
     if (r.error) throw r.error;
     A.orders = null;

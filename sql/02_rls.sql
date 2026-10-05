@@ -68,6 +68,7 @@ grant usage on sequence public.ticket_types_id_seq to authenticated;
 -- ---------- orders / tickets / logs : admin read only (writes go through RPCs) ----------
 grant select on public.orders, public.tickets, public.email_log, public.scan_log to authenticated;
 grant update (email) on public.orders to authenticated;   -- "Edit email address"
+grant update (consent_ok) on public.orders to authenticated;   -- "Consent form received" tick (admin only, by RLS)
 
 drop policy if exists orders_admin_read on public.orders;
 create policy orders_admin_read on public.orders for select to authenticated using (public.is_admin());

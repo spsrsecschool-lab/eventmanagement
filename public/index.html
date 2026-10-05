@@ -1139,6 +1139,8 @@ async function viewOrder(token) {
   var s = S.settings, h = '<div class="bk-order"><small>Your booking</small><h1>' + esc(o.order_no) + '</h1></div>';
   h += '<div class="card"><div class="row"><div><div class="tname">' + esc(o.qty) + ' × ' + esc(o.type_name) + '</div><div class="sub">' + esc(o.buyer_name) + ' · ' + esc(o.email) + '</div></div><div class="price">' + rupees(o.amount) + '</div></div></div>';
   if (o.status === 'pending') {
+    if ((o.slots || []).indexOf('Student') >= 0 && !o.consent_ok)
+      h += '<div class="card notice bk-consent"><b>Waiting for the consent form</b><div class="sub" style="color:inherit">This pass has a student. It is issued only after her signed consent form is received at school. Please submit it at school; your pass is then emailed to you.</div></div>';
     h += '<div class="card bk-status"><div class="bk-ico wait">' + ICON.clock + '</div><h2>Verifying your payment</h2>' +
       '<p>This may take <b>up to 24 hours</b>. Your pass will be emailed to <b>' + esc(o.email) + '</b> once it is approved.</p>' +
       '<p class="sub">You can come back to this same page any time to check \u2014 it updates by itself. Keep this link; it is private to you.</p></div>';
