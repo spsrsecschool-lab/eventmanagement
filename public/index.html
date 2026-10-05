@@ -918,7 +918,7 @@ function drawBuy() {
     if (B.staff) h += '<div class="card notice"><div class="sub" style="color:inherit">' + staffRuleHTML() + '</div></div>';
     h += '<label for="f_qty">Number of ' + unitWord(t, 2) + '</label><select id="f_qty" onchange="onQty()">' + opts + '</select>';
     h += '<label for="f_name">Your name</label><input id="f_name" autocomplete="name" value="' + esc(B.name) + '" oninput="onBuyerName()">';
-    h += '<label for="f_phone">Phone number</label><input id="f_phone" type="tel" inputmode="tel" autocomplete="tel" value="' + esc(B.phone) + '">';
+    h += '<label for="f_phone">WhatsApp number</label><div class="sub" style="margin:-2px 0 6px">The WhatsApp number linked to your bank / UPI account. Your pass may also be sent here.</div><input id="f_phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="10-digit mobile number" value="' + esc(B.phone) + '">';
     h += '<label for="f_email">Email (your ticket is sent here)</label><input id="f_email" type="email" inputmode="email" autocomplete="email" value="' + esc(B.email) + '">';
     h += '<label for="f_email2">Confirm email</label><input id="f_email2" type="email" inputmode="email" autocomplete="off" value="' + esc(B.email2) + '">';
     h += '<div id="namesBox"></div>';
@@ -1014,7 +1014,7 @@ function toStep2() {
   var t = curType();
   if (B.qty < 1 || B.qty > maxQty(t)) return showErr('Choose between 1 and ' + maxQty(t) + ' tickets.', 'f_qty');
   if (B.name.trim().length < 2) return showErr('Please enter your name.', 'f_name');
-  if (B.phone.replace(/\D/g, '').length < 10) return showErr('Enter a phone number with at least 10 digits.', 'f_phone');
+  if (B.phone.replace(/\D/g, '').length < 10) return showErr('Enter your WhatsApp number (at least 10 digits).', 'f_phone');
   if (!validEmail(B.email.trim())) return showErr('Enter a valid email address.', 'f_email');
   if (B.email.trim().toLowerCase() !== B.email2.trim().toLowerCase()) return showErr('The two email addresses do not match.', 'f_email2');
   for (var i = 0; i < peopleCount(); i++) {

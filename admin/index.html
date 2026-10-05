@@ -33,6 +33,7 @@
   .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700}
   .pill.pending{background:#fff3d6;color:#8a5a00}.pill.approved{background:#d9f4e3;color:#16663a}.pill.rejected{background:#fde0e0;color:#9b2222}
   .pill.sent{background:#d9f4e3;color:#16663a}.pill.failed{background:#fde0e0;color:#9b2222}.pill.gray{background:#ece7f0;color:#554b5e}.pill.staff{background:#e6e0ff;color:#3d2a8f}.pill.stu{background:#ffe08a;color:#5a3a00}
+  .b.wa{background:#1fa855;color:#fff;text-decoration:none;display:inline-flex;align-items:center}
   .hidden{display:none!important}
   .chk.consent{display:flex;gap:10px;align-items:flex-start;margin:10px 0 0;padding:10px 12px;border-radius:10px;background:#fff6d6;border:1.5px solid #f0c74a;color:#3d2a00;font-size:14px;line-height:1.4}
   .chk.consent.on{background:#e3f6ea;border-color:#7cc99a;color:#14532d}.chk.consent input{margin-top:2px;width:20px;height:20px;flex:none}
@@ -423,10 +424,24 @@ function orderCard(o) {
   h += '<div class="acts">';
   if (o.status === 'pending') h += (consentWait(o) ? '<button class="b ok" disabled title="Tick Consent form received first">Approve (consent form needed)</button>'
       : '<button class="b ok" data-act="approve" data-id="' + o.id + '">Approve &amp; send ticket</button>') + '<button class="b bad" data-act="rejectAsk" data-id="' + o.id + '">Reject</button>';
-  if (o.status === 'approved') h += '<button class="b" data-act="resend" data-id="' + o.id + '">Resend email</button>';
+  if (o.status === 'approved') h += waLink(o) + '<button class="b" data-act="resend" data-id="' + o.id + '">Resend email</button>';
   if (o.status === 'rejected') h += '<button class="b" data-act="resend" data-id="' + o.id + '">Resend email</button><button class="b sec" data-act="toPending" data-id="' + o.id + '">Move back to pending</button>';
   h += '<button class="b sec" data-act="editEmail" data-id="' + o.id + '">Edit email</button></div>' + dandiyaBlock(o) + '</div>';
   return h;
+}
+// "WhatsApp pass": opens WhatsApp with the buyer's chat and a ready message with their pass link (you tap Send).
+function waNumber(phone) {
+  var d = String(phone || '').replace(/\D/g, '');
+  if (d.length === 11 && d[0] === '0') d = d.slice(1);
+  if (d.length === 10) d = '91' + d;
+  return d.length >= 11 && d.length <= 15 ? d : '';
+}
+function waLink(o, label) {
+  var n = waNumber(o.phone); if (!n || !o.token) return '';
+  var s = A.settings || {}, link = PUBLIC_SITE + '/#/order/' + o.token;
+  var msg = 'Hi ' + o.buyer_name + ', your pass for ' + (s.name || 'the event') + ' (' + o.order_no + ') is ready:\n' + link +
+    '\n\nShow the QR code at the gate.' + (s.date_text ? '\n' + s.date_text : '') + (s.venue ? '\n' + s.venue : '');
+  return '<a class="b wa" href="https://wa.me/' + n + '?text=' + encodeURIComponent(msg) + '" target="_blank" rel="noopener">' + (label || 'WhatsApp pass') + '</a>';
 }
 function dandiyaBlock(o) {
   var d = (A.rentals || {})[o.id]; if (!d) return '';
@@ -605,7 +620,7 @@ T.manual = async function () {
     '<label class="chk"><input type="checkbox" id="mn_free" onchange="mnTotal()"> Complimentary (₹0)</label>' +
     '<label>Buyer name</label><input id="mn_name" oninput="mnBuyer()">' +
     '<div class="grid2"><div><label>Email (optional; ticket is sent here)</label><input id="mn_email" type="email" inputmode="email"></div>' +
-    '<div><label>Phone (optional)</label><input id="mn_phone" type="tel"></div></div>' +
+    '<div><label>WhatsApp number (optional)</label><input id="mn_phone" type="tel"></div></div>' +
     '<div id="mn_names"></div><label class="chk consent hidden" id="mn_consent_l"><input type="checkbox" id="mn_consent"> <span><b>Consent form received</b> for every student on this pass (required before issuing)</span></label>' + mnDkHTML() + '<div id="mn_err" class="err"></div>' +
     '<button class="b" id="mn_go" data-act="mnSave">Issue ticket</button></div>';
   M = { qty: 1, names: [''], roles: [], firstEdited: false };
@@ -682,7 +697,7 @@ ACT.mnSave = async function (d, b) {
     $('content').innerHTML = '<h2>Offline order</h2><div class="card"><b>' + esc(r.data.order_no) + ' issued</b> <span class="pill approved">approved</span>' +
       (dk ? '<div style="margin-top:6px">' + dk + '</div>' : '') + (sent ? '<div class="muted" style="margin-top:6px">' + sent + '</div>' : '') +
       '<div class="muted" style="margin-top:6px">Show the QR on the ticket page, or download the PDF to print or send on WhatsApp.</div>' +
-      '<div class="acts"><a class="b" href="' + esc(link) + '" target="_blank" rel="noopener">Open ticket</a><a class="b sec" href="' + esc(pdf) + '" target="_blank" rel="noopener">Download PDF</a>' +
+      '<div class="acts">' + waLink({ phone: args.p_phone, token: r.data.token, buyer_name: name, order_no: r.data.order_no }) + '<a class="b" href="' + esc(link) + '" target="_blank" rel="noopener">Open ticket</a><a class="b sec" href="' + esc(pdf) + '" target="_blank" rel="noopener">Download PDF</a>' +
       '<button class="b sec" data-act="mnAgain">New offline order</button></div></div>';
   } catch (e) {
     var t = errText(e); busy(b, false);
