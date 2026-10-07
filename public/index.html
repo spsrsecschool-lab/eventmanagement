@@ -833,7 +833,8 @@ async function staffInfo(key) {
   if (STAFF && STAFF.key === key) return STAFF;
   var r = await sb.rpc('staff_check', { p_key: key });
   STAFF = r.data ? { key: key, discount: r.data.discount || 0, max_people: r.data.max_people || 2,
-                     child_price: r.data.child_price != null ? r.data.child_price : null } : null;   // null child price = sql/17 not run
+                     child_price: r.data.child_price != null ? r.data.child_price : null,
+                     max_children: r.data.max_children != null ? r.data.max_children : 1 } : null;   // null child price = sql/17 not run
   return STAFF;
 }
 function staffPrice(t) { return Math.round(t.price * (100 - STAFF.discount) / 100); }
@@ -853,7 +854,7 @@ function groupOffers(t) {   // [[2, 550], [3, 807], ...] for the landing card
   return out;
 }
 function rolesOn(t) { return ppu(t) === 1 && (B && B.staff ? staffChildOn() : t.group_prices !== undefined); }   // Student / Parent-Guest per person (needs sql/14)
-function staffChildOn() { return !!(STAFF && STAFF.child_price != null); }
+function staffChildOn() { return !!(STAFF && STAFF.child_price != null && STAFF.max_children > 0); }
 function staffInvalidHTML() {
   return '<div class="card bk-status"><div class="bk-ico no">' + ICON.x + '</div><h2>Staff link not active</h2><p>This staff booking link is not working right now. Please open it again from the staff portal, or contact the school office.</p></div>';
 }
@@ -962,13 +963,13 @@ function drawBuy() {
       upiHTML() +
       '<div class="center sub" style="margin:8px 0">Paying from this phone? Take a screenshot of the QR, then in your UPI app choose \u201CScan from gallery\u201D, or copy the UPI ID.</div></div>';
     if (s.payment_instructions) h += '<div class="card instr">' + esc(s.payment_instructions) + '</div>';
-    h += '<label for="f_payer">Name by which you have made the payment</label><input id="f_payer" autocomplete="off" value="' + esc(B.payer) + '" placeholder="As shown in your UPI / bank app">';
+    h += '<label for="f_payer">Bank name you paid from</label><div class="sub" style="margin:-2px 0 6px">The bank shown on your payment screenshot, e.g. SBI, HDFC, ICICI, Paytm Payments Bank.</div><input id="f_payer" autocomplete="off" value="' + esc(B.payer) + '" placeholder="e.g. State Bank of India">';
     h += '<div id="err" class="err"></div><button class="block" onclick="toStep3()">I have paid — continue</button>';
   } else {
     h += '<div class="card"><b>Upload your payment screenshot</b><div class="sub">Used only as a reference so we can verify your payment.</div>' +
       '<input id="f_shot" type="file" accept="image/*" style="margin-top:12px" onchange="onShot(this)">' +
       '<div id="shotPrev">' + (B.shotUrl ? '<img class="thumb" src="' + B.shotUrl + '" alt="screenshot preview">' : '') + '</div></div>';
-    h += '<div class="card sub">' + B.qty + ' \u00D7 ' + esc(t.name) + ' = <b>' + rupees(tot) + '</b><br>Paid by: <b>' + esc(B.payer) + '</b></div>';
+    h += '<div class="card sub">' + B.qty + ' \u00D7 ' + esc(t.name) + ' = <b>' + rupees(tot) + '</b><br>Paid from: <b>' + esc(B.payer) + '</b></div>';
     h += '<div id="err" class="err"></div><button id="submitBtn" class="block" onclick="submitOrder()">Submit order</button>';
   }
   h += '</section>';
@@ -978,6 +979,7 @@ function drawBuy() {
 
 function drawNames() {
   var t = curType(), p = ppu(t), lb = t.person_labels || [];
+  var kids = B.roles.slice(0, peopleCount()).filter(function (r) { return r === 'child'; }).length;
   var h = '<label>Everyone on this pass</label><div class="sub" style="margin-bottom:8px">One QR admits all these people together. Enter the full name of each person you are booking for.</div>';
   for (var u = 0; u < B.qty; u++) {
     if (p > 1) h += '<div class="bk-unit"><div class="bk-unit-h">' + esc(t.unit_label || 'Group') + ' ' + (u + 1) + '</div>';
@@ -988,12 +990,14 @@ function drawNames() {
         (rolesOn(t) ? '<div class="bk-role" role="group" aria-label="Who is person ' + (i + 1) + '">' +
           (B.staff
             ? '<button type="button" class="' + (B.roles[i] !== 'child' ? 'on' : '') + '" onclick="setRole(' + i + ',\'guest\')">Adult ' + rupees(staffPrice(t)) + '</button>' +
-              '<button type="button" class="' + (B.roles[i] === 'child' ? 'on' : '') + '" onclick="setRole(' + i + ',\'child\')">My child ' + rupees(STAFF.child_price) + '</button>'
+              '<button type="button" class="' + (B.roles[i] === 'child' ? 'on' : '') + '" onclick="setRole(' + i + ',\'child\')"' +
+                (B.roles[i] !== 'child' && kids >= STAFF.max_children ? ' disabled title="Only ' + STAFF.max_children + ' child pass per staff member"' : '') + '>My child ' + rupees(STAFF.child_price) + '</button>'
             : '<button type="button" class="' + (B.roles[i] !== 'student' ? 'on' : '') + '" onclick="setRole(' + i + ',\'guest\')">Parent / Guest</button>' +
               '<button type="button" class="' + (B.roles[i] === 'student' ? 'on' : '') + '" onclick="setRole(' + i + ',\'student\')">School student</button>') + '</div>' : '') + '</div>';
     }
     if (p > 1) h += '</div>';
   }
+  if (B.staff && rolesOn(t)) h += '<div class="sub" style="margin:-2px 0 8px">Only ' + STAFF.max_children + ' child pass (your own child) per staff member.</div>';
   if (rolesOn(t) && B.roles.indexOf('student') >= 0)
     h += '<div class="card notice bk-consent"><b>Students: consent form</b><div class="sub" style="color:inherit">Only girls of our school can attend as students. Each student must fill in and submit the signed consent form at school before the event. This is checked at the gate.</div></div>';
   $('namesBox').innerHTML = h;
@@ -1058,17 +1062,21 @@ function toStep2() {
 // Staff: check the per-staff limit BEFORE payment, so nobody pays for a booking that would be refused.
 async function staffPrecheck() {
   var btn = document.querySelector('button[onclick="toStep2()"]'); if (btn) { btn.disabled = true; btn.textContent = 'Checking\u2026'; }
-  var r = await sb.rpc('staff_remaining', { p_key: B.staff, p_email: B.email.trim(), p_phone: B.phone.trim() });
+  var args = { p_key: B.staff, p_email: B.email.trim(), p_phone: B.phone.trim() };
+  var r = await sb.rpc('staff_quota', args), q = r.data;
+  if (r.error) { r = await sb.rpc('staff_remaining', args); q = r.error ? undefined : (r.data == null ? null : { people: r.data, children: 99 }); }
   if (btn) { btn.disabled = false; btn.textContent = 'Continue to payment'; }
-  if (!r.error) {   // (if the check itself is unavailable, the server still enforces the limit at submit)
-    if (r.data == null) return showErr(friendly(new Error('BAD_STAFF_LINK')));
-    if (r.data < peopleCount()) return showErr(friendly(new Error('STAFF_LIMIT:' + r.data)), r.data > 0 ? 'f_qty' : null);
+  if (q !== undefined) {   // (if the check itself is unavailable, the server still enforces the limits at submit)
+    if (q == null) return showErr(friendly(new Error('BAD_STAFF_LINK')));
+    if (q.people < peopleCount()) return showErr(friendly(new Error('STAFF_LIMIT:' + q.people)), q.people > 0 ? 'f_qty' : null);
+    var kids = B.roles.slice(0, peopleCount()).filter(function (x) { return x === 'child'; }).length;
+    if (kids > q.children) return showErr(friendly(new Error('STAFF_CHILD_LIMIT:' + q.children)));
   }
   B.step = 2; drawBuy(); window.scrollTo(0, 0);
 }
 function toStep3() {
   readStep();
-  if (B.payer.trim().length < 2) return showErr('Enter the name shown in your payment app.', 'f_payer');
+  if (B.payer.trim().length < 2) return showErr('Enter the name of the bank you paid from.', 'f_payer');
   B.step = 3; drawBuy(); window.scrollTo(0, 0);
 }
 
@@ -1119,6 +1127,8 @@ function friendly(e) {
   if (code === 'NOT_ENOUGH_SEATS') return 'Not enough passes left for this many. Please choose a smaller number.';
   if (code === 'STAFF_LIMIT') return +arg > 0 ? 'Staff can book for up to ' + (STAFF ? STAFF.max_people : 2) + ' people in total, and you have ' + arg + ' left. Please choose fewer.'
     : 'You have already used your staff booking (up to ' + (STAFF ? STAFF.max_people : 2) + ' people per staff member). Your earlier booking is in your email.';
+  if (code === 'STAFF_CHILD_LIMIT') return +arg > 0 ? 'Staff can book only ' + arg + ' child pass. Please change the other person to Adult.'
+    : 'You have already booked your child pass (1 per staff member). Please book the other person as an Adult.';
   if (code === 'BAD_STAFF_LINK') return 'This staff link is not active any more. Please open it again from the staff portal.';
   if (code === 'MAX_PER_ORDER') return 'You can buy at most ' + arg + ' tickets per order.';
   if (code === 'BAD_PAIRS') return 'Choose between 1 and ' + arg + ' pairs.';
@@ -1164,7 +1174,7 @@ async function submitOrder() {
     B.busy = false; btn.disabled = false; btn.textContent = 'Submit order';
     showErr(friendly(e));
     var em = String(e.message), home = B.staff ? '#/staff/' + encodeURIComponent(B.staff) : '#/';
-    if (/^STAFF_LIMIT:[1-9]/.test(em)) { btn.textContent = 'Change number of people'; btn.onclick = function () { buyStep(1); }; }
+    if (/^STAFF_LIMIT:[1-9]|^STAFF_CHILD_LIMIT/.test(em)) { btn.textContent = 'Change number of people'; btn.onclick = function () { buyStep(1); }; }
     else if (/SOLD_OUT|NOT_ENOUGH|SALES_CLOSED|TYPE_UNAVAIL|STAFF_LIMIT|BAD_STAFF_LINK/.test(em)) { btn.textContent = 'Go back'; btn.onclick = function () { go(home); }; }
   }
 }
@@ -1300,13 +1310,13 @@ function drawDandiya() {
     var qr = (s.dandiya_qrs || {})[String(DR.pairs)] || s.payment_qr_path;
     h += '<div class="card"><div class="center sub">Pay exactly</div><div class="total">' + rupees(total) + '</div><div class="center sub">' + DR.pairs + ' pair' + (DR.pairs === 1 ? '' : 's') + ' \u00D7 ' + rupees(per) + '</div>' +
       (qr ? '<img class="qr" src="' + esc(pubUrl(qr)) + '" alt="UPI QR code for ' + rupees(total) + '">' : '') + upiHTML() + '</div>' +
-      '<label for="d_payer">Name by which you have made the payment</label><input id="d_payer" autocomplete="off" value="' + esc(DR.payer) + '" placeholder="As shown in your UPI / bank app">' +
+      '<label for="d_payer">Bank name you paid from</label><div class="sub" style="margin:-2px 0 6px">The bank shown on your payment screenshot, e.g. SBI, HDFC, ICICI, Paytm Payments Bank.</div><input id="d_payer" autocomplete="off" value="' + esc(DR.payer) + '" placeholder="e.g. State Bank of India">' +
       '<div id="err" class="err"></div><button class="block" onclick="dandiyaStep(3)">I have paid \u2014 continue</button>';
   } else {
     h += '<div class="card"><b>Upload your payment screenshot</b><div class="sub">Used only as a reference so we can verify your payment.</div>' +
       '<input id="d_shot" type="file" accept="image/*" style="margin-top:12px" onchange="onShotD(this)">' +
       '<div id="dShotPrev">' + (DR.shotUrl ? '<img class="thumb" src="' + DR.shotUrl + '" alt="screenshot preview">' : '') + '</div></div>' +
-      '<div class="card sub">' + DR.pairs + ' pair' + (DR.pairs === 1 ? '' : 's') + ' = <b>' + rupees(total) + '</b><br>Paid by: <b>' + esc(DR.payer) + '</b></div>' +
+      '<div class="card sub">' + DR.pairs + ' pair' + (DR.pairs === 1 ? '' : 's') + ' = <b>' + rupees(total) + '</b><br>Paid from: <b>' + esc(DR.payer) + '</b></div>' +
       '<div id="err" class="err"></div><button id="dSubmit" class="block" onclick="submitDandiya()">Submit dandiya request</button>';
   }
   h += '</section>';
@@ -1314,7 +1324,7 @@ function drawDandiya() {
 }
 function dandiyaStep(n) {
   if (DR.step === 2 && $('d_payer')) DR.payer = $('d_payer').value;
-  if (n === 3 && DR.step === 2 && DR.payer.trim().length < 2) return showErr('Enter the name by which you have made the payment.', 'd_payer');
+  if (n === 3 && DR.step === 2 && DR.payer.trim().length < 2) return showErr('Enter the name of the bank you paid from.', 'd_payer');
   DR.step = n; drawDandiya(); window.scrollTo(0, 0);
 }
 async function onShotD(inp) {

@@ -140,7 +140,8 @@ var ACT = {};    // click actions  (data-act="...")
 var SETTINGS_BASE = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,theme,ticket_design';
 var SETTINGS_COLS = SETTINGS_BASE + ',payment_qr_path,instructions_text,upi_id,dandiya_enabled,dandiya_rent,dandiya_deposit,dandiya_max,dandiya_qrs';
 // Newest columns first; each later entry is what an older database has (so the site keeps working before new SQL is run).
-var SETTINGS_TRY = [[SETTINGS_COLS + ',venue_map,staff_enabled,staff_discount,staff_max_people,staff_qrs,og_image_path,staff_child_price', ''],
+var SETTINGS_TRY = [[SETTINGS_COLS + ',venue_map,staff_enabled,staff_discount,staff_max_people,staff_qrs,og_image_path,staff_child_price,staff_max_children', ''],
+  [SETTINGS_COLS + ',venue_map,staff_enabled,staff_discount,staff_max_people,staff_qrs,og_image_path,staff_child_price', 'sql/17_staff_child.sql (again)'],
   [SETTINGS_COLS + ',venue_map,staff_enabled,staff_discount,staff_max_people,staff_qrs,og_image_path', 'sql/17_staff_child.sql'],
   [SETTINGS_COLS + ',venue_map,staff_enabled,staff_discount,staff_max_people,staff_qrs', 'sql/16_preview_image.sql'],
   [SETTINGS_COLS + ',venue_map', 'sql/14_upgrade_v4.sql'], [SETTINGS_COLS, 'sql/14_upgrade_v4.sql'],
@@ -417,7 +418,7 @@ function orderCard(o) {
   h += '<div class="row" style="align-items:flex-start;margin-top:8px"><div style="min-width:0;flex:1">' +
     '<div>' + esc(o.buyer_name) + '</div>' +
     '<div class="muted"><a href="tel:' + esc(o.phone) + '">' + esc(o.phone) + '</a> · ' + esc(o.email) + '</div>' +
-    (o.source === 'online' ? '<div style="margin-top:8px" class="muted">Paid by (name on the payment)</div><span class="payer">' + esc(o.payer_name) + '</span>' : '') +
+    (o.source === 'online' ? '<div style="margin-top:8px" class="muted">Paid from (bank / name on the payment)</div><span class="payer">' + esc(o.payer_name) + '</span>' : '') +
     '<div class="muted" style="margin-top:8px">People on this ticket (admits ' + (o.tickets || []).length + ')' + ((o.tickets || []).some(function (t) { return t.id_path; }) ? ' \u00B7 tap an Aadhaar to enlarge' : '') + '</div><ol class="names">' + names + '</ol>' +
     (o.checked_in ? '<div><span class="pill approved">Checked in ' + esc(fmt(o.checked_in_at)) + '</span></div>' : '') +
     (o.status === 'rejected' && o.reject_reason ? '<div class="muted">Reason: ' + esc(o.reject_reason) + '</div>' : '') +
@@ -451,7 +452,7 @@ function dandiyaBlock(o) {
   var h = '<div class="dk"><div class="row"><div style="min-width:0;flex:1"><b>Dandiya rental</b> <span class="pill ' + d.status + '">' + d.status + '</span>' +
     (d.deposit_refunded ? ' <span class="pill gray">deposit refunded</span>' : '') +
     '<div style="margin-top:4px"><b>' + d.pairs + ' pair' + (d.pairs === 1 ? '' : 's') + '</b> = <b>' + rupees(d.amount) + '</b> <span class="muted">\u00B7 ' + fmt(d.created_at) + '</span></div>' +
-    '<div class="muted" style="margin-top:6px">Paid by</div><span class="payer">' + esc(d.payer_name) + '</span>' +
+    '<div class="muted" style="margin-top:6px">Paid from</div><span class="payer">' + esc(d.payer_name) + '</span>' +
     (d.status === 'rejected' && d.reject_reason ? '<div class="muted">Reason: ' + esc(d.reject_reason) + '</div>' : '') + '</div>' +
     (d.screenshot_path ? '<img class="thumb" data-shot="' + esc(d.screenshot_path) + '" data-act="lightbox" alt="dandiya payment screenshot">' : '') + '</div><div class="acts">';
   if (d.status === 'pending') h += '<button class="b ok sm" data-act="dkSet" data-id="' + d.id + '" data-s="approved">Approve dandiya</button><button class="b bad sm" data-act="dkRejectAsk" data-id="' + d.id + '">Reject</button>';
@@ -987,7 +988,7 @@ function staffAmounts(s) {   // every amount a staff order can come to, for the 
   (A.types || []).filter(function (t) { return t.active; }).forEach(function (t) {
     var p = Math.max(1, t.persons_per_unit || 1);
     for (var q = 1; q * p <= (s.staff_max_people || 2) && q <= (s.max_per_order || 10); q++) {
-      for (var c = 0; c <= (p === 1 && s.staff_child_price != null ? q : 0); c++) {   // c of the q people are children
+      for (var c = 0; c <= (p === 1 && s.staff_child_price != null ? Math.min(q, s.staff_max_children != null ? s.staff_max_children : 1) : 0); c++) {   // c of the q people are children
         var a = staffPrice(t.price, s) * (q - c) + (s.staff_child_price || 0) * c; if (!seen[a]) { seen[a] = 1; out.push(a); }
       }
     }
@@ -1001,7 +1002,8 @@ function staffCard(s) {
     '<div class="muted">Copy this link and add it as a button on your staff portal. Staff pay by UPI and you approve their orders in Orders \u2192 Staff. Each staff member (same mobile number or email) can book for the max people below in total; rejected orders don\u2019t count.</div>' +
     '<div class="grid2"><div><label>Discount on every pass (%)</label><input id="ev_st_disc" type="number" min="0" max="90" value="' + esc(s.staff_discount) + '"></div>' +
     '<div><label>Max people per staff member (adults + children)</label><input id="ev_st_max" type="number" min="1" max="20" value="' + esc(s.staff_max_people) + '"></div></div>' +
-    (s.staff_child_price != null ? '<label>Child pass price for staff\u2019s own children (\u20B9)</label><input id="ev_st_child" type="number" min="0" value="' + esc(s.staff_child_price) + '">' : '') +
+    (s.staff_child_price != null ? '<div class="grid2"><div><label>Child pass price (staff\u2019s own child, \u20B9)</label><input id="ev_st_child" type="number" min="0" value="' + esc(s.staff_child_price) + '"></div>' +
+      (s.staff_max_children != null ? '<div><label>Max child passes per staff member</label><input id="ev_st_kids" type="number" min="0" max="20" value="' + esc(s.staff_max_children) + '"></div>' : '') + '</div>' : '') +
     (ex ? '<div class="muted" style="margin-top:8px">Staff prices: ' + ex + (s.staff_child_price != null ? ' \u00B7 child <b>' + rupees(s.staff_child_price) + '</b>' : '') + '</div>' : '') +
     '<label>Staff link</label><div class="row" style="gap:8px"><input id="ev_st_link" readonly value="Loading\u2026" style="flex:1;min-width:0" onclick="this.select()">' +
     '<button class="b sec" data-act="stCopy">Copy</button></div>' +
@@ -1086,6 +1088,7 @@ ACT.evSave = async function (d, b) {
     row.staff_discount = Math.min(90, Math.max(0, Math.round(+val('ev_st_disc')) || 0));
     row.staff_max_people = Math.min(20, Math.max(1, Math.round(+val('ev_st_max')) || 2));
     if ($('ev_st_child')) row.staff_child_price = Math.max(0, Math.round(+val('ev_st_child')) || 0);
+    if ($('ev_st_kids')) row.staff_max_children = Math.min(20, Math.max(0, Math.round(+val('ev_st_kids')) || 0));
   }
   if ($('ev_dk')) {
     row.dandiya_enabled = $('ev_dk').checked; row.dandiya_rent = Math.max(0, Math.round(+val('ev_dk_rent')) || 0);

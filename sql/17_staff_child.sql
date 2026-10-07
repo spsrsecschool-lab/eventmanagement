@@ -1,8 +1,9 @@
--- 17_staff_child.sql : child pass (₹150) on staff booking, counted in the 2-people staff limit; staff page checks the
--- limit before payment. Run once (after 14, 15, 16). Safe to re-run.
+-- 17_staff_child.sql : child pass (₹150) on staff booking: counted in the 2-people staff limit, at most 1 child per staff
+-- member; the staff page checks the limits before payment. Safe to re-run (run it again if you ran an earlier version).
 
 alter table public.event_settings add column if not exists staff_child_price int not null default 150;
-grant select (staff_child_price) on public.event_settings to anon, authenticated;
+alter table public.event_settings add column if not exists staff_max_children int not null default 1;   -- per staff member, across orders
+grant select (staff_child_price, staff_max_children) on public.event_settings to anon, authenticated;
 
 -- who each person is: 'student' (girls of the school; signed consent form at school), 'guest' (parent / guest),
 -- or 'child' (staff booking only: a staff member's own child, at the staff child price)
@@ -25,10 +26,22 @@ language sql stable security definer set search_path = public, pg_temp as $$
 $$;
 revoke all on function public._staff_used(text, text) from public, anon, authenticated;
 
+-- Children already booked by one staff member (same matching as _staff_used).
+create or replace function public._staff_children_used(p_email text, p_phone text) returns int
+language sql stable security definer set search_path = public, pg_temp as $$
+  select count(*)::int from public.tickets tk join public.orders o on o.id = tk.order_id
+   where o.is_staff and o.status in ('pending', 'approved') and tk.slot = 'Child'
+     and (lower(o.email) = lower(btrim(coalesce(p_email, '')))
+          or (length(regexp_replace(coalesce(p_phone, ''), '\D', '', 'g')) >= 10
+              and right(regexp_replace(o.phone, '\D', '', 'g'), 10) = right(regexp_replace(p_phone, '\D', '', 'g'), 10)));
+$$;
+revoke all on function public._staff_children_used(text, text) from public, anon, authenticated;
+
 -- Staff page: is this link valid? Returns {discount, max_people} or null. Never returns the key.
 create or replace function public.staff_check(p_key text) returns jsonb
 language sql stable security definer set search_path = public, pg_temp as $$
-  select jsonb_build_object('discount', staff_discount, 'max_people', staff_max_people, 'child_price', staff_child_price)
+  select jsonb_build_object('discount', staff_discount, 'max_people', staff_max_people, 'child_price', staff_child_price,
+                            'max_children', staff_max_children)
     from public.event_settings
    where id = 1 and staff_enabled and staff_key <> '' and staff_key = p_key;
 $$;
@@ -44,6 +57,17 @@ language sql stable security definer set search_path = public, pg_temp as $$
 $$;
 revoke all on function public.staff_remaining(text, text, text) from public, anon, authenticated;
 grant execute on function public.staff_remaining(text, text, text) to anon, authenticated;
+
+-- Same check, with children: {"people": n, "children": n} still bookable. Null = bad link.
+create or replace function public.staff_quota(p_key text, p_email text, p_phone text) returns jsonb
+language sql stable security definer set search_path = public, pg_temp as $$
+  select jsonb_build_object('people',   greatest(staff_max_people - public._staff_used(p_email, p_phone), 0),
+                            'children', greatest(staff_max_children - public._staff_children_used(p_email, p_phone), 0))
+    from public.event_settings
+   where id = 1 and staff_enabled and staff_key <> '' and staff_key = p_key;
+$$;
+revoke all on function public.staff_quota(text, text, text) from public, anon, authenticated;
+grant execute on function public.staff_quota(text, text, text) to anon, authenticated;
 
 -- Admin: the secret staff link key (made on first use). p_new = true makes a new one; the old link stops working.
 create or replace function public.admin_staff_key(p_new boolean default false) returns text
@@ -124,6 +148,10 @@ begin
     v_used := public._staff_used(v_email, v_phone);
     if v_used + v_people > s.staff_max_people then
       raise exception 'STAFF_LIMIT:%', greatest(s.staff_max_people - v_used, 0);
+    end if;
+    v_used := public._staff_children_used(v_email, v_phone);   -- children: at most staff_max_children per staff member
+    if v_used + (select count(*) from unnest(coalesce(p_roles, '{}')) r where r = 'child') > s.staff_max_children then
+      raise exception 'STAFF_CHILD_LIMIT:%', greatest(s.staff_max_children - v_used, 0);
     end if;
   end if;
 
