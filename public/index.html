@@ -307,6 +307,13 @@
   .bk-role button{flex:1;min-height:40px;padding:8px 6px;font-size:14px;font-weight:600;border-radius:8px;background:#fff;color:rgba(42,4,48,.75);border:1.5px solid rgba(42,4,48,.22)}
   .bk-role button.on{background:var(--ink);color:var(--mari);border-color:var(--ink)}
   .bk-consent{margin-top:4px}
+  .bk-mine-h{font-family:var(--f-display);font-weight:700;font-size:20px;color:var(--cream,#fbeed6);margin:4px 2px 10px}
+  .bk-mine{display:block;text-decoration:none;color:var(--ink);border-left:5px solid var(--mari)}
+  .bk-mine .row{align-items:flex-start;gap:12px}
+  .bk-mine small{color:rgba(42,4,48,.6)}
+  .bk-mine .bk-badge{margin-top:10px}
+  .bk-mine-go{display:flex;align-items:center;gap:6px;margin-top:10px;font-weight:700;font-size:14px;color:var(--red)}
+  .bk-mine-go svg{width:16px;height:16px}
   .bk-map{border-top:5px solid var(--mari)}
   .bk-map h3{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-weight:700;font-size:21px;margin:0 0 4px;color:var(--ink)}
   .bk-map h3 svg{width:22px;height:22px;color:var(--red)}
@@ -409,6 +416,8 @@ var B = null;                                          // buy-form state
 var STAFF = null;                                      // staff link info {key, discount, max_people} once checked
 var pollTimer = null;
 var MY_KEY = 'tk_my_orders';
+var STAFF_ORDERS = 'tk_staff_orders';   // [{token, key}] staff bookings made in this browser
+var STAFF_BACK = 'tk_staff_back';       // the school portal page the staff link was opened from
 var SETTINGS_BASE = 'id,name,date_text,venue,description,contact_phone,contact_email,payment_instructions,terms_text,sales_open,sales_start,sales_end,closed_message,max_per_order,logo_path,banner_path,theme,ticket_design';
 var SETTINGS_COLS = SETTINGS_BASE + ',payment_qr_path,instructions_text,upi_id,dandiya_enabled,dandiya_rent,dandiya_deposit,dandiya_max,dandiya_qrs';
 // Newest columns first; each later entry is what an older database has (so the site keeps working before new SQL is run).
@@ -816,8 +825,13 @@ async function loadMine(mine) {
 async function viewBuy(typeId, staffKey) {
   try {
     await Promise.all([loadSettings(), loadTypes()]);   // always fresh: admin edits (instructions, prices) show at once
-    if (staffKey) await staffInfo(staffKey);
+    if (staffKey && await staffInfo(staffKey) && STAFF.left == null) {
+      var mineB = await myStaffOrders(staffKey), usedB = 0, kidsB = 0;
+      mineB.forEach(function (o) { usedB += (o.people || []).length; kidsB += (o.slots || []).filter(function (x) { return x === 'Child'; }).length; });
+      STAFF.left = Math.max(STAFF.max_people - usedB, 0); STAFF.kidsLeft = Math.max((STAFF.max_children || 0) - kidsB, 0);
+    }
   } catch (e) { return fail(e); }
+  if (staffKey && STAFF && STAFF.left === 0) { go('#/staff/' + encodeURIComponent(staffKey)); return; }   // nothing left to book: show their booking
   var home = staffKey ? '#/staff/' + encodeURIComponent(staffKey) : '#/', back = '<br><br><a class="btn ghost" href="' + home + '">Back</a>';
   if (staffKey && !STAFF) { $('app').innerHTML = shell(staffInvalidHTML()); return; }
   var t = S.types.filter(function (x) { return String(x.id) === String(typeId); })[0];
@@ -862,15 +876,50 @@ function staffRuleHTML() {
   return 'Each staff member can book for up to <b>' + STAFF.max_people + ' ' + (STAFF.max_people === 1 ? 'person' : 'people') + '</b> in total' +
     (staffChildOn() ? ' (adults or your own children)' : '') + '. We check this by your mobile number and email, so please use your own.';
 }
+// Back arrow on staff pages: the school portal page the link was opened from (remembered), else the browser's back.
+function staffBackHref() {
+  var u = lsGet(STAFF_BACK, '');
+  if (/^https?:\/\//.test(u)) return u;
+  return history.length > 1 ? 'javascript:history.back()' : '#/';
+}
+// This browser's staff bookings for this link, newest first, skipping rejected ones.
+async function myStaffOrders(key) {
+  var list = lsGet(STAFF_ORDERS, []).filter(function (m) { return m.key === key; }), out = [];
+  for (var i = 0; i < list.length && i < 10; i++) {
+    var r = await sb.rpc('get_order', { p_token: list[i].token });
+    if (r.data && r.data.status !== 'rejected') out.push(Object.assign({ token: list[i].token }, r.data));
+  }
+  return out;
+}
+function staffOrderCard(o) {
+  var sl = o.slots || [], wait = sl.indexOf('Student') >= 0 && !o.consent_ok;
+  var st = o.status === 'approved' ? ['ok', ICON.check, 'Pass ready'] : wait ? ['wait', ICON.clock, 'Waiting for consent form'] : ['wait', ICON.clock, 'Verifying payment'];
+  return '<a class="card bk-mine" href="#/order/' + esc(o.token) + '"><div class="row"><div><div class="tname">' + esc(o.order_no) + '</div>' +
+    '<div class="sub">' + (o.people || []).map(function (n, i) { return esc(n) + (sl[i] ? ' <small>(' + esc(sl[i]) + ')</small>' : ''); }).join(', ') + '</div></div>' +
+    '<div class="price">' + rupees(o.amount) + '</div></div><span class="bk-badge ' + st[0] + '">' + st[1] + st[2] + '</span>' +
+    '<span class="bk-mine-go">' + (o.status === 'approved' ? 'Open my pass' : 'See status') + ICON.arrow + '</span></a>';
+}
 async function viewStaff(key) {
+  var mine = [];
   try {
     await Promise.all([loadSettings(), loadTypes()]);   // always fresh: admin edits (instructions, prices) show at once
     await staffInfo(key);
+    if (STAFF) mine = await myStaffOrders(key);
   } catch (e) { return fail(e); }
-  if (!STAFF) { $('app').innerHTML = shell(staffInvalidHTML()); return; }
+  if (!STAFF) { $('app').innerHTML = shell(staffInvalidHTML(), { home: staffBackHref() }); return; }
   var s = S.settings, home = '#/staff/' + encodeURIComponent(key);
-  var h = '<div class="bk-order"><small>For school staff</small><h1>Staff booking</h1></div>' +
-    '<div class="card bk-staff-intro"><div class="bk-staff-off">' + STAFF.discount + '% off</div><p>' + staffRuleHTML() + '</p></div>';
+  // what this browser has already booked on this link (the server also checks by mobile / email at payment)
+  var used = 0, kids = 0;
+  mine.forEach(function (o) { used += (o.people || []).length; kids += (o.slots || []).filter(function (x) { return x === 'Child'; }).length; });
+  STAFF.left = Math.max(STAFF.max_people - used, 0); STAFF.kidsLeft = Math.max((STAFF.max_children || 0) - kids, 0);
+  var h = '<div class="bk-order"><small>For school staff</small><h1>Staff booking</h1></div>';
+  if (mine.length) h += '<h3 class="bk-mine-h">Your booking' + (mine.length > 1 ? 's' : '') + '</h3>' + mine.map(staffOrderCard).join('');
+  if (mine.length && !STAFF.left) {
+    h += '<div class="card center"><div class="sub">You have used your staff booking (' + STAFF.max_people + ' people per staff member). Your pass is emailed to you once it is approved.</div></div>';
+    $('app').innerHTML = shell(h, { home: staffBackHref() }); return;
+  }
+  h += '<div class="card bk-staff-intro"><div class="bk-staff-off">' + STAFF.discount + '% off</div><p>' +
+    (mine.length ? 'You can book for <b>' + STAFF.left + ' more ' + (STAFF.left === 1 ? 'person' : 'people') + '</b>. ' : '') + staffRuleHTML() + '</p></div>';
   if (salesState(s) !== 'open') {
     h += '<div class="card center">' + esc(s.closed_message || 'Ticket sales are closed.') + '</div>';
   } else {
@@ -885,7 +934,7 @@ async function viewStaff(key) {
         (sold ? '<p class="sub">All passes taken</p>' : '<a class="btn block" href="' + home + '/' + t.id + '">Book ' + esc(t.name) + '</a>') + '</div>';
     });
   }
-  $('app').innerHTML = shell(h);
+  $('app').innerHTML = shell(h, { home: staffBackHref() });
 }
 function ppu(t) { return Math.max(1, (t && t.persons_per_unit) || 1); }
 function unitWord(t, n) {   // "couple"/"couples" for a couple pass, else "person"/"people"
@@ -922,7 +971,7 @@ function priceLine(t) {   // "₹300 per person", or "Group price ₹275 each ·
 }
 function maxQty(t) {
   var m = Math.min(S.settings.max_per_order, t.remaining);
-  if (B && B.staff && STAFF) m = Math.min(m, Math.floor(STAFF.max_people / ppu(t)));
+  if (B && B.staff && STAFF) m = Math.min(m, Math.floor((STAFF.left != null ? STAFF.left : STAFF.max_people) / ppu(t)));
   return Math.max(1, m);
 }
 function curType() { return S.types.filter(function (x) { return x.id === B.typeId; })[0]; }
@@ -991,7 +1040,7 @@ function drawNames() {
           (B.staff
             ? '<button type="button" class="' + (B.roles[i] !== 'child' ? 'on' : '') + '" onclick="setRole(' + i + ',\'guest\')">Adult ' + rupees(staffPrice(t)) + '</button>' +
               '<button type="button" class="' + (B.roles[i] === 'child' ? 'on' : '') + '" onclick="setRole(' + i + ',\'child\')"' +
-                (B.roles[i] !== 'child' && kids >= STAFF.max_children ? ' disabled title="Only ' + STAFF.max_children + ' child pass per staff member"' : '') + '>My child ' + rupees(STAFF.child_price) + '</button>'
+                (B.roles[i] !== 'child' && kids >= (STAFF.kidsLeft != null ? STAFF.kidsLeft : STAFF.max_children) ? ' disabled title="Only ' + STAFF.max_children + ' child pass per staff member"' : '') + '>My child ' + rupees(STAFF.child_price) + '</button>'
             : '<button type="button" class="' + (B.roles[i] !== 'student' ? 'on' : '') + '" onclick="setRole(' + i + ',\'guest\')">Parent / Guest</button>' +
               '<button type="button" class="' + (B.roles[i] === 'student' ? 'on' : '') + '" onclick="setRole(' + i + ',\'student\')">School student</button>') + '</div>' : '') + '</div>';
     }
@@ -1165,6 +1214,7 @@ async function submitOrder() {
     if (r.error) throw r.error;
     var token = r.data;
     var mine = lsGet(MY_KEY, []); mine.unshift({ token: token, at: Date.now() }); lsSet(MY_KEY, mine.slice(0, 20));
+    if (B.staff) { var so = lsGet(STAFF_ORDERS, []); so.unshift({ token: token, key: B.staff }); lsSet(STAFF_ORDERS, so.slice(0, 20)); if (STAFF) STAFF.left = null; }
     if (API_BASE.indexOf('YOUR-') < 0) {       // "order received" email; failure must never block the buyer
       try { fetch(API_BASE + '/api/order-received', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: token }), keepalive: true }); } catch (e) {}
     }
@@ -1213,7 +1263,8 @@ async function viewOrder(token) {
     h += '<a class="btn block" id="dlBtn" href="' + esc(API_BASE + '/api/ticket-pdf?token=' + encodeURIComponent(token)) + '" target="_blank" rel="noopener">Download PDF</a>' + dandiyaCard(o, token) + admits + (slots.indexOf('Student') >= 0 ? '<div class="card notice bk-consent"><b>Students: consent form</b><div class="sub" style="color:inherit">Each student on this pass must submit the signed consent form at school before the event. It is checked at the gate.</div></div>' : '') + venueCard(s) +
          '<p class="sub center">Show this QR code at the gate. It lets everyone on the ticket in together, once.</p>';
   }
-  $('app').innerHTML = shell(h, { celebrate: o.status === 'approved' });
+  var sk = lsGet(STAFF_ORDERS, []).filter(function (m) { return m.token === token; })[0];
+  $('app').innerHTML = shell(h, { celebrate: o.status === 'approved', home: sk ? '#/staff/' + encodeURIComponent(sk.key) : '#/' });
   var sig = orderSig(o);
   if (o.status === 'pending' || (o.dandiya && o.dandiya.status === 'pending')) pollTimer = setInterval(function () { viewOrderQuiet(token, sig); }, 30000);
 }
@@ -1358,6 +1409,9 @@ async function submitDandiya() {
 
 // ───────────── boot ─────────────
 (function () {
+  try {   // opened from the school portal: remember it for the back arrow on staff pages
+    if (/^#\/staff\//.test(location.hash) && document.referrer && new URL(document.referrer).origin !== location.origin) lsSet(STAFF_BACK, document.referrer);
+  } catch (e) {}
   var c = lsGet('tk_settings_cache', null);
   if (c) { S.settings = c; applyTheme(c.theme); document.title = c.name || document.title; }
   else applyTheme({});
