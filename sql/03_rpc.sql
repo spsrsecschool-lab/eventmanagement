@@ -74,11 +74,12 @@ language sql immutable set search_path = public, pg_temp as $$
 $$;
 revoke all on function public._type_total(public.ticket_types,int) from public, anon, authenticated;
 
--- who each person is: 'student' (girls of the school; signed consent form at school) or 'guest' (parent / guest)
+-- who each person is: 'student' (girls of the school; signed consent form at school), 'guest' (parent / guest),
+-- or 'child' (staff booking only: a staff member's own child, at the staff child price)
 create or replace function public._roles_ok(p_roles text[], n int) returns boolean
 language sql immutable set search_path = public, pg_temp as $$
   select p_roles is null or coalesce(array_length(p_roles, 1), 0) = 0
-      or (array_length(p_roles, 1) = n and not exists (select 1 from unnest(p_roles) r where r is null or r not in ('student', 'guest')));
+      or (array_length(p_roles, 1) = n and not exists (select 1 from unnest(p_roles) r where r is null or r not in ('student', 'guest', 'child')));
 $$;
 revoke all on function public._roles_ok(text[],int) from public, anon, authenticated;
 
@@ -97,12 +98,22 @@ revoke all on function public._staff_used(text, text) from public, anon, authent
 -- Staff page: is this link valid? Returns {discount, max_people} or null. Never returns the key.
 create or replace function public.staff_check(p_key text) returns jsonb
 language sql stable security definer set search_path = public, pg_temp as $$
-  select jsonb_build_object('discount', staff_discount, 'max_people', staff_max_people)
+  select jsonb_build_object('discount', staff_discount, 'max_people', staff_max_people, 'child_price', staff_child_price)
     from public.event_settings
    where id = 1 and staff_enabled and staff_key <> '' and staff_key = p_key;
 $$;
 revoke all on function public.staff_check(text) from public, anon, authenticated;
 grant execute on function public.staff_check(text) to anon, authenticated;
+
+-- Staff page, before payment: how many more people this staff member (same mobile or email) can book. Null = bad link.
+create or replace function public.staff_remaining(p_key text, p_email text, p_phone text) returns int
+language sql stable security definer set search_path = public, pg_temp as $$
+  select greatest(staff_max_people - public._staff_used(p_email, p_phone), 0)
+    from public.event_settings
+   where id = 1 and staff_enabled and staff_key <> '' and staff_key = p_key;
+$$;
+revoke all on function public.staff_remaining(text, text, text) from public, anon, authenticated;
+grant execute on function public.staff_remaining(text, text, text) to anon, authenticated;
 
 -- Admin: the secret staff link key (made on first use). p_new = true makes a new one; the old link stops working.
 create or replace function public.admin_staff_key(p_new boolean default false) returns text
@@ -168,11 +179,15 @@ begin
     if length(btrim(coalesce(nm, ''))) < 2 or length(nm) > 80 then raise exception 'BAD_ATTENDEES'; end if;
   end loop;
   if not public._roles_ok(p_roles, v_people) then raise exception 'BAD_ATTENDEES'; end if;
+  -- child passes: staff booking only, one person per pass
+  if 'child' = any(coalesce(p_roles, '{}')) and (not v_staff or t.persons_per_unit <> 1) then raise exception 'BAD_ATTENDEES'; end if;
 
   v_price := t.price; v_total := public._type_total(t, p_qty);   -- group price for this many passes
   if v_staff then
     if not s.staff_enabled or s.staff_key = '' or p_staff_key is distinct from s.staff_key then raise exception 'BAD_STAFF_LINK'; end if;
-    v_price := round(t.price * (100 - s.staff_discount) / 100.0); v_total := v_price * p_qty;   -- staff: discount per person
+    v_price := round(t.price * (100 - s.staff_discount) / 100.0);   -- staff: discount per adult, fixed price per child
+    v_total := (select coalesce(sum(case when r = 'child' then s.staff_child_price else v_price end), 0)::int
+                  from unnest(case when coalesce(array_length(p_roles, 1), 0) = 0 then array_fill('guest'::text, array[v_people]) else p_roles end) r);
     -- one staff member = same mobile (last 10 digits) or same email. Lock both so two tabs cannot pass the check together.
     perform pg_advisory_xact_lock(hashtext('staff-phone:' || right(regexp_replace(v_phone, '\D', '', 'g'), 10)));
     perform pg_advisory_xact_lock(hashtext('staff-email:' || v_email));
@@ -222,7 +237,7 @@ begin
   for i in 1..v_people loop
     insert into public.tickets (order_id, attendee_name, id_path, slot)
     values (v_order.id, btrim(p_names[i]), p_id_paths[i],
-            case when p_roles[i] = 'student' then 'Student'
+            case when p_roles[i] = 'student' then 'Student' when p_roles[i] = 'child' then 'Child'
                  else nullif(public._slot_label(t, (i - 1) / t.persons_per_unit + 1, (i - 1) % t.persons_per_unit + 1), '') end);
   end loop;
 
@@ -384,7 +399,7 @@ begin
   returning * into o;
   for i in 1..v_people loop
     insert into public.tickets (order_id, attendee_name, slot)
-    values (o.id, btrim(p_names[i]), case when p_roles[i] = 'student' then 'Student'
+    values (o.id, btrim(p_names[i]), case when p_roles[i] = 'student' then 'Student' when p_roles[i] = 'child' then 'Child'
                  else nullif(public._slot_label(t, (i - 1) / t.persons_per_unit + 1, (i - 1) % t.persons_per_unit + 1), '') end);
   end loop;
   return jsonb_build_object('order_id', o.id, 'order_no', o.order_no, 'token', o.token);

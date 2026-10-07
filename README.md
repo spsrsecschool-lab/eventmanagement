@@ -44,6 +44,8 @@ In the SQL editor, run these files in order (each is safe to re-run):
 
 **Link preview image:** run `sql/16_preview_image.sql` once. In Admin → Event → **Link preview image**, upload the picture shown under your site link on WhatsApp etc. (best 1200 × 630; any photo is cropped and compressed automatically). It is served by the admin site at `/api/og-image`; without an upload, `public/assets/og-image.jpg` is used.
 
+**Staff child pass:** run `sql/17_staff_child.sql` once. On the staff page each person is **Adult** (staff price) or **My child** (₹150, set in Admin → Event → Staff booking); children count toward the 2-people limit. The staff page checks the limit at *Continue to payment*, before anyone pays. Upload staff QRs for the amounts listed (₹150, 240, 300, 390, 480).
+
 Running 01 to 05 again also works; they are safe to re-run.
 
 **Create the first admin:** Supabase > Authentication > Users > Add user (email + password, tick Auto Confirm). Put that email into `06_make_admin.sql` and run it (should print `UPDATE 1`). Sign in on the admin site. Scanner logins are created from the admin site (Staff tab), never by hand.

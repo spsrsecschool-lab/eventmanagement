@@ -289,6 +289,9 @@
   .bk-staff-pass .row{align-items:flex-start;gap:12px}
   .bk-staff-pass.sold{opacity:.6}
   .bk-staff-price{text-align:right;white-space:nowrap}
+  .bk-staff-child{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding:8px 12px;border-radius:10px;background:rgba(244,182,63,.16);border:1px dashed rgba(125,15,92,.3);color:var(--ink)}
+  .bk-staff-child small{color:rgba(42,4,48,.6)}
+  .bk-staff-child b{font-family:var(--f-display);font-size:22px;color:var(--red)}
   .bk-staff-price s{display:block;font-size:14px;color:rgba(42,4,48,.5)}
   .bk-staff-price b{display:block;font-family:var(--f-display);font-weight:700;font-size:30px;line-height:1.05;color:var(--red)}
   .bk-staff-price small{font-size:13px;color:rgba(42,4,48,.6)}
@@ -829,14 +832,18 @@ async function viewBuy(typeId, staffKey) {
 async function staffInfo(key) {
   if (STAFF && STAFF.key === key) return STAFF;
   var r = await sb.rpc('staff_check', { p_key: key });
-  STAFF = r.data ? { key: key, discount: r.data.discount || 0, max_people: r.data.max_people || 2 } : null;
+  STAFF = r.data ? { key: key, discount: r.data.discount || 0, max_people: r.data.max_people || 2,
+                     child_price: r.data.child_price != null ? r.data.child_price : null } : null;   // null child price = sql/17 not run
   return STAFF;
 }
 function staffPrice(t) { return Math.round(t.price * (100 - STAFF.discount) / 100); }
 function unitPrice(t) { return B && B.staff && STAFF ? staffPrice(t) : t.price; }
 // Total for q passes: staff = staff price each; otherwise the group price for q if set (e.g. 2 for ₹550), else price x q.
 function groupTotal(t, q) {
-  if (B && B.staff && STAFF) return staffPrice(t) * q;
+  if (B && B.staff && STAFF) {   // staff: discounted price per adult, child price per child
+    var tot = 0; for (var i = 0; i < q * ppu(t); i++) tot += (B.roles[i] === 'child' && staffChildOn() && ppu(t) === 1) ? STAFF.child_price : staffPrice(t);
+    return ppu(t) === 1 ? tot : staffPrice(t) * q;
+  }
   var g = +((t.group_prices || {})[String(q)]);
   return g > 0 ? g : t.price * q;
 }
@@ -845,12 +852,14 @@ function groupOffers(t) {   // [[2, 550], [3, 807], ...] for the landing card
   Object.keys(gp).map(Number).sort(function (a, b) { return a - b; }).forEach(function (q) { if (q > 1 && +gp[q] > 0 && +gp[q] < t.price * q) out.push([q, +gp[q]]); });
   return out;
 }
-function rolesOn(t) { return ppu(t) === 1 && t.group_prices !== undefined; }   // Student / Parent-Guest per person (needs sql/14)
+function rolesOn(t) { return ppu(t) === 1 && (B && B.staff ? staffChildOn() : t.group_prices !== undefined); }   // Student / Parent-Guest per person (needs sql/14)
+function staffChildOn() { return !!(STAFF && STAFF.child_price != null); }
 function staffInvalidHTML() {
   return '<div class="card bk-status"><div class="bk-ico no">' + ICON.x + '</div><h2>Staff link not active</h2><p>This staff booking link is not working right now. Please open it again from the staff portal, or contact the school office.</p></div>';
 }
 function staffRuleHTML() {
-  return 'Each staff member can book for up to <b>' + STAFF.max_people + ' ' + (STAFF.max_people === 1 ? 'person' : 'people') + '</b> in total. We check this by your mobile number and email, so please use your own.';
+  return 'Each staff member can book for up to <b>' + STAFF.max_people + ' ' + (STAFF.max_people === 1 ? 'person' : 'people') + '</b> in total' +
+    (staffChildOn() ? ' (adults or your own children)' : '') + '. We check this by your mobile number and email, so please use your own.';
 }
 async function viewStaff(key) {
   try {
@@ -870,7 +879,8 @@ async function viewStaff(key) {
       var sold = t.remaining <= 0;
       h += '<div class="card bk-staff-pass' + (sold ? ' sold' : '') + '"><div class="row"><div><div class="tname">' + esc(t.name) + '</div>' +
         (t.description ? '<div class="sub">' + esc(t.description) + '</div>' : '') + '</div>' +
-        '<div class="bk-staff-price"><s>' + rupees(t.price) + '</s><b>' + rupees(staffPrice(t)) + '</b><small>per ' + unitWord(t, 1) + '</small></div></div>' +
+        '<div class="bk-staff-price"><s>' + rupees(t.price) + '</s><b>' + rupees(staffPrice(t)) + '</b><small>per ' + (ppu(t) === 1 && staffChildOn() ? 'adult' : unitWord(t, 1)) + '</small></div></div>' +
+        (ppu(t) === 1 && staffChildOn() ? '<div class="bk-staff-child"><span>Child pass <small>(your own child)</small></span><b>' + rupees(STAFF.child_price) + '</b></div>' : '') +
         (sold ? '<p class="sub">All passes taken</p>' : '<a class="btn block" href="' + home + '/' + t.id + '">Book ' + esc(t.name) + '</a>') + '</div>';
     });
   }
@@ -906,6 +916,7 @@ function copyUpi(btn) {
 function priceLine(t) {   // "₹300 per person", or "Group price ₹275 each · you save ₹50"
   var up = unitPrice(t), tot = groupTotal(t, B.qty), full = up * B.qty;
   if (!B.staff && tot < full) return 'Group price ' + rupees(Math.round(tot / B.qty)) + ' each \u00B7 you save ' + rupees(full - tot);
+  if (B.staff && rolesOn(t)) return '<s>' + rupees(t.price) + '</s> ' + rupees(up) + ' per adult \u00B7 ' + rupees(STAFF.child_price) + ' per child';
   return (B.staff ? '<s>' + rupees(t.price) + '</s> ' : '') + rupees(up) + ' per ' + unitWord(t, 1);
 }
 function maxQty(t) {
@@ -975,8 +986,11 @@ function drawNames() {
       var ph = (p > 1 ? (lb[k] || 'Person') + ': ' : (lb[0] ? lb[0] + ': ' : '')) + 'full name';
       h += '<div class="person"><div class="nameRow"><span>' + esc(who) + '</span><input id="f_n' + i + '" placeholder="' + esc(ph) + '" value="' + esc(B.names[i] || '') + '" oninput="onAttName(' + i + ')"></div>' +
         (rolesOn(t) ? '<div class="bk-role" role="group" aria-label="Who is person ' + (i + 1) + '">' +
-          '<button type="button" class="' + (B.roles[i] !== 'student' ? 'on' : '') + '" onclick="setRole(' + i + ',\'guest\')">Parent / Guest</button>' +
-          '<button type="button" class="' + (B.roles[i] === 'student' ? 'on' : '') + '" onclick="setRole(' + i + ',\'student\')">School student</button></div>' : '') + '</div>';
+          (B.staff
+            ? '<button type="button" class="' + (B.roles[i] !== 'child' ? 'on' : '') + '" onclick="setRole(' + i + ',\'guest\')">Adult ' + rupees(staffPrice(t)) + '</button>' +
+              '<button type="button" class="' + (B.roles[i] === 'child' ? 'on' : '') + '" onclick="setRole(' + i + ',\'child\')">My child ' + rupees(STAFF.child_price) + '</button>'
+            : '<button type="button" class="' + (B.roles[i] !== 'student' ? 'on' : '') + '" onclick="setRole(' + i + ',\'guest\')">Parent / Guest</button>' +
+              '<button type="button" class="' + (B.roles[i] === 'student' ? 'on' : '') + '" onclick="setRole(' + i + ',\'student\')">School student</button>') + '</div>' : '') + '</div>';
     }
     if (p > 1) h += '</div>';
   }
@@ -986,16 +1000,18 @@ function drawNames() {
 }
 function onQty() {
   B.qty = Number($('f_qty').value);
-  var pe = document.querySelector('.bk .price'), tt = curType(); if (pe && tt) pe.textContent = rupees(groupTotal(tt, B.qty));
-  if ($('bkEach') && tt) $('bkEach').innerHTML = priceLine(tt);
   var n = peopleCount();
   while (B.names.length < n) B.names.push('');
   B.names.length = n; B.roles.length = n;
-  drawNames();
+  drawNames(); updPrice();
 }
 function setRole(i, r) {
   for (var k = 0; k < peopleCount(); k++) { var el = $('f_n' + k); if (el) B.names[k] = el.value; }
-  B.roles[i] = r; drawNames();
+  B.roles[i] = r; drawNames(); updPrice();
+}
+function updPrice() {   // header total + price line after quantity / adult-child changes
+  var pe = document.querySelector('.bk .price'), tt = curType(); if (pe && tt) pe.textContent = rupees(groupTotal(tt, B.qty));
+  if ($('bkEach') && tt) $('bkEach').innerHTML = priceLine(tt);
 }
 function onBuyerName() {
   B.name = $('f_name').value;
@@ -1036,6 +1052,18 @@ function toStep2() {
     if ((B.names[i] || '').trim().length < 2) return showErr('Enter the full name for ' + slotLabel(t, i) + '.', 'f_n' + i);
   }
   if (S.settings.instructions_text && !B.agree) return showErr('Please tick that you have read and agree to the instructions.', 'f_agree_l');
+  if (B.staff) return staffPrecheck();
+  B.step = 2; drawBuy(); window.scrollTo(0, 0);
+}
+// Staff: check the per-staff limit BEFORE payment, so nobody pays for a booking that would be refused.
+async function staffPrecheck() {
+  var btn = document.querySelector('button[onclick="toStep2()"]'); if (btn) { btn.disabled = true; btn.textContent = 'Checking\u2026'; }
+  var r = await sb.rpc('staff_remaining', { p_key: B.staff, p_email: B.email.trim(), p_phone: B.phone.trim() });
+  if (btn) { btn.disabled = false; btn.textContent = 'Continue to payment'; }
+  if (!r.error) {   // (if the check itself is unavailable, the server still enforces the limit at submit)
+    if (r.data == null) return showErr(friendly(new Error('BAD_STAFF_LINK')));
+    if (r.data < peopleCount()) return showErr(friendly(new Error('STAFF_LIMIT:' + r.data)), r.data > 0 ? 'f_qty' : null);
+  }
   B.step = 2; drawBuy(); window.scrollTo(0, 0);
 }
 function toStep3() {
@@ -1122,7 +1150,7 @@ async function submitOrder() {
       p_id_paths: []
     };
     if (B.staff) args.p_staff_key = B.staff;   // staff price + per-staff limit are applied by the server
-    if (rolesOn(t)) args.p_roles = B.names.slice(0, peopleCount()).map(function (n, i) { return B.roles[i] === 'student' ? 'student' : 'guest'; });
+    if (rolesOn(t)) args.p_roles = B.names.slice(0, peopleCount()).map(function (n, i) { return B.roles[i] === 'student' && !B.staff ? 'student' : B.roles[i] === 'child' && B.staff ? 'child' : 'guest'; });
     var r = await sb.rpc('create_order', args);
     if (r.error) throw r.error;
     var token = r.data;
